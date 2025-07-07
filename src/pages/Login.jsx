@@ -65,7 +65,7 @@ const CustomTextField = ({ control, name, label, type, errorMessage, icon, ...re
           sx={{
             '& .MuiOutlinedInput-root': {
               height: { xs: '48px', sm: '44px', md: '48px' }, 
-              borderRadius: '8px',
+              borderRadius: 1, // <-- minor rounding
               backgroundColor: 'rgba(255, 255, 255, 0.8)',
               border: '2px solid transparent',
               transition: 'all 0.3s ease',
@@ -313,7 +313,7 @@ const Login = () => {
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         height: { xs: '48px', sm: '44px', md: '48px' }, 
-                        borderRadius: '8px',
+                        borderRadius: 1, // <-- minor rounding
                         backgroundColor: 'rgba(255, 255, 255, 0.8)',
                         border: '2px solid transparent',
                         transition: 'all 0.3s ease',
@@ -476,12 +476,29 @@ const Login = () => {
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'left' }} // <-- Show on left
+        sx={{
+          left: { xs: 0, sm: 24 }, // a little padding from the left on desktop
+          right: 'auto'
+        }}
       >
-        <Alert 
-          onClose={handleSnackbarClose} 
-          severity={snackbar.severity} 
-          sx={{ width: '100%' }}
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={snackbar.severity}
+          sx={{
+            width: { xs: '95%', sm: '400px' },
+            maxWidth: '95vw',
+            backgroundColor: '#c62828',
+            color: '#fff',
+            fontWeight: 400, // <-- Less bold
+            fontSize: '1rem', // <-- More standard size
+            borderRadius: 2,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+            textAlign: 'left', // <-- Left align text
+            '& .MuiAlert-icon': { color: '#fff' },
+            '& .MuiAlert-action': { color: '#fff' },
+            '& .MuiSvgIcon-root': { color: '#fff' }
+          }}
         >
           {snackbar.message}
         </Alert>

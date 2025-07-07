@@ -69,7 +69,6 @@ const validationSchema = yup.object({
     .string()
     .required('Please select a timezone'),
   showAddress: yup.boolean(),
-  // Address fields - conditionally required
   addressLine1: yup.string().when('showAddress', {
     is: true,
     then: (schema) => schema.required('Address line 1 is required'),
@@ -97,7 +96,7 @@ const Signup = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitError, setSubmitError] = useState('');
@@ -134,7 +133,6 @@ const Signup = () => {
 
   const showAddress = watch('showAddress');
 
-  // World timezones
   const timezones = [
     { value: 'UTC-12:00', label: '(UTC-12:00) International Date Line West' },
     { value: 'UTC-11:00', label: '(UTC-11:00) Coordinated Universal Time-11' },
@@ -180,23 +178,20 @@ const Signup = () => {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     setSubmitError('');
-    
+
     try {
-      // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Remove address fields if not needed
+
       if (!data.showAddress) {
         const { addressLine1, addressLine2, addressLine3, county, city, postcode, country, ...cleanData } = data;
         console.log('Signup data:', cleanData);
       } else {
         console.log('Signup data:', data);
       }
-      
-      // Handle successful signup
+
       alert('Account created successfully!');
       reset();
-      
+
     } catch (error) {
       setSubmitError('An error occurred during signup. Please try again.');
     } finally {
@@ -204,42 +199,11 @@ const Signup = () => {
     }
   };
 
-  const getResponsiveStyles = () => ({
-    container: {
-      px: isMobile ? 1 : 2,
-      maxWidth: isMobile ? 'sm' : isTablet ? 'md' : 'lg'
-    },
-    card: {
-      mx: isMobile ? 1 : 'auto',
-      borderRadius: isMobile ? 1 : 2
-    },
-    cardContent: {
-      p: isMobile ? 2 : isTablet ? 3 : 4
-    },
-    logoHeight: isMobile ? 35 : 49,
-    companyLogoHeight: isMobile ? 35 : 45,
-    buttonContainer: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      flexDirection: isMobile ? 'column' : 'row',
-      gap: isMobile ? 2 : 3,
-      mt: 3
-    },
-    button: {
-      height: isMobile ? 45 : 52.5,
-      width: isMobile ? '100%' : 175,
-      fontSize: isMobile ? 16 : 18.2
-    }
-  });
-
-  const styles = getResponsiveStyles();
-
   return (
     <Box
       sx={{
         minHeight: '100vh',
-        width: '100vw',
+        width: '100%', // <-- change from '100vw' to '100%'
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -269,12 +233,12 @@ const Signup = () => {
       {/* Back arrow */}
       <IconButton
         onClick={handleBack}
-        sx={{ 
-          position: 'absolute', 
-          top: isMobile ? 8 : 16, 
-          left: isMobile ? 8 : 16, 
-          color: '#000', 
-          bgcolor: 'rgba(255,255,255,0.7)', 
+        sx={{
+          position: 'absolute',
+          top: isMobile ? 8 : 16,
+          left: isMobile ? 8 : 16,
+          color: '#000',
+          bgcolor: 'rgba(255,255,255,0.7)',
           '&:hover': { bgcolor: 'rgba(255,255,255,0.9)' },
           zIndex: 1
         }}
@@ -282,41 +246,55 @@ const Signup = () => {
         <ArrowBack />
       </IconButton>
 
-      <Container maxWidth={styles.container.maxWidth} sx={styles.container}>
-        <Card elevation={0} sx={{ ...styles.card, position: 'relative', overflow: 'hidden' }}>
-          <CardContent sx={styles.cardContent}>
+      {/* Optimized container width */}
+      <Container
+        maxWidth="md" // or "sm" for a narrower form
+        sx={{
+          px: { xs: 1, sm: 2, md: 4 }, // Responsive horizontal padding
+        }}
+      >
+        <Card
+          elevation={0}
+          sx={{
+            mx: 'auto',
+            borderRadius: isMobile ? 1 : 2,
+            position: 'relative',
+            overflow: 'hidden',
+            // Remove width: '100%'
+          }}
+        >
+          <CardContent sx={{ p: isMobile ? 2 : 3 }}>
             {/* Logo & Title */}
             <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Box
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  mb: 2,
+                  width: '100%',
+                }}
+              >
+                <Box
+                  component="img"
+                  src={logo}
+                  alt="logo"
                   sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    mb: { xs: 2, sm: 3, md: 4 },
-                    width: '100%',
+                    height: isMobile ? 60 : 80,
+                    maxWidth: '60%',
+                    objectFit: 'contain',
+                    mx: 'auto',
+                    display: 'block',
+                    boxShadow: '0 4px 24px rgba(102,126,234,0.10)',
+                    borderRadius: 2,
+                    background: 'rgba(255,255,255,0.7)',
+                    p: 1,
                   }}
-                >
-                  <Box
-                    component="img"
-                    src={logo}
-                    alt="logo"
-                    sx={{
-                      height: { xs: 56, sm: 72, md: 90, lg: 110, xl: 130 },
-                      maxWidth: { xs: '70%', sm: '60%', md: '50%', lg: '40%', xl: '30%' },
-                      minWidth: 80,
-                      objectFit: 'contain',
-                      mx: 'auto',
-                      display: 'block',
-                      boxShadow: '0 4px 24px rgba(102,126,234,0.10)',
-                      borderRadius: 2,
-                      background: 'rgba(255,255,255,0.7)',
-                      p: 1,
-                    }}
-                  />
-                </Box>
-              <Typography 
-                variant={isMobile ? "h6" : "h5"} 
-                sx={{ mt: 2, fontWeight: 700 }}
+                />
+              </Box>
+              <Typography
+                variant={isMobile ? "h6" : "h5"}
+                sx={{ mt: 1, fontWeight: 700, mb: 0.5 }}
               >
                 Create your Account
               </Typography>
@@ -333,7 +311,7 @@ const Signup = () => {
             </Collapse>
 
             <form onSubmit={handleSubmit(onSubmit)}>
-              {/* Invitation Code */}
+              {/* Invitation Code - with purple background like in image */}
               <Controller
                 name="invitationCode"
                 control={control}
@@ -344,16 +322,22 @@ const Signup = () => {
                     placeholder="Invitation Code"
                     error={!!errors.invitationCode}
                     helperText={errors.invitationCode?.message}
-                    sx={{ mb: 3, bgcolor: 'rgba(135, 125, 125, 0.03)', borderRadius: 1 }}
+                    sx={{
+                      mb: 2.5,
+                      '& .MuiOutlinedInput-root': {
+                        backgroundColor: 'rgba(147, 112, 219, 0.1)', // Light purple background
+                        borderRadius: 1
+                      }
+                    }}
                   />
                 )}
               />
 
               {/* Personal Information */}
-              <Typography sx={{ fontWeight: 600, mb: 2, fontSize: isMobile ? 14 : 16 }}>
+              <Typography sx={{ fontWeight: 600, mb: 1.5, fontSize: isMobile ? 14 : 16 }}>
                 Personal Information
               </Typography>
-              
+
               <Controller
                 name="tenantName"
                 control={control}
@@ -364,51 +348,46 @@ const Signup = () => {
                     placeholder="Tenant Name"
                     error={!!errors.tenantName}
                     helperText={errors.tenantName?.message}
-                    sx={{ mb: 2 }}
+                    sx={{ mb: 1.5 }}
                   />
                 )}
               />
 
-              <Grid container spacing={isMobile ? 1 : 2}>
-                <Grid item xs={12} sm={6}>
-                  <Controller
-                    name="firstName"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        placeholder="First Name"
-                        error={!!errors.firstName}
-                        helperText={errors.firstName?.message}
-                        sx={{ mb: 2 }}
-                      />
-                    )}
+              <Controller
+                name="firstName"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    placeholder="First Name"
+                    error={!!errors.firstName}
+                    helperText={errors.firstName?.message}
+                    sx={{ mb: 1.5 }}
                   />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <Controller
-                    name="lastName"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        placeholder="Last Name"
-                        error={!!errors.lastName}
-                        helperText={errors.lastName?.message}
-                        sx={{ mb: 2 }}
-                      />
-                    )}
+                )}
+              />
+
+              <Controller
+                name="lastName"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    placeholder="Last Name"
+                    error={!!errors.lastName}
+                    helperText={errors.lastName?.message}
+                    sx={{ mb: 1.5 }}
                   />
-                </Grid>
-              </Grid>
+                )}
+              />
 
               {/* Login */}
-              <Typography sx={{ fontWeight: 600, mb: 2, fontSize: isMobile ? 14 : 16 }}>
+              <Typography sx={{ fontWeight: 600, mb: 1.5, fontSize: isMobile ? 14 : 16 }}>
                 Login
               </Typography>
-              
+
               <Controller
                 name="email"
                 control={control}
@@ -420,7 +399,7 @@ const Signup = () => {
                     type="email"
                     error={!!errors.email}
                     helperText={errors.email?.message}
-                    sx={{ mb: 2 }}
+                    sx={{ mb: 1.5 }}
                   />
                 )}
               />
@@ -446,7 +425,7 @@ const Signup = () => {
                         </IconButton>
                       )
                     }}
-                    sx={{ mb: 2 }}
+                    sx={{ mb: 1.5 }}
                   />
                 )}
               />
@@ -472,7 +451,7 @@ const Signup = () => {
                         </IconButton>
                       )
                     }}
-                    sx={{ mb: 2 }}
+                    sx={{ mb: 1.5 }}
                   />
                 )}
               />
@@ -481,7 +460,7 @@ const Signup = () => {
                 name="timezone"
                 control={control}
                 render={({ field }) => (
-                  <FormControl fullWidth error={!!errors.timezone} sx={{ mb: 3 }}>
+                  <FormControl fullWidth error={!!errors.timezone} sx={{ mb: 2 }}>
                     <InputLabel>Timezone</InputLabel>
                     <Select {...field} label="Timezone">
                       {timezones.map((tz) => (
@@ -506,21 +485,29 @@ const Signup = () => {
                       <Switch
                         checked={field.value}
                         onChange={field.onChange}
+                        sx={{
+                          '& .MuiSwitch-switchBase.Mui-checked': {
+                            color: '#667eea'
+                          },
+                          '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                            backgroundColor: '#667eea'
+                          }
+                        }}
                       />
                     }
                     label="Provide Address"
-                    sx={{ mb: showAddress ? 2 : 0 }}
+                    sx={{ mb: showAddress ? 1.5 : 0 }}
                   />
                 )}
               />
 
               {/* Address Information */}
               <Collapse in={showAddress}>
-                <Box sx={{ mb: 3 }}>
-                  <Typography sx={{ fontWeight: 600, mb: 2, fontSize: isMobile ? 14 : 16 }}>
+                <Box sx={{ mb: 2 }}>
+                  <Typography sx={{ fontWeight: 600, mb: 1.5, fontSize: isMobile ? 14 : 16 }}>
                     Address Information
                   </Typography>
-                  
+
                   <Controller
                     name="addressLine1"
                     control={control}
@@ -531,11 +518,11 @@ const Signup = () => {
                         placeholder="Address Line 1"
                         error={!!errors.addressLine1}
                         helperText={errors.addressLine1?.message}
-                        sx={{ mb: 2 }}
+                        sx={{ mb: 1.5 }}
                       />
                     )}
                   />
-                  
+
                   <Controller
                     name="addressLine2"
                     control={control}
@@ -544,11 +531,11 @@ const Signup = () => {
                         {...field}
                         fullWidth
                         placeholder="Address Line 2"
-                        sx={{ mb: 2 }}
+                        sx={{ mb: 1.5 }}
                       />
                     )}
                   />
-                  
+
                   <Controller
                     name="addressLine3"
                     control={control}
@@ -557,13 +544,20 @@ const Signup = () => {
                         {...field}
                         fullWidth
                         placeholder="Address Line 3"
-                        sx={{ mb: 2 }}
+                        sx={{ mb: 1.5 }}
                       />
                     )}
                   />
-                  
-                  <Grid container spacing={isMobile ? 1 : 2} sx={{ mb: 2 }}>
-                    <Grid item xs={12} sm={6}>
+
+                  {/* 2x2 Grid for County, City, Postcode, Country */}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 1.5,
+                    }}
+                  >
+                    <Box sx={{ flex: '1 1 48%' }}>
                       <Controller
                         name="county"
                         control={control}
@@ -575,8 +569,8 @@ const Signup = () => {
                           />
                         )}
                       />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
+                    </Box>
+                    <Box sx={{ flex: '1 1 48%' }}>
                       <Controller
                         name="city"
                         control={control}
@@ -590,11 +584,8 @@ const Signup = () => {
                           />
                         )}
                       />
-                    </Grid>
-                  </Grid>
-                  
-                  <Grid container spacing={isMobile ? 1 : 2}>
-                    <Grid item xs={12} sm={6}>
+                    </Box>
+                    <Box sx={{ flex: '1 1 48%' }}>
                       <Controller
                         name="postcode"
                         control={control}
@@ -608,8 +599,8 @@ const Signup = () => {
                           />
                         )}
                       />
-                    </Grid>
-                    <Grid item xs={12} sm={6}>
+                    </Box>
+                    <Box sx={{ flex: '1 1 48%' }}>
                       <Controller
                         name="country"
                         control={control}
@@ -623,26 +614,34 @@ const Signup = () => {
                           />
                         )}
                       />
-                    </Grid>
-                  </Grid>
+                    </Box>
+                  </Box>
                 </Box>
               </Collapse>
 
               {/* Buttons */}
-              <Box sx={styles.buttonContainer}>
+              <Box sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                mt: 3,
+                gap: 2,
+                flexDirection: 'row'
+              }}>
                 <Button
                   variant="outlined"
                   startIcon={<ArrowBack />}
                   onClick={handleBack}
                   sx={{
-                    ...styles.button,
+                    height: isMobile ? 45 : 50,
+                    width: isMobile ? '100%' : 140,
+                    fontSize: isMobile ? 14 : 16,
                     fontFamily: 'Poppins, sans-serif',
                     fontWeight: 600,
                     color: 'rgb(0, 0, 0)',
                     borderColor: 'rgb(0, 0, 0)',
-                    borderRadius: '20px',
+                    borderRadius: '25px',
                     textTransform: 'capitalize',
-                    transition: 'all 250ms cubic-bezier(0.4,0,0.2,1)',
                     '&:hover': {
                       backgroundColor: 'rgba(0,0,0,0.05)',
                       borderColor: 'rgb(0, 0, 0)',
@@ -651,28 +650,24 @@ const Signup = () => {
                 >
                   Back
                 </Button>
-                
+
                 <Button
                   type="submit"
                   variant="contained"
                   endIcon={<ArrowForward />}
                   disabled={isSubmitting}
                   sx={{
-                    ...styles.button,
+                    height: isMobile ? 45 : 50,
+                    width: isMobile ? '100%' : 140,
+                    fontSize: isMobile ? 14 : 16,
                     fontFamily: 'Poppins, sans-serif',
                     fontWeight: 600,
                     backgroundColor: 'rgb(0, 0, 0)',
                     color: 'rgb(255, 255, 255)',
-                    borderRadius: '20px',
+                    borderRadius: '25px',
                     textTransform: 'capitalize',
-                    boxShadow: 'rgba(0, 0, 0, 0.2) 0px 3px 1px -2px, rgba(0, 0, 0, 0.14) 0px 2px 2px 0px, rgba(0, 0, 0, 0.12) 0px 1px 5px 0px',
-                    transition: 'all 250ms cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
                       backgroundColor: 'rgb(30, 30, 30)',
-                      boxShadow: 'rgba(0, 0, 0, 0.3) 0px 4px 2px -2px, rgba(0, 0, 0, 0.2) 0px 3px 3px 0px, rgba(0, 0, 0, 0.15) 0px 2px 6px 0px',
-                    },
-                    '&:active': {
-                      transform: 'translateY(1px)',
                     },
                     '&:disabled': {
                       backgroundColor: 'rgba(0, 0, 0, 0.12)',
@@ -680,36 +675,35 @@ const Signup = () => {
                     }
                   }}
                 >
-                  {isSubmitting ? 'Creating Account...' : 'Signup'}
+                  {isSubmitting ? 'Creating...' : 'Signup'}
                 </Button>
               </Box>
-            </form>
 
-            {/* Footer */}
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              gap: 2, 
-              mt: isMobile ? 4 : 6,
-              flexDirection: isMobile ? 'column' : 'row'
-            }}>
-              <Typography sx={{ 
-                m: 0, 
-                fontFamily: 'Poppins, sans-serif', 
-                lineHeight: 1.5, 
-                fontSize: isMobile ? 16 : 20, 
-                fontWeight: 600 
+              {/* Footer */}
+              <Box sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 2,
+                mt: 4,
+                flexDirection: isMobile ? 'column' : 'row'
               }}>
-                Powered by
-              </Typography>
-              <Box 
-                component="img" 
-                src={companyLogo} 
-                alt="Twelve Springs" 
-                height={styles.companyLogoHeight} 
-              />
-            </Box>
+                <Typography sx={{
+                  m: 0,
+                  fontFamily: 'Poppins, sans-serif',
+                  fontSize: isMobile ? 14 : 16,
+                  fontWeight: 600
+                }}>
+                  Powered by
+                </Typography>
+                <Box
+                  component="img"
+                  src={companyLogo}
+                  alt="Twelve Springs"
+                  sx={{ height: isMobile ? 30 : 35 }}
+                />
+              </Box>
+            </form>
           </CardContent>
         </Card>
       </Container>
