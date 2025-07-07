@@ -344,7 +344,7 @@ const Signup = () => {
                     placeholder="Invitation Code"
                     error={!!errors.invitationCode}
                     helperText={errors.invitationCode?.message}
-                    sx={{ mb: 3, bgcolor: 'rgba(0,0,0,0.03)', borderRadius: 1 }}
+                    sx={{ mb: 3, bgcolor: 'rgba(135, 125, 125, 0.03)', borderRadius: 1 }}
                   />
                 )}
               />

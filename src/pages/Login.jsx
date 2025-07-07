@@ -456,7 +456,7 @@ const Login = () => {
                   src={companyLogo}
                   alt="Twelve Springs"
                   sx={{
-                    height: { xs: 20, sm: 22, md: 26 },
+                    height: { xs: 23, sm: 26, md: 32 },
                     maxWidth: '100%',
                     filter: 'brightness(0.8) saturate(1.2)',
                     transition: 'all 0.3s ease',
