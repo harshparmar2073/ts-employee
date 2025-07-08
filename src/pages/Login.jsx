@@ -61,15 +61,14 @@ const Login = () => {
   const onSubmit = async ({ email, password }) => {
     try {
       const response = await login(email, password);
+
       const sessionId =
-        response.data?.sessionId ||
-        response.data?.token ||
-        response.data?.accessToken;
+        response.data.data?.mfaSessionId ||
+        response.data.data?.token ||
+        response.data.data?.accessToken;
       localStorage.setItem("authResponse", JSON.stringify(response.data));
       if (sessionId) localStorage.setItem("sessionId", sessionId);
-      if (response.data?.user)
-        localStorage.setItem("user", JSON.stringify(response.data.user));
-
+    
       setSnackbar({
         open: true,
         message: "Login successful! Redirecting...",
@@ -81,9 +80,10 @@ const Login = () => {
           state: {
             username: email,
             password,
-            mfaSessionId: sessionId,
+            mfaSessionId: response.data.data?.mfaSessionId,
             maskedLabel: response.data.data?.maskedLabel,
-            verificationCodeExpMinutes: response.data.data?.verificationCodeExpMinutes,
+            verificationCodeExpMinutes:
+              response.data.data?.verificationCodeExpMinutes,
           },
         });
       }, 1000);

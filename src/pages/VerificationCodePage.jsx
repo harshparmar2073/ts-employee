@@ -33,7 +33,7 @@ const VerificationCodePage = () => {
   const password = state?.password;
   const mfaSessionId =
     state?.mfaSessionId ||
-    JSON.parse(localStorage.getItem("authResponse") || "{}")?.sessionId;
+    JSON.parse(localStorage.getItem("authResponse") || "{}")?.data?.mfaSessionId;
 
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
