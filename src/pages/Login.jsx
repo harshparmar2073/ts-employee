@@ -29,6 +29,7 @@ import * as yup from 'yup';
 import axios from 'axios';
 import logo from '../assets/logo2.png';
 import companyLogo from '../assets/12springslogo.png';
+
 // Validation schema
 const validationSchema = yup.object({
   email: yup
@@ -37,9 +38,10 @@ const validationSchema = yup.object({
     .required('Email is required'),
   password: yup
     .string()
-    .min(6, 'Password must be at least 6 characters')
+    // .min(6, 'Password must be at least 6 characters')
     .required('Password is required'),
 });
+
 const CustomTextField = ({ control, name, label, type, errorMessage, icon, ...rest }) => {
   return (
     <Controller
@@ -65,7 +67,7 @@ const CustomTextField = ({ control, name, label, type, errorMessage, icon, ...re
           sx={{
             '& .MuiOutlinedInput-root': {
               height: { xs: '48px', sm: '44px', md: '48px' }, 
-              borderRadius: 1, // <-- minor rounding
+              borderRadius: 1,
               backgroundColor: 'rgba(255, 255, 255, 0.8)',
               border: '2px solid transparent',
               transition: 'all 0.3s ease',
@@ -85,25 +87,23 @@ const CustomTextField = ({ control, name, label, type, errorMessage, icon, ...re
               padding: { xs: '12px 14px', sm: '10px 14px', md: '12px 16px' },
               fontSize: { xs: '1rem', sm: '0.9rem', md: '1rem' }
             },
-            mb: 4 // Add this for spacing
+            mb: 4
           }}
         />
       )}
     />
   );
 };
+
 const Login = () => {
   const navigate = useNavigate();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const isTablet = useMediaQuery(theme.breakpoints.down('md'));
-  
   const [showPassword, setShowPassword] = useState(false);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
     severity: 'error'
   });
+
   const {
     control,
     handleSubmit,
@@ -115,49 +115,146 @@ const Login = () => {
       password: ''
     }
   });
+
   const handleShowPassword = () => setShowPassword(!showPassword);
+
   const handleSnackbarClose = (event, reason) => {
     if (reason === 'clickaway') {
       return;
     }
     setSnackbar({ ...snackbar, open: false });
   };
+
   const onSubmit = async (data) => {
     try {
+      console.log('Submitting login data:', { email: data.email, password: '[HIDDEN]' });
+      
       const response = await axios.post(
-        'https://api.12s.uk/v1/auth',
-        { username: data.email, password: data.password },
-        { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
+        'https://api.antalyze.uk/v1/auth/authenticate',
+        { 
+          username: data.email, 
+          password: data.password,
+          mfaType: "EMAIL"
+        },
+        { 
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }, 
+          timeout: 15000 // Increased timeout
+        }
       );
-      // … success logic …
-    } catch (err) {
-      // 1. Log the entire response payload so you know what your API is actually sending
-      console.log('Full error response:', err.response);
-  
-      // 2. Drill into the common fields
-      let apiMsg;
-      if (axios.isAxiosError(err) && err.response?.data) {
-        const d = err.response.data;
-        // check a handful of likely properties:
-        apiMsg = d.message ?? d.error ?? d.msg ?? null;
+
+      console.log('Login response:', response.data);
+
+      // Check if the response contains session information
+      if (response.data && response.status === 200) {
+        console.log('Full API response:', response.data);
+        
+        // Extract session ID from response - check multiple possible fields
+        const sessionId = response.data.sessionId || 
+                         response.data.session_id || 
+                         response.data.token || 
+                         response.data.accessToken ||
+                         response.data.access_token ||
+                         response.data.authToken ||
+                         response.data.id ||
+                         response.data.sessionToken;
+        
+        // Store the entire response data for debugging and future use
+        localStorage.setItem('authResponse', JSON.stringify(response.data));
+        
+        if (sessionId) {
+          // Store session ID in localStorage for next page
+          localStorage.setItem('sessionId', sessionId);
+          
+          // Store other relevant user data if needed
+          if (response.data.user) {
+            localStorage.setItem('user', JSON.stringify(response.data.user));
+          }
+          
+          // Show success message
+          setSnackbar({
+            open: true,
+            message: 'Login successful! Redirecting to verification...',
+            severity: 'success',
+          });
+
+          // Navigate to verification page after a short delay
+          setTimeout(() => {
+            navigate('/verification-code', {
+              state: {
+                username: data.email,
+                password: data.password,
+                mfaSessionId: sessionId
+              }
+            });
+          }, 1000);
+        } else {
+          // Log the response structure to understand what the API returns
+          console.log('Available response fields:', Object.keys(response.data));
+          
+          // If login is successful but no session ID, still proceed to verification
+          // as the API might handle session differently
+          setSnackbar({
+            open: true,
+            message: 'Login successful! Redirecting to verification...',
+            severity: 'success',
+          });
+
+          // Navigate to verification page anyway
+          setTimeout(() => {
+            navigate('/verification-code', {
+              state: {
+                username: data.email,
+                password: data.password,
+                mfaSessionId: sessionId
+              }
+            });
+          }, 1000);
+        }
+      } else {
+        // Handle unexpected response structure
+        setSnackbar({
+          open: true,
+          message: 'Unexpected response from server. Please try again.',
+          severity: 'error',
+        });
       }
-  
-      // 3. Fallback to axios’s own message
-      const finalMsg = apiMsg ?? err.message ?? 'Login failed. Please try again.';
-  
+
+    } catch (err) {
+      console.error('Login error:', err);
+      
+      let errorMessage = 'Login failed. Please try again.';
+      
+      if (axios.isAxiosError(err) && err.response?.data) {
+        // Get the actual error message from API response
+        const apiData = err.response.data;
+        console.log('API Error Response:', apiData);
+        
+        // Extract error message from various possible fields in API response
+        errorMessage = apiData.message || apiData.error || apiData.msg || apiData.detail || errorMessage;
+      } else if (err.request) {
+        // Network error - no response received
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+
       setSnackbar({
         open: true,
-        message: finalMsg,
+        message: errorMessage,
         severity: 'error',
       });
     }
   };
+
   const handleCreateAccount = () => {
     navigate('/signup');
   };
+
   const handleResetPassword = () => {
     navigate('/reset-password');
   };
+
   return (
     <Box
       sx={{
@@ -178,13 +275,13 @@ const Login = () => {
         <Paper
           elevation={3}
           sx={{
-            mx: { xs: 2, sm: 'auto' }, // <-- Add this line
+            mx: { xs: 2, sm: 'auto' },
             width: '100%',
             maxWidth: {
               xs: '100%', 
-              sm: '400px',
-              md: '450px',
-              lg: '500px',
+              sm: '470px',
+              md: '520px',
+              lg: '570px',
             },
             minHeight: { xs: 'auto', sm: 'auto' }, 
             borderRadius: { xs: '0', sm: '16px' }, 
@@ -226,7 +323,7 @@ const Login = () => {
               src={logo}
               alt="logo"
               sx={{
-                width: { xs: '80px', sm: '70px', md: '80px', lg: '90px' }, 
+                width: { xs: '80px', sm: '80px', md: '90px', lg: '120px' }, 
                 height: 'auto',
                 objectFit: 'contain',
                 boxShadow: '0 4px 24px rgba(102,126,234,0.10)',
@@ -235,6 +332,7 @@ const Login = () => {
               }}
             />
           </Box>
+
           {/* Title Section */}
           <Typography
             variant="h4"
@@ -251,6 +349,7 @@ const Login = () => {
           >
             Login
           </Typography>
+
           {/* Form Section */}
           <Fade in={true} timeout={1200}>
             <Box
@@ -265,12 +364,13 @@ const Login = () => {
                 label="Email"
                 type="email"
                 errorMessage={errors.email?.message}
+                isSubmitting={isSubmitting}
                 icon={<Person sx={{ 
                   color: '#667eea', 
                   fontSize: { xs: '1.2rem', sm: '1.1rem', md: '1.2rem' } 
                 }} />}
-                
               />
+
               <Controller
                 name="password"
                 control={control}
@@ -313,7 +413,7 @@ const Login = () => {
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         height: { xs: '48px', sm: '44px', md: '48px' }, 
-                        borderRadius: 1, // <-- minor rounding
+                        borderRadius: 1,
                         backgroundColor: 'rgba(255, 255, 255, 0.8)',
                         border: '2px solid transparent',
                         transition: 'all 0.3s ease',
@@ -333,11 +433,12 @@ const Login = () => {
                         padding: { xs: '12px 14px', sm: '10px 14px', md: '12px 16px' },
                         fontSize: { xs: '1rem', sm: '0.9rem', md: '1rem' }
                       },
-                      mb: 3// Add this for spacing
+                      mb: 3
                     }}
                   />
                 )}
               />
+
               <Box sx={{ textAlign: 'right', mb: { xs: '32px', sm: '24px', md: '32px' } }}>
                 <Link
                   component="button"
@@ -358,6 +459,7 @@ const Login = () => {
                   Reset Password
                 </Link>
               </Box>
+
               <Box sx={{ mb: { xs: '24px', sm: '20px', md: '24px' } }}>
                 <Button
                   type="submit"
@@ -404,6 +506,7 @@ const Login = () => {
                   {isSubmitting ? 'Logging in...' : 'Login'}
                 </Button>
               </Box>
+
               <Box sx={{ textAlign: 'center', mb: { xs: '24px', sm: '16px' } }}>
                 <Typography
                   variant="body2"
@@ -434,6 +537,7 @@ const Login = () => {
               </Box>
             </Box>
           </Fade>
+
           <Fade in={true} timeout={1500}>
             <Box sx={{ textAlign: 'center', width: '100%', mt: { xs: '12px', sm: '8px' } }}>
               <Typography
@@ -471,14 +575,15 @@ const Login = () => {
           </Fade>
         </Paper>
       </Fade>
+
       {/* Snackbar for notifications */}
       <Snackbar
         open={snackbar.open}
         autoHideDuration={6000}
         onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: 'top', horizontal: 'left' }} // <-- Show on left
+        anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
         sx={{
-          left: { xs: 0, sm: 24 }, // a little padding from the left on desktop
+          left: { xs: 0, sm: 24 },
           right: 'auto'
         }}
       >
@@ -488,13 +593,13 @@ const Login = () => {
           sx={{
             width: { xs: '95%', sm: '400px' },
             maxWidth: '95vw',
-            backgroundColor: '#c62828',
+            backgroundColor: snackbar.severity === 'success' ? '#2e7d32' : '#c62828',
             color: '#fff',
-            fontWeight: 400, // <-- Less bold
-            fontSize: '1rem', // <-- More standard size
+            fontWeight: 400,
+            fontSize: '1rem',
             borderRadius: 2,
             boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-            textAlign: 'left', // <-- Left align text
+            textAlign: 'left',
             '& .MuiAlert-icon': { color: '#fff' },
             '& .MuiAlert-action': { color: '#fff' },
             '& .MuiSvgIcon-root': { color: '#fff' }
@@ -506,4 +611,5 @@ const Login = () => {
     </Box>
   );
 };
+
 export default Login;

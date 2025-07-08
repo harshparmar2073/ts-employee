@@ -188,7 +188,7 @@ const ResetPassword = ({ onBack, onReset }) => {
             borderRadius: 2,
             overflow: 'hidden',
             position: 'relative',
-            maxWidth: { xs: '100%', sm: '500px' },
+            maxWidth: { xs: '100%', sm: '560px' },
             mx: 'auto'
           }}
         >
@@ -227,10 +227,11 @@ const ResetPassword = ({ onBack, onReset }) => {
               sx={{ 
                 fontWeight: 600, 
                 mb: 1,
-                fontSize: { xs: '1.25rem', sm: '1.5rem' }
+                fontSize: { xs: '1.25rem', sm: '1.5rem' },
+                fontFamily: 'Poppins, sans-serif'
               }}
             >
-              Reset Password
+              Reset-Verify Password
             </Typography>
 
             <Typography
@@ -239,13 +240,11 @@ const ResetPassword = ({ onBack, onReset }) => {
               sx={{ 
                 color: 'text.secondary', 
                 mb: 4,
-                fontSize: { xs: '0.875rem', sm: '1rem' }
+                fontSize: { xs: '0.875rem', sm: '1rem' },
+                fontFamily: 'Poppins, sans-serif'
               }}
             >
-              {resetStatus.success 
-                ? 'Check your email for reset instructions' 
-                : 'Enter your username to receive reset instructions'
-              }
+              Please Provide your username
             </Typography>
 
             {/* Success Message */}
