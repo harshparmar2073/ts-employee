@@ -5,7 +5,8 @@ import ResetPassword from './components/ResetPassword';
 import Signup from './components/CreateAccount';
 import { CssBaseline } from '@mui/material';
 import VerificationCodePage from './pages/VerificationCodePage';
-import Dashboard from './pages/Dashboard';
+import DashboardPage from './pages/DashboardPage';
+import Membertable from './components/Member';
 
 function App() {
   return (
@@ -16,7 +17,8 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword/>}/>
         <Route path="/signup" element={<Signup/>}/>
         <Route path="/verification-code" element={<VerificationCodePage/>}/>
-        <Route path="/dashboard" element={<Dashboard/>}/>
+        <Route path="/dashboard" element={<DashboardPage/>}/>
+        <Route path="/member-table" element={<Membertable/>}/>
       </Routes>
     </>
   );
