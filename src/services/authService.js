@@ -1,10 +1,10 @@
 import axiosService from './axiosService';
 
-export const login = async (email, password) => {
+export const login = async (email, password, selectedMfa) => {
   return axiosService.post('/auth/authenticate', {
     username: email,
     password,
-    mfaType: 'EMAIL',
+    mfaType: selectedMfa,
   });
 };
 

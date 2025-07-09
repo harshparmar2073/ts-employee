@@ -1,6 +1,5 @@
-// ✅ Login.jsx (full UI version with authService)
-
 import React, { useState } from "react";
+import { useToast } from "../context/ToastContext"; // ✅ Global Toast
 import {
   Box,
   Paper,
@@ -11,8 +10,11 @@ import {
   IconButton,
   Link,
   Fade,
-  Alert,
-  Snackbar,
+  FormControl,
+  FormLabel,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import {
@@ -21,6 +23,9 @@ import {
   Person,
   Lock,
   ArrowForward,
+  EmailOutlined,
+  SmsOutlined,
+  VerifiedUserOutlined,
 } from "@mui/icons-material";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -40,11 +45,8 @@ const validationSchema = yup.object({
 const Login = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const [snackbar, setSnackbar] = useState({
-    open: false,
-    message: "",
-    severity: "error",
-  });
+  const [selectedMfa, setSelectedMfa] = useState("EMAIL");
+  const { showToast } = useToast(); 
 
   const {
     control,
@@ -56,24 +58,20 @@ const Login = () => {
   });
 
   const handleShowPassword = () => setShowPassword(!showPassword);
-  const handleSnackbarClose = () => setSnackbar({ ...snackbar, open: false });
 
   const onSubmit = async ({ email, password }) => {
     try {
-      const response = await login(email, password);
+      const response = await login(email, password, selectedMfa);
 
       const sessionId =
         response.data.data?.mfaSessionId ||
         response.data.data?.token ||
         response.data.data?.accessToken;
+
       localStorage.setItem("authResponse", JSON.stringify(response.data));
       if (sessionId) localStorage.setItem("sessionId", sessionId);
-    
-      setSnackbar({
-        open: true,
-        message: "Login successful! Redirecting...",
-        severity: "success",
-      });
+
+      showToast("Login successful! Redirecting...", "success"); // ✅ global toast
 
       setTimeout(() => {
         navigate("/verification-code", {
@@ -84,13 +82,14 @@ const Login = () => {
             maskedLabel: response.data.data?.maskedLabel,
             verificationCodeExpMinutes:
               response.data.data?.verificationCodeExpMinutes,
+            mfaType: selectedMfa,
           },
         });
       }, 1000);
     } catch (err) {
       const message =
         err?.response?.data?.message || "Login failed. Please try again.";
-      setSnackbar({ open: true, message, severity: "error" });
+      showToast(message, "error"); // ✅ global toast
     }
   };
 
@@ -108,23 +107,23 @@ const Login = () => {
       }}
     >
       <Fade in timeout={1000}>
-      <Paper
-  elevation={10}
-  sx={{
-    width: "100%",
-    maxWidth: 700, // ⬅️ Increased width
-    px: 6, // ⬅️ More horizontal padding
-    py: 5, // ⬅️ More vertical padding
-    backgroundColor: "white",
-    borderRadius: 1.5, // ⬅️ Slightly more rounded
-    boxShadow: "0 12px 32px rgba(0, 0, 0, 0.2)", // ⬅️ Stronger modern shadow
-    backdropFilter: "blur(4px)", // ⬅️ Adds a glass-like effect
-    border: "1px solid rgba(0,0,0,0.05)", // Optional border
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-  }}
->
+        <Paper
+          elevation={10}
+          sx={{
+            width: "100%",
+            maxWidth: 700,
+            px: 6,
+            py: 5,
+            backgroundColor: "white",
+            borderRadius: 1.5,
+            boxShadow: "0 12px 32px rgba(0, 0, 0, 0.2)",
+            backdropFilter: "blur(4px)",
+            border: "1px solid rgba(0,0,0,0.05)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
+        >
           <Box sx={{ textAlign: "center", mb: 4 }}>
             <img src={logo} alt="logo" style={{ height: 80 }} />
           </Box>
@@ -133,7 +132,7 @@ const Login = () => {
             Login
           </Typography>
 
-          <form onSubmit={handleSubmit(onSubmit)}>
+          <form onSubmit={handleSubmit(onSubmit)} style={{ width: "100%" }}>
             <Controller
               name="email"
               control={control}
@@ -186,6 +185,47 @@ const Login = () => {
               )}
             />
 
+            <FormControl component="fieldset" sx={{ mt: 3, width: "100%" }}>
+              <FormLabel component="legend">Select MFA Method</FormLabel>
+              <RadioGroup
+                row
+                value={selectedMfa}
+                onChange={(e) => setSelectedMfa(e.target.value)}
+                sx={{ justifyContent: "space-between", mt: 1 }}
+              >
+                <FormControlLabel
+                  value="EMAIL"
+                  control={<Radio />}
+                  label={
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <EmailOutlined fontSize="small" />
+                      <Typography>Email</Typography>
+                    </Box>
+                  }
+                />
+                <FormControlLabel
+                  value="SMS"
+                  control={<Radio />}
+                  label={
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <SmsOutlined fontSize="small" />
+                      <Typography>SMS</Typography>
+                    </Box>
+                  }
+                />
+                <FormControlLabel
+                  value="TOTP"
+                  control={<Radio />}
+                  label={
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <VerifiedUserOutlined fontSize="small" />
+                      <Typography>Authenticator</Typography>
+                    </Box>
+                  }
+                />
+              </RadioGroup>
+            </FormControl>
+
             <Button
               type="submit"
               variant="contained"
@@ -198,11 +238,8 @@ const Login = () => {
             </Button>
           </form>
 
-          <Box sx={{ textAlign: "right", mt: 2 }}>
-            <Link
-              component="button"
-              onClick={() => navigate("/reset-password")}
-            >
+          <Box sx={{ textAlign: "right", mt: 2, width: "100%" }}>
+            <Link component="button" onClick={() => navigate("/reset-password")}>
               Reset Password
             </Link>
           </Box>
@@ -228,17 +265,6 @@ const Login = () => {
           </Box>
         </Paper>
       </Fade>
-
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleSnackbarClose}
-        anchorOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Alert onClose={handleSnackbarClose} severity={snackbar.error}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };
