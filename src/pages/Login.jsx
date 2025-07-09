@@ -108,15 +108,23 @@ const Login = () => {
       }}
     >
       <Fade in timeout={1000}>
-        <Paper
-          elevation={3}
-          sx={{
-            maxWidth: 520,
-            p: 4,
-            backgroundColor: "rgba(255,255,255,0.95)",
-            borderRadius: 3,
-          }}
-        >
+      <Paper
+  elevation={10}
+  sx={{
+    width: "100%",
+    maxWidth: 700, // ⬅️ Increased width
+    px: 6, // ⬅️ More horizontal padding
+    py: 5, // ⬅️ More vertical padding
+    backgroundColor: "white",
+    borderRadius: 1.5, // ⬅️ Slightly more rounded
+    boxShadow: "0 12px 32px rgba(0, 0, 0, 0.2)", // ⬅️ Stronger modern shadow
+    backdropFilter: "blur(4px)", // ⬅️ Adds a glass-like effect
+    border: "1px solid rgba(0,0,0,0.05)", // Optional border
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+  }}
+>
           <Box sx={{ textAlign: "center", mb: 4 }}>
             <img src={logo} alt="logo" style={{ height: 80 }} />
           </Box>
