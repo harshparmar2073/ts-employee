@@ -1,4 +1,4 @@
-// ✅ VerificationCodePage.jsx with full background, particles, animations, and MFA support
+// Updated VerificationCodePage.jsx to align with 2-step MFA flow
 
 import React, { useState, useRef, useEffect } from "react";
 import {
@@ -6,7 +6,6 @@ import {
   Typography,
   TextField,
   Button,
-  Container,
   Paper,
   Fade,
   Zoom,
@@ -24,52 +23,48 @@ import {
   AccessTime,
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
-import { verifyMfaCode, login } from '../services/authService';
+import { verifyMfaCode, authenticatePreMfa } from "../services/authService";
 
 const VerificationCodePage = () => {
   const navigate = useNavigate();
   const { state } = useLocation();
   const username = state?.username;
   const password = state?.password;
-  const mfaSessionId =
-    state?.mfaSessionId ||
-    JSON.parse(localStorage.getItem("authResponse") || "{}")?.data?.mfaSessionId;
+  const selectedMfa = state?.mfaType;
 
   const [code, setCode] = useState(["", "", "", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
   const [resendLoading, setResendLoading] = useState(false);
-  const initialSeconds = (state?.verificationCodeExpMinutes || 5) * 60;
-  const [timeLeft, setTimeLeft] = useState(initialSeconds);
-  
+  const [maskedLabel, setMaskedLabel] = useState(state?.maskedLabel);
+  const [mfaSessionId, setMfaSessionId] = useState(state?.mfaSessionId);
+  const [timeLeft, setTimeLeft] = useState((state?.verificationCodeExpMinutes || 5) * 60);
+
   const inputRefs = useRef([]);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  
-
   const timerRef = useRef(null);
+  useEffect(() => {
+    if (success || timeLeft === 0) return;
+  
+    if (timerRef.current) clearInterval(timerRef.current);
+  
+    timerRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          setError("Verification code has expired. Please request a new code.");
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  
+    return () => clearInterval(timerRef.current);
+  }, [success, timeLeft]);
 
-useEffect(() => {
-  if (success) return;
-
-  if (timerRef.current) clearInterval(timerRef.current);
-
-  timerRef.current = setInterval(() => {
-    setTimeLeft(prev => {
-      if (prev <= 1) {
-        clearInterval(timerRef.current);
-        setError("Verification code has expired. Please request a new code.");
-        return 0;
-      }
-      return prev - 1;
-    });
-  }, 1000);
-
-  return () => clearInterval(timerRef.current);
-}, [success, timeLeft]); // note: timeLeft included here so effect reruns on reset
-
-
+  
   useEffect(() => {
     inputRefs.current[0]?.focus();
   }, []);
@@ -133,6 +128,7 @@ useEffect(() => {
         password,
         mfaCode,
         mfaSessionId,
+        mfaType: selectedMfa,
       });
       const token =
         response.data?.token ||
@@ -154,24 +150,16 @@ useEffect(() => {
   const handleResend = async () => {
     setResendLoading(true);
     try {
-      const response = await login(username, password);
-      const newSessionId = response.data.data?.mfaSessionId;
-      const newMaskedLabel = response.data.data?.maskedLabel;
-      const newExpMinutes = response.data.data?.verificationCodeExpMinutes || 5;
-  
-      setTimeLeft(newExpMinutes * 60); // ⏱️ this now triggers the effect and interval reset
-  
-      setCode(['', '', '', '', '', '']);
-      if (newSessionId) localStorage.setItem('sessionId', newSessionId);
-  
-      if (newSessionId) state.mfaSessionId = newSessionId;
-      if (newMaskedLabel) state.maskedLabel = newMaskedLabel;
-      state.expMinutes = newExpMinutes;
-  
+      const response = await authenticatePreMfa(username, password, selectedMfa);
+      const data = response.data.data;
+      setMfaSessionId(data?.mfaSessionId);
+      setMaskedLabel(data?.maskedLabel);
+      setTimeLeft((data?.verificationCodeExpMinutes || 5) * 60);
+      setCode(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
-      setError('');
+      setError("");
     } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to resend code.');
+      setError(err?.response?.data?.message || "Failed to resend code.");
     } finally {
       setResendLoading(false);
     }
@@ -224,31 +212,15 @@ useEffect(() => {
           <Fade in timeout={1400}>
             <Box>
               <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
-                {success ? "Verification was  successfull!" : "Verify Your Account"}
+                {success ? "Verification was successful!" : "Verify Your Account"}
               </Typography>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  mb: 2,
-                }}
-              >
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 2 }}>
                 <Mail sx={{ mr: 1, color: "primary.main" }} />
                 <Typography variant="body1">
-                  A verification code was sent to{" "}
-                  <strong>{state?.maskedLabel}</strong>
+                  A verification code was sent to <strong>{maskedLabel}</strong>
                 </Typography>
               </Box>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 1,
-                  mb: 3,
-                }}
-              >
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, mb: 3 }}>
                 <AccessTime fontSize="small" />
                 <Typography variant="body2">
                   Code expires in {formatTime(timeLeft)}
@@ -260,9 +232,7 @@ useEffect(() => {
             </Box>
           </Fade>
 
-          <Box
-            sx={{ display: "flex", justifyContent: "center", gap: 1.5, mb: 3 }}
-          >
+          <Box sx={{ display: "flex", justifyContent: "center", gap: 1.5, mb: 3 }}>
             {code.map((digit, idx) => (
               <TextField
                 key={idx}
@@ -285,34 +255,16 @@ useEffect(() => {
             fullWidth
             variant="contained"
             onClick={handleVerify}
-            disabled={
-              loading || success || code.join("").length !== 6 || timeLeft === 0
-            }
+            disabled={loading || success || code.join("").length !== 6 || timeLeft === 0}
             sx={{ mb: 2 }}
           >
-            {loading ? (
-              <CircularProgress size={24} sx={{ color: "white" }} />
-            ) : success ? (
-              "Verified!"
-            ) : (
-              "Verify"
-            )}
+            {loading ? <CircularProgress size={24} sx={{ color: "white" }} /> : success ? "Verified!" : "Verify"}
           </Button>
 
           <Typography variant="body2">
             Didn’t get a code?
-            <Button
-              onClick={handleResend}
-              disabled={resendLoading}
-              sx={{ ml: 1 }}
-            >
-              {resendLoading ? (
-                <CircularProgress size={16} />
-              ) : (
-                <>
-                  <Refresh fontSize="small" sx={{ mr: 0.5 }} /> Resend
-                </>
-              )}
+            <Button onClick={handleResend} disabled={resendLoading} sx={{ ml: 1 }}>
+              {resendLoading ? <CircularProgress size={16} /> : <><Refresh fontSize="small" sx={{ mr: 0.5 }} /> Resend</>}
             </Button>
           </Typography>
         </Paper>
@@ -324,9 +276,7 @@ useEffect(() => {
         onClose={() => setError("")}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
       >
-        <Alert severity="error" onClose={() => setError("")}>
-          {error}
-        </Alert>
+        <Alert severity="error" onClose={() => setError("")}>{error}</Alert>
       </Snackbar>
     </Box>
   );

@@ -1,5 +1,6 @@
+// Updated Login.jsx with Two-Step MFA Flow (Preserving Design)
 import React, { useState } from "react";
-import { useToast } from "../context/ToastContext"; // ✅ Global Toast
+import { useToast } from "../context/ToastContext";
 import {
   Box,
   Paper,
@@ -32,25 +33,25 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import logo from "../assets/logo2.png";
 import companyLogo from "../assets/12springslogo.png";
-import { login } from "../services/authService";
+import { authenticate, authenticatePreMfa } from "../services/authService";
 
 const validationSchema = yup.object({
-  email: yup
-    .string()
-    .email("Please enter a valid email address")
-    .required("Email is required"),
+  email: yup.string().email("Please enter a valid email address").required("Email is required"),
   password: yup.string().required("Password is required"),
 });
 
 const Login = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
+  const [supportedMfa, setSupportedMfa] = useState([]);
+  const [step, setStep] = useState(1);
   const [selectedMfa, setSelectedMfa] = useState("EMAIL");
-  const { showToast } = useToast(); 
+  const { showToast } = useToast();
 
   const {
     control,
     handleSubmit,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(validationSchema),
@@ -59,37 +60,38 @@ const Login = () => {
 
   const handleShowPassword = () => setShowPassword(!showPassword);
 
-  const onSubmit = async ({ email, password }) => {
+  const handleInitialLogin = async () => {
+    const { email, password } = getValues();
     try {
-      const response = await login(email, password, selectedMfa);
-
-      const sessionId =
-        response.data.data?.mfaSessionId ||
-        response.data.data?.token ||
-        response.data.data?.accessToken;
-
-      localStorage.setItem("authResponse", JSON.stringify(response.data));
-      if (sessionId) localStorage.setItem("sessionId", sessionId);
-
-      showToast("Login successful! Redirecting...", "success"); // ✅ global toast
-
-      setTimeout(() => {
-        navigate("/verification-code", {
-          state: {
-            username: email,
-            password,
-            mfaSessionId: response.data.data?.mfaSessionId,
-            maskedLabel: response.data.data?.maskedLabel,
-            verificationCodeExpMinutes:
-              response.data.data?.verificationCodeExpMinutes,
-            mfaType: selectedMfa,
-          },
-        });
-      }, 1000);
+      const response = await authenticate(email, password);
+      const mfaTypes = response?.data?.data?.supportedMfaTypes || [];
+      if (mfaTypes.length === 0) throw new Error("No MFA methods available.");
+      setSupportedMfa(mfaTypes);
+      setSelectedMfa(mfaTypes[0]);
+      setStep(2);
     } catch (err) {
-      const message =
-        err?.response?.data?.message || "Login failed. Please try again.";
-      showToast(message, "error"); // ✅ global toast
+      showToast(err?.response?.data?.message || "Login failed.", "error");
+    }
+  };
+
+  const handleSendCode = async () => {
+    const { email, password } = getValues();
+    try {
+      const response = await authenticatePreMfa(email, password, selectedMfa);
+      const data = response?.data?.data;
+      showToast("Verification code sent.", "success");
+      navigate("/verification-code", {
+        state: {
+          username: email,
+          password,
+          mfaSessionId: data?.mfaSessionId,
+          maskedLabel: data?.maskedLabel,
+          verificationCodeExpMinutes: data?.verificationCodeExpMinutes,
+          mfaType: selectedMfa,
+        },
+      });
+    } catch (err) {
+      showToast(err?.response?.data?.message || "Failed to send code.", "error");
     }
   };
 
@@ -132,7 +134,10 @@ const Login = () => {
             Login
           </Typography>
 
-          <form onSubmit={handleSubmit(onSubmit)} style={{ width: "100%" }}>
+          <form
+            onSubmit={handleSubmit(step === 1 ? handleInitialLogin : handleSendCode)}
+            style={{ width: "100%" }}
+          >
             <Controller
               name="email"
               control={control}
@@ -185,46 +190,54 @@ const Login = () => {
               )}
             />
 
-            <FormControl component="fieldset" sx={{ mt: 3, width: "100%" }}>
-              <FormLabel component="legend">Select MFA Method</FormLabel>
-              <RadioGroup
-                row
-                value={selectedMfa}
-                onChange={(e) => setSelectedMfa(e.target.value)}
-                sx={{ justifyContent: "space-between", mt: 1 }}
-              >
-                <FormControlLabel
-                  value="EMAIL"
-                  control={<Radio />}
-                  label={
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <EmailOutlined fontSize="small" />
-                      <Typography>Email</Typography>
-                    </Box>
-                  }
-                />
-                <FormControlLabel
-                  value="SMS"
-                  control={<Radio />}
-                  label={
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <SmsOutlined fontSize="small" />
-                      <Typography>SMS</Typography>
-                    </Box>
-                  }
-                />
-                <FormControlLabel
-                  value="TOTP"
-                  control={<Radio />}
-                  label={
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <VerifiedUserOutlined fontSize="small" />
-                      <Typography>Authenticator</Typography>
-                    </Box>
-                  }
-                />
-              </RadioGroup>
-            </FormControl>
+            {step === 2 && (
+              <FormControl component="fieldset" sx={{ mt: 3, width: "100%" }}>
+                <FormLabel component="legend">Select MFA Method</FormLabel>
+                <RadioGroup
+                  row
+                  value={selectedMfa}
+                  onChange={(e) => setSelectedMfa(e.target.value)}
+                  sx={{ justifyContent: "space-between", mt: 1 }}
+                >
+                  {supportedMfa.includes("EMAIL") && (
+                    <FormControlLabel
+                      value="EMAIL"
+                      control={<Radio />}
+                      label={
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <EmailOutlined fontSize="small" />
+                          <Typography>Email</Typography>
+                        </Box>
+                      }
+                    />
+                  )}
+                  {supportedMfa.includes("SMS") && (
+                    <FormControlLabel
+                      value="SMS"
+                      control={<Radio />}
+                      label={
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <SmsOutlined fontSize="small" />
+                          <Typography>SMS</Typography>
+                        </Box>
+                      }
+                    />
+                  )}
+                  {supportedMfa.includes("TOTP") && (
+                    <FormControlLabel
+                      value="TOTP"
+                      control={<Radio />}
+                      label={
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <VerifiedUserOutlined fontSize="small" />
+                          <Typography>Authenticator</Typography>
+                        </Box>
+                      }
+                    />
+                  )}
+                </RadioGroup>
+              </FormControl>
+            )}
 
             <Button
               type="submit"
@@ -234,34 +247,23 @@ const Login = () => {
               sx={{ mt: 3 }}
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Logging in..." : "Login"}
+              {step === 1 ? "Next" : isSubmitting ? "Sending Code..." : "Send Code"}
             </Button>
           </form>
 
           <Box sx={{ textAlign: "right", mt: 2, width: "100%" }}>
-            <Link component="button" onClick={() => navigate("/reset-password")}>
-              Reset Password
-            </Link>
+            <Link component="button" onClick={() => navigate("/reset-password")}>Reset Password</Link>
           </Box>
 
           <Box sx={{ textAlign: "center", mt: 3 }}>
             <Typography variant="body2">
-              Not a member?{" "}
-              <Link component="button" onClick={() => navigate("/signup")}>
-                Create Account
-              </Link>
+              Not a member? <Link component="button" onClick={() => navigate("/signup")}>Create Account</Link>
             </Typography>
           </Box>
 
           <Box sx={{ textAlign: "center", mt: 4 }}>
-            <Typography variant="caption" display="block">
-              POWERED BY
-            </Typography>
-            <img
-              src={companyLogo}
-              alt="12 Springs"
-              style={{ height: 32, marginTop: 4 }}
-            />
+            <Typography variant="caption" display="block">POWERED BY</Typography>
+            <img src={companyLogo} alt="12 Springs" style={{ height: 32, marginTop: 4 }} />
           </Box>
         </Paper>
       </Fade>
