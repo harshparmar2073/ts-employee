@@ -224,7 +224,7 @@ useEffect(() => {
           <Fade in timeout={1400}>
             <Box>
               <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
-                {success ? "Verified Successfully!" : "Verify Your Account"}
+                {success ? "Verification was  successfull!" : "Verify Your Account"}
               </Typography>
               <Box
                 sx={{
