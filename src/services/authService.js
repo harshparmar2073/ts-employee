@@ -18,12 +18,14 @@ export const authenticatePreMfa = async (email, password, selectedMfa) => {
 };
 
 // Final step: verify code from selected MFA channel
-export const verifyMfaCode = async ({ username, password, mfaCode, mfaSessionId }) => {
+export const verifyMfaCode = async ({ username, password, mfaCode, mfaSessionId,authRememberMeExpDays,authRememberMe }) => {
   return axiosService.post('/auth/authenticate-mfa', {
     username,
     password,
     mfaType: 'EM', // Or use selectedMfa if dynamic
     mfaSessionId,
-    mfaCode
+    mfaCode,
+    authRememberMeExpDays,
+    authRememberMe
   });
 };

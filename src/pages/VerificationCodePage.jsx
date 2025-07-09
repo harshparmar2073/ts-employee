@@ -129,6 +129,8 @@ const VerificationCodePage = () => {
         mfaCode,
         mfaSessionId,
         mfaType: selectedMfa,
+        authRememberMeExpDays: state?.rememberDuration || "1",
+        authRememberMe: state?.rememberMe || false,
       });
       const token =
         response.data?.token ||
