@@ -339,64 +339,77 @@ const Membertable = () => {
 
     return (
         <Layout userData={userData}>
-            <Box sx={{ flexGrow: 1, backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
+        <Box sx={{ flexGrow: 1, backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
                 {/* REMOVE the custom AppBar/Toolbar/Tabs here */}
-                <Container maxWidth="xl" sx={{ py: 3 }}>
-                    {/* Kanban-style columns */}
-                    <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', justifyContent: 'space-between' }}>
-                        {kanbanData.map((col, index) => (
-                            <StyledPaper key={index} sx={{
+            <Container maxWidth="xl" sx={{ py: 3 }}>
+                {/* Kanban-style columns */}
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            gap: 2,
+                            mb: 3,
+                            flexWrap: { xs: 'wrap', md: 'nowrap' },
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            justifyContent: { xs: 'flex-start', sm: 'space-between' }
+                        }}
+                    >
+                    {kanbanData.map((col, index) => (
+                        <StyledPaper key={index} sx={{
                                 flex: '1 1 22%',
-                                minWidth: '180px',
-                                p: 2,
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                            }}>
-                                <Typography variant="h6" sx={{ fontWeight: 600, color: '#333', fontSize: '1.1rem' }}>
-                                    {col.count} {col.title}
-                                </Typography>
-                                <ArrowForward sx={{ color: '#888', fontSize: '1.2rem' }} />
-                            </StyledPaper>
-                        ))}
-                    </Box>
+                            minWidth: '180px',
+                            p: 2,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                        }}>
+                            <Typography variant="h6" sx={{ fontWeight: 600, color: '#333', fontSize: '1.1rem' }}>
+                                {col.count} {col.title}
+                            </Typography>
+                            <ArrowForward sx={{ color: '#888', fontSize: '1.2rem' }} />
+                        </StyledPaper>
+                    ))}
+                </Box>
 
                     {/* Filter Bar - Single Row */}
-                    <StyledPaper sx={{ p: 1.5, mb: 2 }}>
+                    <StyledPaper sx={{ p: { xs: 1, sm: 1.5 }, mb: 2 }}>
                         {/* First Row: Search, Website Filter, Save Button */}
-                        <Box sx={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: 1,
-                            alignItems: 'center',
-                            mb: 1.5, // Margin bottom to separate from the next row of filters
-                            '& > *': { flexShrink: 0 }
-                        }}>
-                            <StyledSearchTextField
-                                variant="outlined"
-                                size="small"
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: 1,
+                                alignItems: 'center',
+                                mb: 1.5,
+                                flexDirection: { xs: 'column', sm: 'row' }
+                            }}
+                        >
+                        <StyledSearchTextField
+                            variant="outlined"
+                            size="small"
                                 placeholder="Search projects..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                                fullWidth={true}
+                                sx={{ maxWidth: { xs: '100%', sm: 200 } }}
+                            InputProps={{
+                                startAdornment: (
+                                    <InputAdornment position="start">
                                             <Search sx={{ fontSize: '1rem' }} />
-                                        </InputAdornment>
-                                    ),
-                                }}
-                            />
-                            <FormControl size="small">
-                                <StyledSelect
-                                    value={selectedWebsiteFilter}
-                                    onChange={(e) => setSelectedWebsiteFilter(e.target.value)}
-                                    displayEmpty
-                                >
-                                    <MenuItem value="Website">Website</MenuItem>
+                                    </InputAdornment>
+                                ),
+                            }}
+                        />
+                        <FormControl size="small">
+                            <StyledSelect
+                                value={selectedWebsiteFilter}
+                                onChange={(e) => setSelectedWebsiteFilter(e.target.value)}
+                                displayEmpty
+                            >
+                                <MenuItem value="Website">Website</MenuItem>
                                     <MenuItem value="Mobile App">Mobile App</MenuItem>
                                     <MenuItem value="Desktop App">Desktop App</MenuItem>
-                                </StyledSelect>
-                            </FormControl>
+                            </StyledSelect>
+                        </FormControl>
                             <Button
                                 variant="contained"
                                 sx={{
@@ -411,7 +424,7 @@ const Membertable = () => {
                             >
                                 Save
                                 <KeyboardArrowDown sx={{ ml: 0.5, fontSize: '1rem' }} />
-                            </Button>
+                        </Button>
                         </Box>
 
                         {/* Second Row: All other filters and Clear button */}
@@ -559,17 +572,17 @@ const Membertable = () => {
                                 }}
                             >
                                 Clear
-                            </Button>
-                        </Box>
-                    </StyledPaper>
+                        </Button>
+                    </Box>
+                </StyledPaper>
 
 
-                    {/* Table/List View */}
-                    <TableContainer component={StyledPaper}>
-                        <Table sx={{ minWidth: 650 }} aria-label="project table">
-                            <TableHead>
+                {/* Table/List View */}
+                    <TableContainer component={StyledPaper} sx={{ width: '100%', overflowX: 'auto' }}>
+                    <Table sx={{ minWidth: 650 }} aria-label="project table">
+                        <TableHead>
                                 <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
-                                    <TableCell padding="checkbox">
+                                <TableCell padding="checkbox">
                                         <Checkbox
                                             color="primary"
                                             indeterminate={isIndeterminate}
@@ -577,118 +590,127 @@ const Membertable = () => {
                                             onChange={handleSelectAll}
                                             sx={{ '& .MuiSvgIcon-root': { fontSize: '1.2rem' } }}
                                         />
-                                    </TableCell>
-                                    {tableHeaders.map((header) => (
-                                        <TableCell
-                                            key={header.id}
-                                            sx={{ fontWeight: 600, color: '#555', width: header.width, fontSize: '0.85rem', py: 1.5 }}
-                                        >
-                                            {header.label}
-                                        </TableCell>
-                                    ))}
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {paginatedRows.map((row) => (
-                                    <TableRow
-                                        key={row.id}
-                                        sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': { backgroundColor: '#fdfdfd' } }}
+                                </TableCell>
+                                {tableHeaders.map((header) => (
+                                    <TableCell
+                                        key={header.id}
+                                        sx={{ fontWeight: 600, color: '#555', width: header.width, fontSize: '0.85rem', py: 1.5 }}
                                     >
-                                        <TableCell padding="checkbox">
+                                        {header.label}
+                                    </TableCell>
+                                ))}
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {paginatedRows.map((row) => (
+                                <TableRow
+                                    key={row.id}
+                                    sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': { backgroundColor: '#fdfdfd' } }}
+                                >
+                                    <TableCell padding="checkbox">
                                             <Checkbox
                                                 color="primary"
                                                 checked={selectedRows.includes(row.id)}
                                                 onChange={() => handleSelectRow(row.id)}
                                                 sx={{ '& .MuiSvgIcon-root': { fontSize: '1.2rem' } }}
                                             />
-                                        </TableCell>
-                                        <TableCell component="th" scope="row" sx={{ fontSize: '0.85rem' }}>
-                                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                                                <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.9rem' }}>{row.title}</Typography>
-                                                <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
-                                                    {row.tags && row.tags.map((tag, tagIndex) => (
-                                                        <StyledChip
-                                                            key={tagIndex}
-                                                            label={tag.text}
-                                                            size="small"
-                                                            deleteIcon={<CloseIcon />}
-                                                            onDelete={() => { /* Handle tag delete */ }}
-                                                            sx={{
-                                                                backgroundColor:
+                                    </TableCell>
+                                    <TableCell component="th" scope="row" sx={{ fontSize: '0.85rem' }}>
+                                        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.9rem' }}>{row.title}</Typography>
+                                            <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
+                                                {row.tags && row.tags.map((tag, tagIndex) => (
+                                                    <StyledChip
+                                                        key={tagIndex}
+                                                        label={tag.text}
+                                                        size="small"
+                                                        deleteIcon={<CloseIcon />}
+                                                        onDelete={() => { /* Handle tag delete */ }}
+                                                        sx={{
+                                                            backgroundColor:
                                                                     tag.type === 'new' ? '#e8f5e9' :
                                                                     tag.type === 'started' ? '#e3f2fd' :
                                                                     tag.type === 'invalid' ? '#ffebee' :
-                                                                    '#f0f0f0',
+                                                                '#f0f0f0',
+                                                            color:
+                                                                tag.type === 'new' ? '#4CAF50' :
+                                                                tag.type === 'started' ? '#2196F3' :
+                                                                tag.type === 'invalid' ? '#F44336' :
+                                                                '#555',
+                                                            '& .MuiChip-deleteIcon': {
                                                                 color:
                                                                     tag.type === 'new' ? '#4CAF50' :
                                                                     tag.type === 'started' ? '#2196F3' :
                                                                     tag.type === 'invalid' ? '#F44336' :
                                                                     '#555',
-                                                                '& .MuiChip-deleteIcon': {
+                                                                '&:hover': {
                                                                     color:
-                                                                        tag.type === 'new' ? '#4CAF50' :
-                                                                        tag.type === 'started' ? '#2196F3' :
-                                                                        tag.type === 'invalid' ? '#F44336' :
-                                                                        '#555',
-                                                                    '&:hover': {
-                                                                        color:
-                                                                            tag.type === 'new' ? '#388E3C' :
-                                                                            tag.type === 'started' ? '#1976D2' :
-                                                                            tag.type === 'invalid' ? '#D32F2F' :
-                                                                            '#333',
-                                                                    }
+                                                                        tag.type === 'new' ? '#388E3C' :
+                                                                        tag.type === 'started' ? '#1976D2' :
+                                                                        tag.type === 'invalid' ? '#D32F2F' :
+                                                                        '#333',
                                                                 }
-                                                            }}
-                                                        />
-                                                    ))}
-                                                </Box>
-                                            </Box>
-                                        </TableCell>
-                                        <TableCell sx={{ fontSize: '0.85rem' }}>{row.client}</TableCell>
-                                        <TableCell sx={{ fontSize: '0.85rem' }}>{row.teamChat}</TableCell>
-                                        <TableCell sx={{ fontSize: '0.85rem' }}>{row.clientTasks}</TableCell>
-                                        <TableCell sx={{ fontSize: '0.85rem' }}>{row.actualBudget}</TableCell>
-                                        <TableCell sx={{ fontSize: '0.85rem' }}>{row.startDate}</TableCell>
-                                        <TableCell sx={{ color: row.isOverdue ? '#F44336' : '#333', fontWeight: row.isOverdue ? 600 : 400, fontSize: '0.85rem' }}>{row.dueDate}</TableCell>
-                                        <TableCell>
-                                            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                                                {row.assignees && row.assignees.map((assignee, idx) => (
-                                                    <Avatar key={idx} sx={{ width: 28, height: 28, fontSize: '0.8rem', bgcolor: assignee.color }}>
-                                                        {assignee.initial}
-                                                    </Avatar>
+                                                            }
+                                                        }}
+                                                    />
                                                 ))}
                                             </Box>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </TableContainer>
+                                        </Box>
+                                    </TableCell>
+                                    <TableCell sx={{ fontSize: '0.85rem' }}>{row.client}</TableCell>
+                                    <TableCell sx={{ fontSize: '0.85rem' }}>{row.teamChat}</TableCell>
+                                    <TableCell sx={{ fontSize: '0.85rem' }}>{row.clientTasks}</TableCell>
+                                    <TableCell sx={{ fontSize: '0.85rem' }}>{row.actualBudget}</TableCell>
+                                    <TableCell sx={{ fontSize: '0.85rem' }}>{row.startDate}</TableCell>
+                                    <TableCell sx={{ color: row.isOverdue ? '#F44336' : '#333', fontWeight: row.isOverdue ? 600 : 400, fontSize: '0.85rem' }}>{row.dueDate}</TableCell>
+                                    <TableCell>
+                                        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                                            {row.assignees && row.assignees.map((assignee, idx) => (
+                                                <Avatar key={idx} sx={{ width: 28, height: 28, fontSize: '0.8rem', bgcolor: assignee.color }}>
+                                                    {assignee.initial}
+                                                </Avatar>
+                                            ))}
+                                        </Box>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
 
-                    {/* Pagination */}
-                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', mt: 3, gap: 1 }}>
-                        <Button variant="outlined" size="small" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)}
-                            sx={{ textTransform: 'none', borderRadius: '6px', borderColor: '#ccc', color: '#555', fontSize: '0.85rem', padding: '6px 12px' }}>
-                            Previous
-                        </Button>
-                        <FormControl size="small">
-                            <StyledSelect
-                                value={currentPage}
-                                onChange={(e) => handlePageChange(e, e.target.value)}
-                                sx={{ minWidth: '60px', height: '32px' }} // Smaller select for page number
-                            >
-                                {Array.from({ length: pageCount }, (_, i) => i + 1).map(page => (
-                                    <MenuItem key={page} value={page}>{page}</MenuItem>
-                                ))}
-                            </StyledSelect>
-                        </FormControl>
-                        <Button variant="outlined" size="small" disabled={currentPage === pageCount} onClick={() => setCurrentPage(prev => prev + 1)}
-                            sx={{ textTransform: 'none', borderRadius: '6px', borderColor: '#ccc', color: '#555', fontSize: '0.85rem', padding: '6px 12px' }}>
-                            Next
-                        </Button>
-                    </Box>
-                </Container>
-            </Box>
+                {/* Pagination */}
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            mt: 3,
+                            gap: 1,
+                            flexDirection: { xs: 'column', sm: 'row' }
+                        }}
+                    >
+                    <Button variant="outlined" size="small" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)}
+                        sx={{ textTransform: 'none', borderRadius: '6px', borderColor: '#ccc', color: '#555', fontSize: '0.85rem', padding: '6px 12px' }}>
+                        Previous
+                    </Button>
+                    <FormControl size="small">
+                        <StyledSelect
+                            value={currentPage}
+                            onChange={(e) => handlePageChange(e, e.target.value)}
+                            sx={{ minWidth: '60px', height: '32px' }} // Smaller select for page number
+                        >
+                            {Array.from({ length: pageCount }, (_, i) => i + 1).map(page => (
+                                <MenuItem key={page} value={page}>{page}</MenuItem>
+                            ))}
+                        </StyledSelect>
+                    </FormControl>
+                    <Button variant="outlined" size="small" disabled={currentPage === pageCount} onClick={() => setCurrentPage(prev => prev + 1)}
+                        sx={{ textTransform: 'none', borderRadius: '6px', borderColor: '#ccc', color: '#555', fontSize: '0.85rem', padding: '6px 12px' }}>
+                        Next
+                    </Button>
+                </Box>
+            </Container>
+        </Box>
         </Layout>
     );
 };
