@@ -8,6 +8,7 @@ import DashboardPage from './pages/DashboardPage';
 import Membertable from './components/Member';
 import Security from './components/Security';
 import Layout from './theme/Layout';
+import Logout from './pages/auth/Logout';
 
 const userData = {
   name: 'John Doe',
@@ -19,6 +20,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Login />} />
+      <Route path="/login" element={<Login />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/verification-code" element={<VerificationCodePage />} />
@@ -30,6 +32,8 @@ export default function App() {
       </Route>
       <Route path="/member-table" element={<Membertable />} />
       <Route path="*" element={<Navigate to="/dashboard" />} />
+      <Route path="/logout" element={<Logout />} />
+
     </Routes>
   );
 }

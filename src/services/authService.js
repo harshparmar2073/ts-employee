@@ -29,3 +29,10 @@ export const verifyMfaCode = async ({ username, password, mfaCode, mfaSessionId,
     authRememberMe
   });
 };
+
+export const logout = () => {
+  localStorage.removeItem("authToken");
+  localStorage.removeItem("authResponse");
+  localStorage.removeItem("sessionId");
+  sessionStorage.clear(); // optional if used
+};
