@@ -27,10 +27,11 @@ export default function App() {
       <Route path="/dashboard" element={<Layout userData={userData} />}>
         <Route path="dashboard-content" element={<DashboardPage />} />
         <Route path="security" element={<Security />} />
+        <Route path="member-table" element={<Membertable />} />
+
         {/* Optionally, redirect /dashboard to /dashboard/dashboard-content */}
-        <Route index element={<Navigate to="dashboard-content" replace />} />
+        {/* <Route index element={<Navigate to="dashboard-content" replace />} /> */}
       </Route>
-      <Route path="/member-table" element={<Membertable />} />
       <Route path="*" element={<Navigate to="/dashboard" />} />
       <Route path="/logout" element={<Logout />} />
 

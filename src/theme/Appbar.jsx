@@ -36,10 +36,10 @@ export default function Appbar({ drawerWidth, isMobile, handleDrawerToggle, user
               <MenuIcon />
             </IconButton>
           )}
-          <Typography variant="h6" noWrap>{selectedSection}</Typography>
+          <Typography variant="h6" noWrap sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>{selectedSection}</Typography>
         </Box>
 
-        <Box display="flex" alignItems="center" gap={3}>
+        <Box display="flex" alignItems="center" gap={{ xs: 1, sm: 2, md: 3 }}>
           <IconButton><NotificationsIcon /></IconButton>
           <Box display="flex" alignItems="center" onClick={handleProfileMenuOpen} sx={{ cursor: 'pointer' }}>
             <Avatar sx={{ width: 32, height: 32, bgcolor: '#1976d2' }}>

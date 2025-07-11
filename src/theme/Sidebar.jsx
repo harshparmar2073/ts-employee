@@ -47,6 +47,7 @@ const SidebarItems = [
       { text: 'CRM', icon: <People /> },
       { text: 'Vendors', icon: <Business /> },
       { text: 'Customers', icon: <PersonAdd /> },
+      { text: 'Token Sessions', icon: <LockIcon /> },
     ],
   },
   {
@@ -105,6 +106,9 @@ export default function Sidebar({
       } else if (item.text === 'Security') {
         navigate('/dashboard/security');
       }
+      else if (item.text === 'Token Sessions') {
+        navigate('/dashboard/member-table');
+      }
     }
   };
 
@@ -129,6 +133,7 @@ export default function Sidebar({
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               fontWeight: 800,
+              fontSize: { xs: '1.5rem', sm: '2.125rem' },
             }}
           >
             Antalyze

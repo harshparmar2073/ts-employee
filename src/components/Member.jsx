@@ -1,36 +1,100 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-    AppBar, Toolbar, Typography, Button, Box, Container, Paper,
-    Tabs, Tab, IconButton, TextField, InputAdornment, Chip, Avatar,
-    TableContainer, Table, TableHead, TableBody, TableRow, TableCell, Checkbox,
-    Select, MenuItem, FormControl, Pagination
+    AppBar,
+    Toolbar,
+    Typography,
+    Button,
+    Box,
+    Container,
+    Paper,
+    Tabs,
+    Tab,
+    IconButton,
+    TextField,
+    InputAdornment,
+    Chip,
+    Avatar,
+    TableContainer,
+    Table,
+    TableHead,
+    TableBody,
+    TableRow,
+    TableCell,
+    Checkbox,
+    Select,
+    MenuItem,
+    FormControl,
+    Pagination,
+    Divider,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    CircularProgress,
+    Alert
 } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import {
-    List as ListIcon, CalendarMonth, NotificationsNone, SettingsOutlined,
-    KeyboardArrowDown, Search, ArrowForward, Close as CloseIcon,
-    LocalOffer, Event, AccountBalance, Person, Group, Business, FolderOpen, Clear, FilterAltOff
+    List as ListIcon,
+    CalendarMonth,
+    NotificationsNone,
+    SettingsOutlined,
+    KeyboardArrowDown,
+    Search,
+    ArrowForward,
+    Close as CloseIcon,
+    LocalOffer,
+    Event,
+    AccountBalance,
+    Person,
+    Group,
+    Business,
+    FolderOpen,
+    Clear,
+    FilterAltOff,
+    ErrorOutline
 } from '@mui/icons-material';
-import Layout from '../theme/Layout'; // <-- Use your theme Layout
 import ClearIcon from '@mui/icons-material/Clear';
 
+// Date Picker Imports
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { StaticDatePicker } from '@mui/x-date-pickers/StaticDatePicker'; // Using StaticDatePicker for inline calendar
+
+// Import axios directly
+import axios from 'axios';
+import axiosService from '../services/axiosService';
+
+
+// Mock user data (assuming this comes from context or props in a real app)
 const userData = {
     name: 'John Doe',
     initials: 'JD',
-    email: 'john.doe@example.com'
+    email: 'john.doe@example.com',
 };
 
-// Define custom styled components to match the image's aesthetics
+// Styled components for responsive table cells
+const StyledTableCell = styled(TableCell)(({ theme }) => ({
+    [theme.breakpoints.down('md')]: {
+        display: 'none',
+    },
+}));
 
-// Styled AppBar for the top navigation bar
+const MobileTableCell = styled(TableCell)(({ theme }) => ({
+    [theme.breakpoints.up('md')]: {
+        display: 'none',
+    },
+    padding: theme.spacing(1),
+}));
+
 const StyledAppBar = styled(AppBar)(({ theme }) => ({
     backgroundColor: '#fff',
     borderBottom: '1px solid #e0e0e0',
     boxShadow: 'none',
 }));
 
-// Styled Toolbar to ensure proper spacing and alignment
 const StyledToolbar = styled(Toolbar)(({ theme }) => ({
     justifyContent: 'space-between',
     padding: theme.spacing(0, 2),
@@ -43,7 +107,6 @@ const StyledToolbar = styled(Toolbar)(({ theme }) => ({
     },
 }));
 
-// Styled Tabs for the "List View" and "Calendar View"
 const StyledTabs = styled(Tabs)(({ theme }) => ({
     minHeight: '64px',
     '& .MuiTabs-indicator': {
@@ -66,7 +129,6 @@ const StyledTabs = styled(Tabs)(({ theme }) => ({
     },
 }));
 
-// Styled Button for "Reminders"
 const StyledReminderButton = styled(Button)(({ theme }) => ({
     textTransform: 'none',
     borderColor: '#ccc',
@@ -80,7 +142,6 @@ const StyledReminderButton = styled(Button)(({ theme }) => ({
     },
 }));
 
-// Styled Paper for Kanban-style columns and filter bar
 const StyledPaper = styled(Paper)(({ theme }) => ({
     borderRadius: '8px',
     border: '1px solid #e0e0e0',
@@ -88,7 +149,6 @@ const StyledPaper = styled(Paper)(({ theme }) => ({
     boxShadow: 'none',
 }));
 
-// Styled TextField for search input
 const StyledSearchTextField = styled(TextField)(({ theme }) => ({
     '& .MuiOutlinedInput-root': {
         borderRadius: '6px',
@@ -115,9 +175,12 @@ const StyledSearchTextField = styled(TextField)(({ theme }) => ({
         fontSize: '0.8rem',
     },
     minWidth: '140px',
+    [theme.breakpoints.down('sm')]: {
+        minWidth: 'unset',
+        width: '100%',
+    },
 }));
 
-// Styled Select for filter dropdowns
 const StyledSelect = styled(Select)(({ theme }) => ({
     borderRadius: '6px',
     backgroundColor: '#f8f9fa',
@@ -145,9 +208,12 @@ const StyledSelect = styled(Select)(({ theme }) => ({
         fontSize: '1rem',
     },
     minWidth: '90px',
+    [theme.breakpoints.down('sm')]: {
+        minWidth: 'unset',
+        width: '100%',
+    },
 }));
 
-// Styled Chip for tags
 const StyledChip = styled(Chip)(({ theme }) => ({
     height: '20px',
     fontSize: '0.75rem',
@@ -159,14 +225,163 @@ const StyledChip = styled(Chip)(({ theme }) => ({
     },
 }));
 
-// Main Dashboard Component
+const CustomDateFilterDialog = ({
+    open,
+    onClose,
+    selectedDateFilterType,
+    setSelectedDateFilterType,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    onApply,
+    onClear
+}) => {
+    const handlePredefinedDateChange = (event) => {
+        const type = event.target.value;
+        setSelectedDateFilterType(type);
+        const today = new Date();
+        let newStartDate = null;
+        let newEndDate = null;
+
+        // Reset time component to avoid issues with date comparisons
+        today.setHours(0, 0, 0, 0);
+
+        switch (type) {
+            case 'Today':
+                newStartDate = today;
+                newEndDate = today;
+                break;
+            case 'This Week':
+                const firstDayOfWeek = new Date(today);
+                firstDayOfWeek.setDate(today.getDate() - today.getDay()); // Sunday
+                newStartDate = firstDayOfWeek;
+                const lastDayOfWeek = new Date(firstDayOfWeek);
+                lastDayOfWeek.setDate(firstDayOfWeek.getDate() + 6); // Saturday
+                newEndDate = lastDayOfWeek;
+                break;
+            case 'Next Week':
+                const nextWeekStart = new Date(today);
+                nextWeekStart.setDate(today.getDate() - today.getDay() + 7);
+                newStartDate = nextWeekStart;
+                const nextWeekEnd = new Date(nextWeekStart);
+                nextWeekEnd.setDate(nextWeekStart.getDate() + 6);
+                newEndDate = nextWeekEnd;
+                break;
+            case 'This Month':
+                newStartDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                newEndDate = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                break;
+            case 'Next Month':
+                newStartDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+                newEndDate = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+                break;
+            case 'This Quarter':
+                const currentMonth = today.getMonth();
+                const currentQuarter = Math.floor(currentMonth / 3);
+                newStartDate = new Date(today.getFullYear(), currentQuarter * 3, 1);
+                newEndDate = new Date(today.getFullYear(), currentQuarter * 3 + 3, 0);
+                break;
+            case 'Next Quarter':
+                const nextQuarterStartMonth = today.getMonth() + 3 - (today.getMonth() % 3);
+                newStartDate = new Date(today.getFullYear(), nextQuarterStartMonth, 1);
+                newEndDate = new Date(today.getFullYear(), nextQuarterStartMonth + 3, 0);
+                break;
+            case 'This Year':
+                newStartDate = new Date(today.getFullYear(), 0, 1);
+                newEndDate = new Date(today.getFullYear(), 11, 31);
+                break;
+            case 'Overdue':
+                newStartDate = new Date(1900, 0, 1); // Very old date
+                newEndDate = today;
+                break;
+            case 'Custom Range':
+                // Do not set dates here, let the DatePickers handle it
+                break;
+            default:
+                newStartDate = null;
+                newEndDate = null;
+                break;
+        }
+        setStartDate(newStartDate);
+        setEndDate(newEndDate);
+    };
+
+    return (
+        <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+            <DialogTitle>Filter by Date</DialogTitle>
+            <DialogContent dividers sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, p: 2 }}>
+                <Box sx={{ flex: 1, minWidth: { xs: '100%', sm: '180px' } }}>
+                    <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+                        <StyledSelect
+                            value={selectedDateFilterType}
+                            onChange={handlePredefinedDateChange}
+                            displayEmpty
+                        >
+                            <MenuItem value="Date">Filter by Date</MenuItem> {/* Default option */}
+                            <MenuItem value="Today">Today</MenuItem>
+                            <MenuItem value="This Week">This Week</MenuItem>
+                            <MenuItem value="Next Week">Next Week</MenuItem>
+                            <MenuItem value="This Month">This Month</MenuItem>
+                            <MenuItem value="Next Month">Next Month</MenuItem>
+                            <MenuItem value="This Quarter">This Quarter</MenuItem>
+                            <MenuItem value="Next Quarter">Next Quarter</MenuItem>
+                            <MenuItem value="This Year">This Year</MenuItem>
+                            <MenuItem value="Overdue">Overdue</MenuItem>
+                            <MenuItem value="Custom Range">Custom Range</MenuItem>
+                        </StyledSelect>
+                    </FormControl>
+                </Box>
+                <Box sx={{ flex: 2, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
+                        <StaticDatePicker
+                            displayStaticWrapperAs="desktop"
+                            label="Start Date"
+                            value={startDate}
+                            onChange={(newValue) => {
+                                setStartDate(newValue);
+                                setSelectedDateFilterType('Custom Range');
+                            }}
+                            renderInput={(params) => <TextField {...params} />}
+                            componentsProps={{
+                                actionBar: {
+                                    actions: [],
+                                },
+                            }}
+                        />
+                        <StaticDatePicker
+                            displayStaticWrapperAs="desktop"
+                            label="End Date"
+                            value={endDate}
+                            onChange={(newValue) => {
+                                setEndDate(newValue);
+                                setSelectedDateFilterType('Custom Range');
+                            }}
+                            renderInput={(params) => <TextField {...params} />}
+                            componentsProps={{
+                                actionBar: {
+                                    actions: [],
+                                },
+                            }}
+                        />
+                    </LocalizationProvider>
+                </Box>
+            </DialogContent>
+            <DialogActions sx={{ justifyContent: 'space-between', px: 3, pb: 2 }}>
+                <Button onClick={onClear} color="secondary">Clear</Button>
+                <Button onClick={onApply} variant="contained" disabled={selectedDateFilterType === 'Custom Range' && (!startDate || !endDate)}>Apply</Button>
+            </DialogActions>
+        </Dialog>
+    );
+};
+
+
 const Membertable = () => {
-    // State for tabs, filters, table data
     const [selectedTab, setSelectedTab] = useState(0);
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedWebsiteFilter, setSelectedWebsiteFilter] = useState('Website'); // Corresponds to the 'Title' column's project type
+    const [selectedWebsiteFilter, setSelectedWebsiteFilter] = useState('Website');
     const [selectedTags, setSelectedTags] = useState('Tags');
-    const [selectedDueDate, setSelectedDueDate] = useState('Due Date');
+    const [selectedDateFilterType, setSelectedDateFilterType] = useState('Date');
     const [selectedAccountingPeriod, setSelectedAccountingPeriod] = useState('Accounting Period');
     const [selectedAssignee, setSelectedAssignee] = useState('Assignee');
     const [selectedShowAllAssignees, setSelectedShowAllAssignees] = useState('Show All Assignees');
@@ -177,10 +392,20 @@ const Membertable = () => {
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [selectedRows, setSelectedRows] = useState([]);
 
-    const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    // State for API data
+    const [tableData, setTableData] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    // Mock Data
+    // State for Date Filter Dialog
+    const [dateFilterDialogOpen, setDateFilterDialogOpen] = useState(false);
+    const [startDate, setStartDate] = useState(null);
+    const [endDate, setEndDate] = useState(null);
+
+    const theme = useTheme();
+    const isSmallScreen = useMediaQuery(theme.breakpoints.down('sm'));
+    const isMediumScreen = useMediaQuery(theme.breakpoints.between('sm', 'md'));
+
     const kanbanData = [
         { title: 'Due Today', count: 0 },
         { title: 'Due This Week', count: 0 },
@@ -199,96 +424,75 @@ const Membertable = () => {
         { id: 'assignees', label: 'Assignees', width: '5%' },
     ];
 
-    const allTableRows = [ // Renamed to allTableRows for clarity
-        {
-            id: 1,
-            title: 'Website',
-            projectType: 'Website', // Added projectType for 'Website' filter
-            tags: [{ text: 'New Tag Added', type: 'new' }, { text: 'Getting Started', type: 'started' }],
-            client: 'Customer Shab',
-            teamChat: 30,
-            clientTasks: '5/17',
-            actualBudget: '',
-            startDate: 'Jun 20th',
-            dueDate: 'Jun 20th',
-            assignees: [{ initial: 'DT', color: '#4CAF50' }],
-            isOverdue: true,
-            accountingPeriod: 'Q2 2024', // Added for Accounting Period filter
-            status: 'Open' // Added for Open/Closed filter
-        },
-        {
-            id: 2,
-            title: 'Website Redesign updated on',
-            projectType: 'Website',
-            tags: [{ text: 'Invalid Date', type: 'invalid' }],
-            client: 'Abby',
-            teamChat: '',
-            clientTasks: '',
-            actualBudget: '',
-            startDate: 'Feb 24th',
-            dueDate: 'Jun 30th',
-            assignees: [{ initial: 'FM', color: '#FFC107' }],
-            isOverdue: true,
-            accountingPeriod: 'Q2 2024',
-            status: 'Open'
-        }
-    ];
+    // Fetch data from API
+    useEffect(() => {
+        const fetchTableData = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                const requestBody = {
+                    search: searchTerm,
+                    projectType: selectedWebsiteFilter === 'Website' ? undefined : selectedWebsiteFilter,
+                    tags: selectedTags === 'Tags' ? undefined : selectedTags,
+                    accountingPeriod: selectedAccountingPeriod === 'Accounting Period' ? undefined : selectedAccountingPeriod,
+                    assignee: selectedAssignee === 'Assignee' ? undefined : selectedAssignee,
+                    client: selectedClients === 'Clients' ? undefined : selectedClients,
+                    clientGroup: selectedClientGroups === 'Client Groups' ? undefined : selectedClientGroups,
+                    status: selectedOpen === 'Open' ? undefined : selectedOpen,
+                };
 
-    // Filter the table rows based on search term and all filter states
-    const filteredRows = allTableRows.filter(row => {
-        const matchesSearch = searchTerm === '' ||
-            row.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            row.client.toLowerCase().includes(searchTerm.toLowerCase());
+                // Add date filter parameters based on selectedDateFilterType
+                if (selectedDateFilterType === 'Custom Range' && startDate && endDate) {
+                    requestBody.startDate = startDate.toISOString().split('T')[0];
+                    requestBody.endDate = endDate.toISOString().split('T')[0];
+                } else if (selectedDateFilterType !== 'Date') { // For predefined date ranges
+                    requestBody.dueDateType = selectedDateFilterType;
+                }
 
-        const matchesWebsite = selectedWebsiteFilter === 'Website' || row.projectType === selectedWebsiteFilter;
+                const authToken = localStorage.getItem('authToken');
 
-        const matchesTags = selectedTags === 'Tags' ||
-            row.tags.some(tag => tag.text === selectedTags);
+                if (!authToken) {
+                    console.warn("Authentication token not found in localStorage. API call might fail.");
+                    setError("Authentication required. Please log in.");
+                    setLoading(false);
+                    return;
+                }
 
-        // For Due Date, we need to compare against actual dates or a simplified string
-        // For simplicity, let's assume 'Due Date' filter values match the 'dueDate' string
-        const matchesDueDate = selectedDueDate === 'Due Date' ||
-            (selectedDueDate === 'Overdue' && row.isOverdue) ||
-            (selectedDueDate === 'Today' && row.dueDate === 'Jul 9th') || // Example: assuming today is Jul 9th
-            (selectedDueDate === 'This Week' && (row.dueDate === 'Jul 10th' || row.dueDate === 'Jul 15th')) || // Example
-            (selectedDueDate === 'Next Week' && (row.dueDate === 'Jul 20th')); // Example
-            // More robust date comparisons would be needed for a real app
+                const response = await axiosService.post('/mfa/token-transactions/list', requestBody, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
 
-        const matchesAccountingPeriod = selectedAccountingPeriod === 'Accounting Period' || row.accountingPeriod === selectedAccountingPeriod;
+                const fetchedData = response.data.transactions || [];
+                setTableData(fetchedData);
 
-        const matchesAssignee = selectedAssignee === 'Assignee' ||
-            row.assignees.some(assignee => assignee.initial === selectedAssignee);
+                const newPageCount = Math.ceil(fetchedData.length / rowsPerPage);
+                if (currentPage > newPageCount && newPageCount > 0) {
+                    setCurrentPage(1);
+                } else if (newPageCount === 0 && currentPage !== 1) {
+                    setCurrentPage(1);
+                }
 
-        // 'Show All Assignees' filter doesn't change the data, it's a display option
-        // For 'Show Active Only'/'Show Inactive Only', you'd need an 'isActive' property on assignees
-
-        const matchesClients = selectedClients === 'Clients' || row.client === selectedClients;
-
-        // Assuming client groups are derived from client names or a separate property
-        // For simplicity, let's map some clients to mock groups
-        const clientGroupsMap = {
-            'Customer Shab': 'SMB',
-            'Abby': 'SMB',
-            'Tech Corp': 'Enterprise',
-            'Shop Inc': 'Startup',
-            'Data Co': 'Enterprise'
+            } catch (err) {
+                console.error("Error fetching table data:", err);
+                setError(err.response?.data?.message || "Failed to load data. Please ensure the API is running and accessible.");
+                setTableData([]);
+                setCurrentPage(1);
+            } finally {
+                setLoading(false);
+            }
         };
-        const matchesClientGroups = selectedClientGroups === 'Client Groups' || clientGroupsMap[row.client] === selectedClientGroups;
 
-        const matchesOpen = selectedOpen === 'Open' || row.status === selectedOpen;
+        fetchTableData();
+    }, [searchTerm, selectedWebsiteFilter, selectedTags, selectedDateFilterType, startDate, endDate,
+        selectedAccountingPeriod, selectedAssignee, selectedClients, selectedClientGroups, selectedOpen, rowsPerPage]);
 
 
-        return matchesSearch && matchesWebsite && matchesTags && matchesDueDate &&
-               matchesAccountingPeriod && matchesAssignee && matchesClients &&
-               matchesClientGroups && matchesOpen;
-    });
+    const paginatedRows = tableData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+    const pageCount = Math.ceil(tableData.length / rowsPerPage);
 
-    // Paginated rows
-    const paginatedRows = filteredRows.slice(
-        (currentPage - 1) * rowsPerPage,
-        currentPage * rowsPerPage
-    );
-    const pageCount = Math.ceil(filteredRows.length / rowsPerPage);
 
     const handleTabChange = (event, newValue) => {
         setSelectedTab(newValue);
@@ -298,7 +502,9 @@ const Membertable = () => {
         setSearchTerm('');
         setSelectedWebsiteFilter('Website');
         setSelectedTags('Tags');
-        setSelectedDueDate('Due Date');
+        setSelectedDateFilterType('Date');
+        setStartDate(null);
+        setEndDate(null);
         setSelectedAccountingPeriod('Accounting Period');
         setSelectedAssignee('Assignee');
         setSelectedShowAllAssignees('Show All Assignees');
@@ -309,12 +515,10 @@ const Membertable = () => {
         setSelectedRows([]);
     };
 
-    // Pagination handlers
     const handlePageChange = (event, value) => {
         setCurrentPage(value);
     };
 
-    // Handle row selection
     const handleSelectRow = (rowId) => {
         setSelectedRows(prev => {
             if (prev.includes(rowId)) {
@@ -327,262 +531,289 @@ const Membertable = () => {
 
     const handleSelectAll = (event) => {
         if (event.target.checked) {
-            // Select all filtered rows, not just paginated ones
-            setSelectedRows(filteredRows.map(row => row.id));
+            setSelectedRows(tableData.map(row => row.id));
         } else {
             setSelectedRows([]);
         }
     };
 
-    const isAllSelected = filteredRows.length > 0 && selectedRows.length === filteredRows.length;
-    const isIndeterminate = selectedRows.length > 0 && selectedRows.length < filteredRows.length;
+    const isAllSelected = tableData.length > 0 && selectedRows.length === tableData.length;
+    const isIndeterminate = selectedRows.length > 0 && selectedRows.length < tableData.length;
+
+    const handleApplyDateFilter = () => {
+        setDateFilterDialogOpen(false);
+    };
+
+    const handleClearDateFilter = () => {
+        setSelectedDateFilterType('Date');
+        setStartDate(null);
+        setEndDate(null);
+        setDateFilterDialogOpen(false); // Close dialog on clear
+    };
 
     return (
-        <Layout userData={userData}>
-        <Box sx={{ flexGrow: 1, backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
-                {/* REMOVE the custom AppBar/Toolbar/Tabs here */}
-            <Container maxWidth="xl" sx={{ py: 3 }}>
-                {/* Kanban-style columns */}
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            gap: 2,
-                            mb: 3,
-                            flexWrap: { xs: 'wrap', md: 'nowrap' },
-                            flexDirection: { xs: 'column', sm: 'row' },
-                            justifyContent: { xs: 'flex-start', sm: 'space-between' }
-                        }}
-                    >
+        <Box sx={{
+            flexGrow: 1,
+            backgroundColor: '#f0f2f5',
+            minHeight: '100vh',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'flex-start',
+            px: { xs: 0, sm: 2, md: 4 },
+            py: { xs: 2, sm: 3 },
+            width: '100%',
+        }}>
+            <Container maxWidth="xl" sx={{
+                py: { xs: 1, sm: 3 },
+                px: { xs: 0.5, sm: 2, md: 4 },
+                width: '100%',
+                minWidth: 0,
+            }}>
+                {/* Kanban-style cards */}
+                <Box
+                    sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
+                        gap: { xs: 1, sm: 2 },
+                        mb: { xs: 2, sm: 3 },
+                    }}
+                >
                     {kanbanData.map((col, index) => (
                         <StyledPaper key={index} sx={{
-                                flex: '1 1 22%',
-                            minWidth: '180px',
-                            p: 2,
+                            p: { xs: 1.5, sm: 2 },
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
                         }}>
-                            <Typography variant="h6" sx={{ fontWeight: 600, color: '#333', fontSize: '1.1rem' }}>
+                            <Typography variant="h6" sx={{ fontWeight: 600, color: '#333', fontSize: { xs: '1rem', sm: '1.1rem' } }}>
                                 {col.count} {col.title}
                             </Typography>
-                            <ArrowForward sx={{ color: '#888', fontSize: '1.2rem' }} />
+                            <ArrowForward sx={{ color: '#888', fontSize: { xs: '1rem', sm: '1.2rem' } }} />
                         </StyledPaper>
                     ))}
                 </Box>
 
-                    {/* Filter Bar - Single Row */}
-                    <StyledPaper sx={{ p: { xs: 1, sm: 1.5 }, mb: 2 }}>
-                        {/* First Row: Search, Website Filter, Save Button */}
-                        <Box
-                            sx={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                gap: 1,
-                                alignItems: 'center',
-                                mb: 1.5,
-                                flexDirection: { xs: 'column', sm: 'row' }
-                            }}
-                        >
+                {/* Filters Section */}
+                <StyledPaper sx={{ p: { xs: 1, sm: 1.5 }, mb: { xs: 1.5, sm: 2 } }}>
+                    {/* Search and Website Filter */}
+                    <Box sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: '1fr 1fr auto' },
+                        gap: 1.5,
+                        alignItems: 'center',
+                        mb: 1.5,
+                    }}>
                         <StyledSearchTextField
                             variant="outlined"
                             size="small"
-                                placeholder="Search projects..."
+                            placeholder="Search projects..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                                fullWidth={true}
-                                sx={{ maxWidth: { xs: '100%', sm: 200 } }}
+                            sx={{ width: '100%' }}
                             InputProps={{
                                 startAdornment: (
                                     <InputAdornment position="start">
-                                            <Search sx={{ fontSize: '1rem' }} />
+                                        <Search sx={{ fontSize: '1rem' }} />
                                     </InputAdornment>
                                 ),
                             }}
                         />
-                        <FormControl size="small">
+                        <FormControl size="small" sx={{ width: '100%' }}>
                             <StyledSelect
                                 value={selectedWebsiteFilter}
                                 onChange={(e) => setSelectedWebsiteFilter(e.target.value)}
                                 displayEmpty
                             >
                                 <MenuItem value="Website">Website</MenuItem>
-                                    <MenuItem value="Mobile App">Mobile App</MenuItem>
-                                    <MenuItem value="Desktop App">Desktop App</MenuItem>
+                                <MenuItem value="Mobile App">Mobile App</MenuItem>
+                                <MenuItem value="Desktop App">Desktop App</MenuItem>
                             </StyledSelect>
                         </FormControl>
-                            <Button
-                                variant="contained"
-                                sx={{
-                                    textTransform: 'none',
-                                    borderRadius: '6px',
-                                    backgroundColor: '#007bff',
-                                    '&:hover': { backgroundColor: '#0056b3' },
-                                    height: '32px',
-                                    fontSize: '0.8rem',
-                                    minWidth: '70px'
-                                }}
-                            >
-                                Save
-                                <KeyboardArrowDown sx={{ ml: 0.5, fontSize: '1rem' }} />
+                        <Button
+                            variant="contained"
+                            sx={{
+                                textTransform: 'none',
+                                borderRadius: '6px',
+                                backgroundColor: '#007bff',
+                                '&:hover': { backgroundColor: '#0056b3' },
+                                height: '40px',
+                                fontSize: '0.8rem',
+                                width: '100%',
+                                gridColumn: { xs: '1', sm: 'span 2', md: 'auto' }
+                            }}
+                        >
+                            Save<KeyboardArrowDown sx={{ ml: 0.5, fontSize: '1rem' }} />
                         </Button>
-                        </Box>
+                    </Box>
 
-                        {/* Second Row: All other filters and Clear button */}
-                        <Box sx={{
-                            display: 'flex',
-                            flexWrap: 'wrap',
-                            gap: 1,
-                            alignItems: 'center',
-                            '& > *': { flexShrink: 0 }
-                        }}>
-                            <FormControl size="small">
-                                <StyledSelect
-                                    value={selectedTags}
-                                    onChange={(e) => setSelectedTags(e.target.value)}
-                                    displayEmpty
-                                    startAdornment={<LocalOffer sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
-                                >
-                                    <MenuItem value="Tags">Tags</MenuItem>
-                                    <MenuItem value="New Tag Added">New Tag Added</MenuItem>
-                                    <MenuItem value="Getting Started">Getting Started</MenuItem>
-                                    <MenuItem value="Invalid Date">Invalid Date</MenuItem>
-                                    <MenuItem value="In Progress">In Progress</MenuItem>
-                                    <MenuItem value="Review">Review</MenuItem>
-                                    <MenuItem value="Testing">Testing</MenuItem>
-                                </StyledSelect>
-                            </FormControl>
+                    {/* Additional Filters - Adjusted grid for better mobile stacking */}
+                    <Box sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(auto-fill, minmax(150px, 1fr))' },
+                        gap: 1,
+                        alignItems: 'center',
+                    }}>
+                        <FormControl size="small" sx={{ width: '100%' }}>
+                            <StyledSelect
+                                value={selectedTags}
+                                onChange={(e) => setSelectedTags(e.target.value)}
+                                displayEmpty
+                                startAdornment={<LocalOffer sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
+                            >
+                                <MenuItem value="Tags">Tags</MenuItem>
+                                <MenuItem value="New Tag Added">New Tag Added</MenuItem>
+                                <MenuItem value="Getting Started">Getting Started</MenuItem>
+                                <MenuItem value="Invalid Date">Invalid Date</MenuItem>
+                                <MenuItem value="In Progress">In Progress</MenuItem>
+                                <MenuItem value="Review">Review</MenuItem> {/* Corrected closing tag */}
+                                <MenuItem value="Testing">Testing</MenuItem>
+                            </StyledSelect>
+                        </FormControl>
 
-                            <FormControl size="small">
-                                <StyledSelect
-                                    value={selectedDueDate}
-                                    onChange={(e) => setSelectedDueDate(e.target.value)}
-                                    displayEmpty
-                                    startAdornment={<Event sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
-                                >
-                                    <MenuItem value="Due Date">Due Date</MenuItem>
-                                    <MenuItem value="Today">Today</MenuItem>
-                                    <MenuItem value="This Week">This Week</MenuItem>
-                                    <MenuItem value="Next Week">Next Week</MenuItem>
-                                    <MenuItem value="Overdue">Overdue</MenuItem>
-                                </StyledSelect>
-                            </FormControl>
-
-                            <FormControl size="small">
-                                <StyledSelect
-                                    value={selectedAccountingPeriod}
-                                    onChange={(e) => setSelectedAccountingPeriod(e.target.value)}
-                                    displayEmpty
-                                    startAdornment={<AccountBalance sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
-                                >
-                                    <MenuItem value="Accounting Period">Period</MenuItem>
-                                    <MenuItem value="Q1 2024">Q1 2024</MenuItem>
-                                    <MenuItem value="Q2 2024">Q2 2024</MenuItem>
-                                    <MenuItem value="Q3 2024">Q3 2024</MenuItem>
-                                    <MenuItem value="Q4 2024">Q4 2024</MenuItem>
-                                </StyledSelect>
-                            </FormControl>
-
-                            <FormControl size="small">
-                                <StyledSelect
-                                    value={selectedAssignee}
-                                    onChange={(e) => setSelectedAssignee(e.target.value)}
-                                    displayEmpty
-                                    startAdornment={<Person sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
-                                >
-                                    <MenuItem value="Assignee">Assignee</MenuItem>
-                                    <MenuItem value="DT">DT</MenuItem>
-                                    <MenuItem value="FM">FM</MenuItem>
-                                    <MenuItem value="JD">JD</MenuItem>
-                                    <MenuItem value="AB">AB</MenuItem>
-                                    <MenuItem value="CD">CD</MenuItem>
-                                </StyledSelect>
-                            </FormControl>
-
-                            <FormControl size="small">
-                                <StyledSelect
-                                    value={selectedShowAllAssignees}
-                                    onChange={(e) => setSelectedShowAllAssignees(e.target.value)}
-                                    displayEmpty
-                                    startAdornment={<Group sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
-                                >
-                                    <MenuItem value="Show All Assignees">All</MenuItem>
-                                    <MenuItem value="Show Active Only">Active</MenuItem>
-                                    <MenuItem value="Show Inactive Only">Inactive</MenuItem>
-                                </StyledSelect>
-                            </FormControl>
-
-                            <FormControl size="small">
-                                <StyledSelect
-                                    value={selectedClients}
-                                    onChange={(e) => setSelectedClients(e.target.value)}
-                                    displayEmpty
-                                    startAdornment={<Business sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
-                                >
-                                    <MenuItem value="Clients">Clients</MenuItem>
-                                    <MenuItem value="Customer Shab">Customer Shab</MenuItem>
-                                    <MenuItem value="Abby">Abby</MenuItem>
-                                    <MenuItem value="Tech Corp">Tech Corp</MenuItem>
-                                    <MenuItem value="Shop Inc">Shop Inc</MenuItem>
-                                    <MenuItem value="Data Co">Data Co</MenuItem>
-                                </StyledSelect>
-                            </FormControl>
-
-                            <FormControl size="small">
-                                <StyledSelect
-                                    value={selectedClientGroups}
-                                    onChange={(e) => setSelectedClientGroups(e.target.value)}
-                                    displayEmpty
-                                    startAdornment={<Group sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
-                                >
-                                    <MenuItem value="Client Groups">Groups</MenuItem>
-                                    <MenuItem value="Enterprise">Enterprise</MenuItem>
-                                    <MenuItem value="SMB">SMB</MenuItem>
-                                    <MenuItem value="Startup">Startup</MenuItem>
-                                </StyledSelect>
-                            </FormControl>
-
-                            <FormControl size="small">
-                                <StyledSelect
-                                    value={selectedOpen}
-                                    onChange={(e) => setSelectedOpen(e.target.value)}
-                                    displayEmpty
-                                    startAdornment={<FolderOpen sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
-                                >
-                                    <MenuItem value="Open">Open</MenuItem>
-                                    <MenuItem value="Closed">Closed</MenuItem>
-                                    <MenuItem value="In Progress">In Progress</MenuItem>
-                                    <MenuItem value="On Hold">On Hold</MenuItem>
-                                </StyledSelect>
-                            </FormControl>
-
-                            <Box sx={{ flexGrow: 1 }} />
-                            <Button
-                                variant="text"
-                                onClick={handleClearFilters}
-                                startIcon={<ClearIcon sx={{ fontSize: '1.1rem' }} />}
-                                sx={{
-                                    textTransform: 'none',
-                                    color: '#6c757d',
-                                    fontSize: '0.75rem',
-                                    minWidth: 'auto',
-                                    padding: '4px 8px',
-                                    '&:hover': {
-                                        backgroundColor: '#f8f9fa'
+                        {/* Date Filter - Now directly opens the dialog */}
+                        <FormControl size="small" sx={{ width: '100%' }}>
+                            <StyledSelect
+                                value={selectedDateFilterType} // Keep value for display if a predefined range is active
+                                onClick={() => setDateFilterDialogOpen(true)} // Open dialog on click
+                                displayEmpty
+                                startAdornment={<Event sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
+                                // Disable default dropdown behavior, it's just a trigger now
+                                MenuProps={{
+                                    PaperProps: {
+                                        sx: { display: 'none' } // Hide the default dropdown menu
                                     }
                                 }}
                             >
-                                Clear
+                                {/* Only one option here, as it's just a trigger */}
+                                <MenuItem value="Date">Date</MenuItem>
+                            </StyledSelect>
+                        </FormControl>
+
+                        <FormControl size="small" sx={{ width: '100%' }}>
+                            <StyledSelect
+                                value={selectedAccountingPeriod}
+                                onChange={(e) => setSelectedAccountingPeriod(e.target.value)}
+                                displayEmpty
+                                startAdornment={<AccountBalance sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
+                            >
+                                <MenuItem value="Accounting Period">Period</MenuItem>
+                                <MenuItem value="Q1 2024">Q1 2024</MenuItem>
+                                <MenuItem value="Q2 2024">Q2 2024</MenuItem>
+                                <MenuItem value="Q3 2024">Q3 2024</MenuItem>
+                                <MenuItem value="Q4 2024">Q4 2024</MenuItem>
+                            </StyledSelect>
+                        </FormControl>
+
+                        <FormControl size="small" sx={{ width: '100%' }}>
+                            <StyledSelect
+                                value={selectedAssignee}
+                                onChange={(e) => setSelectedAssignee(e.target.value)}
+                                displayEmpty
+                                startAdornment={<Person sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
+                            >
+                                <MenuItem value="Assignee">Assignee</MenuItem>
+                                <MenuItem value="DT">DT</MenuItem>
+                                <MenuItem value="FM">FM</MenuItem>
+                                <MenuItem value="JD">JD</MenuItem>
+                                <MenuItem value="AB">AB</MenuItem>
+                                <MenuItem value="CD">CD</MenuItem>
+                            </StyledSelect>
+                        </FormControl>
+
+                        <FormControl size="small" sx={{ width: '100%' }}>
+                            <StyledSelect
+                                value={selectedShowAllAssignees}
+                                onChange={(e) => setSelectedShowAllAssignees(e.target.value)}
+                                displayEmpty
+                                startAdornment={<Group sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
+                            >
+                                <MenuItem value="Show All Assignees">All</MenuItem>
+                                <MenuItem value="Show Active Only">Active</MenuItem>
+                                <MenuItem value="Show Inactive Only">Inactive</MenuItem>
+                            </StyledSelect>
+                        </FormControl>
+
+                        <FormControl size="small" sx={{ width: '100%' }}>
+                            <StyledSelect
+                                value={selectedClients}
+                                onChange={(e) => setSelectedClients(e.target.value)}
+                                displayEmpty
+                                startAdornment={<Business sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
+                            >
+                                <MenuItem value="Clients">Clients</MenuItem>
+                                <MenuItem value="Customer Shab">Customer Shab</MenuItem>
+                                <MenuItem value="Abby">Abby</MenuItem>
+                                <MenuItem value="Tech Corp">Tech Corp</MenuItem>
+                                <MenuItem value="Shop Inc">Shop Inc</MenuItem>
+                                <MenuItem value="Data Co">Data Co</MenuItem>
+                            </StyledSelect>
+                        </FormControl>
+
+                        <FormControl size="small" sx={{ width: '100%' }}>
+                            <StyledSelect
+                                value={selectedClientGroups}
+                                onChange={(e) => setSelectedClientGroups(e.target.value)}
+                                displayEmpty
+                                startAdornment={<Group sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
+                            >
+                                <MenuItem value="Client Groups">Groups</MenuItem>
+                                <MenuItem value="Enterprise">Enterprise</MenuItem>
+                                <MenuItem value="SMB">SMB</MenuItem>
+                                <MenuItem value="Startup">Startup</MenuItem>
+                            </StyledSelect>
+                        </FormControl>
+
+                        <FormControl size="small" sx={{ width: '100%' }}>
+                            <StyledSelect
+                                value={selectedOpen}
+                                onChange={(e) => setSelectedOpen(e.target.value)}
+                                displayEmpty
+                                startAdornment={<FolderOpen sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
+                            >
+                                <MenuItem value="Open">Open</MenuItem>
+                                <MenuItem value="Closed">Closed</MenuItem>
+                                <MenuItem value="In Progress">In Progress</MenuItem>
+                                <MenuItem value="On Hold">On Hold</MenuItem>
+                            </StyledSelect>
+                        </FormControl>
+
+                        <Box sx={{ flexGrow: 1, display: { xs: 'none', sm: 'block' } }} />
+                        <Button
+                            variant="text"
+                            onClick={handleClearFilters}
+                            startIcon={<ClearIcon sx={{ fontSize: '1.1rem' }} />}
+                            sx={{
+                                textTransform: 'none',
+                                color: '#6c757d',
+                                fontSize: '0.75rem',
+                                padding: '4px 8px',
+                                width: { xs: '100%', sm: 'auto' },
+                                justifySelf: { xs: 'stretch', sm: 'end' },
+                                '&:hover': { backgroundColor: '#f8f9fa' }
+                            }}
+                        >
+                            Clear
                         </Button>
                     </Box>
                 </StyledPaper>
 
-
-                {/* Table/List View */}
+                {/* Table Section */}
+                {loading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px' }}>
+                        <CircularProgress />
+                        <Typography variant="h6" sx={{ ml: 2 }}>Loading data...</Typography>
+                    </Box>
+                ) : error ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', color: 'error.main' }}>
+                        <ErrorOutline sx={{ mr: 1 }} />
+                        <Typography variant="h6">{error}</Typography>
+                    </Box>
+                ) : (
                     <TableContainer component={StyledPaper} sx={{ width: '100%', overflowX: 'auto' }}>
-                    <Table sx={{ minWidth: 650 }} aria-label="project table">
-                        <TableHead>
+                        <Table sx={{ minWidth: { xs: 'auto', sm: '100%' } }} aria-label="project table">
+                            <TableHead>
                                 <TableRow sx={{ backgroundColor: '#f8f9fa' }}>
-                                <TableCell padding="checkbox">
+                                    <TableCell padding="checkbox">
                                         <Checkbox
                                             color="primary"
                                             indeterminate={isIndeterminate}
@@ -590,128 +821,200 @@ const Membertable = () => {
                                             onChange={handleSelectAll}
                                             sx={{ '& .MuiSvgIcon-root': { fontSize: '1.2rem' } }}
                                         />
-                                </TableCell>
-                                {tableHeaders.map((header) => (
-                                    <TableCell
-                                        key={header.id}
-                                        sx={{ fontWeight: 600, color: '#555', width: header.width, fontSize: '0.85rem', py: 1.5 }}
-                                    >
-                                        {header.label}
                                     </TableCell>
-                                ))}
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {paginatedRows.map((row) => (
-                                <TableRow
-                                    key={row.id}
-                                    sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': { backgroundColor: '#fdfdfd' } }}
-                                >
-                                    <TableCell padding="checkbox">
+                                    <TableCell
+                                        sx={{ fontWeight: 600, color: '#555', width: '100%', fontSize: { xs: '0.75rem', sm: '0.85rem' }, py: 1.5 }}
+                                    >
+                                        Title
+                                    </TableCell>
+                                    {tableHeaders.slice(1).map((header) => (
+                                        <TableCell
+                                            key={header.id}
+                                            sx={{
+                                                fontWeight: 600,
+                                                color: '#555',
+                                                width: header.width,
+                                                fontSize: { xs: '0.75rem', sm: '0.85rem' },
+                                                py: 1.5,
+                                                display: { xs: 'none', md: 'table-cell' }
+                                            }}
+                                        >
+                                            {header.label}
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {paginatedRows.map((row) => (
+                                    <TableRow
+                                        key={row.id}
+                                        sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': { backgroundColor: '#fdfdfd' } }}
+                                    >
+                                        <TableCell padding="checkbox">
                                             <Checkbox
                                                 color="primary"
                                                 checked={selectedRows.includes(row.id)}
                                                 onChange={() => handleSelectRow(row.id)}
                                                 sx={{ '& .MuiSvgIcon-root': { fontSize: '1.2rem' } }}
                                             />
-                                    </TableCell>
-                                    <TableCell component="th" scope="row" sx={{ fontSize: '0.85rem' }}>
-                                        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                                            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.9rem' }}>{row.title}</Typography>
-                                            <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
-                                                {row.tags && row.tags.map((tag, tagIndex) => (
-                                                    <StyledChip
-                                                        key={tagIndex}
-                                                        label={tag.text}
-                                                        size="small"
-                                                        deleteIcon={<CloseIcon />}
-                                                        onDelete={() => { /* Handle tag delete */ }}
-                                                        sx={{
-                                                            backgroundColor:
-                                                                    tag.type === 'new' ? '#e8f5e9' :
-                                                                    tag.type === 'started' ? '#e3f2fd' :
-                                                                    tag.type === 'invalid' ? '#ffebee' :
-                                                                '#f0f0f0',
-                                                            color:
-                                                                tag.type === 'new' ? '#4CAF50' :
-                                                                tag.type === 'started' ? '#2196F3' :
-                                                                tag.type === 'invalid' ? '#F44336' :
-                                                                '#555',
-                                                            '& .MuiChip-deleteIcon': {
-                                                                color:
-                                                                    tag.type === 'new' ? '#4CAF50' :
-                                                                    tag.type === 'started' ? '#2196F3' :
-                                                                    tag.type === 'invalid' ? '#F44336' :
-                                                                    '#555',
-                                                                '&:hover': {
-                                                                    color:
-                                                                        tag.type === 'new' ? '#388E3C' :
-                                                                        tag.type === 'started' ? '#1976D2' :
-                                                                        tag.type === 'invalid' ? '#D32F2F' :
-                                                                        '#333',
-                                                                }
-                                                            }
-                                                        }}
-                                                    />
+                                        </TableCell>
+                                        <TableCell component="th" scope="row" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
+                                            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                                                <Typography variant="body2" sx={{ fontWeight: 500, fontSize: { xs: '0.85rem', sm: '0.9rem' } }}>
+                                                    {row.title}
+                                                </Typography>
+                                                <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
+                                                    {row.tags && row.tags.map((tag, tagIndex) => (
+                                                        <StyledChip
+                                                            key={tagIndex}
+                                                            label={tag.text}
+                                                            size="small"
+                                                            deleteIcon={<CloseIcon />}
+                                                            onDelete={() => { }}
+                                                            sx={{
+                                                                backgroundColor: tag.type === 'new' ? '#e8f5e9' : tag.type === 'started' ? '#e3f2fd' : tag.type === 'invalid' ? '#ffebee' : '#f0f0f0',
+                                                                color: tag.type === 'new' ? '#4CAF50' : tag.type === 'started' ? '#2196F3' : tag.type === 'invalid' ? '#F44336' : '#555',
+                                                                '& .MuiChip-deleteIcon': {
+                                                                    color: tag.type === 'new' ? '#4CAF50' : tag.type === 'started' ? '#2196F3' : tag.type === 'invalid' ? '#F44336' : '#555',
+                                                                    '&:hover': {
+                                                                        color: tag.type === 'new' ? '#388E3C' : tag.type === 'started' ? '#1976D2' : tag.type === 'invalid' ? '#D32F2F' : '#333',
+                                                                    },
+                                                                },
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </Box>
+
+                                                {/* Mobile-specific details (visible on xs and sm, hidden on md and up) */}
+                                                <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', mt: 1, gap: 0.5, backgroundColor: '#f8f9fa', borderRadius: 1, p: 1 }}>
+                                                    <Divider sx={{ my: 1 }} />
+                                                    <Typography variant="caption" sx={{ color: '#666', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <span>Client: {row.client}</span>
+                                                        <span>Team Chat: {row.teamChat || 'N/A'}</span>
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ color: '#666', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <span>Start: {row.startDate}</span>
+                                                        <span>Due: <span style={{ color: row.isOverdue ? '#F44336' : '#333' }}>{row.dueDate}</span></span>
+                                                    </Typography>
+                                                    <Typography variant="caption" sx={{ color: '#666', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <span>Tasks: {row.clientTasks || 'N/A'}</span>
+                                                        <span>Budget: {row.actualBudget || 'N/A'}</span>
+                                                    </Typography>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                                                        <Typography variant="caption" sx={{ color: '#666' }}>Assignees:</Typography>
+                                                        <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                                            {row.assignees && row.assignees.map((assignee, idx) => (
+                                                                <Avatar key={idx} sx={{ width: 20, height: 20, fontSize: '0.6rem', bgcolor: assignee.color }}>{assignee.initial}</Avatar>
+                                                            ))}
+                                                        </Box>
+                                                    </Box>
+                                                </Box>
+                                            </Box>
+                                        </TableCell>
+                                        {/* Regular table cells, hidden on mobile and medium screens */}
+                                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.client}</TableCell>
+                                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.teamChat}</TableCell>
+                                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.clientTasks}</TableCell>
+                                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.actualBudget}</TableCell>
+                                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.startDate}</TableCell>
+                                        <TableCell sx={{ color: row.isOverdue ? '#F44336' : '#333', fontWeight: row.isOverdue ? 600 : 400, fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.dueDate}</TableCell>
+                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                                            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                                                {row.assignees && row.assignees.map((assignee, idx) => (
+                                                    <Avatar key={idx} sx={{ width: 24, height: 24, fontSize: '0.7rem', bgcolor: assignee.color, mr: 0.5 }}>{assignee.initial}</Avatar>
                                                 ))}
                                             </Box>
-                                        </Box>
-                                    </TableCell>
-                                    <TableCell sx={{ fontSize: '0.85rem' }}>{row.client}</TableCell>
-                                    <TableCell sx={{ fontSize: '0.85rem' }}>{row.teamChat}</TableCell>
-                                    <TableCell sx={{ fontSize: '0.85rem' }}>{row.clientTasks}</TableCell>
-                                    <TableCell sx={{ fontSize: '0.85rem' }}>{row.actualBudget}</TableCell>
-                                    <TableCell sx={{ fontSize: '0.85rem' }}>{row.startDate}</TableCell>
-                                    <TableCell sx={{ color: row.isOverdue ? '#F44336' : '#333', fontWeight: row.isOverdue ? 600 : 400, fontSize: '0.85rem' }}>{row.dueDate}</TableCell>
-                                    <TableCell>
-                                        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                                            {row.assignees && row.assignees.map((assignee, idx) => (
-                                                <Avatar key={idx} sx={{ width: 28, height: 28, fontSize: '0.8rem', bgcolor: assignee.color }}>
-                                                    {assignee.initial}
-                                                </Avatar>
-                                            ))}
-                                        </Box>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                )}
 
                 {/* Pagination */}
-                    <Box
+                <Box
+                    sx={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        mt: { xs: 2, sm: 3 },
+                        gap: 1,
+                        flexDirection: { xs: 'column', sm: 'row' },
+                        width: '100%',
+                    }}
+                >
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(prev => prev - 1)}
                         sx={{
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            mt: 3,
-                            gap: 1,
-                            flexDirection: { xs: 'column', sm: 'row' }
+                            textTransform: 'none',
+                            borderRadius: '6px',
+                            borderColor: '#ccc',
+                            color: '#555',
+                            fontSize: { xs: '0.75rem', sm: '0.85rem' },
+                            padding: '6px 12px',
+                            width: { xs: '100%', sm: 'auto' }
                         }}
                     >
-                    <Button variant="outlined" size="small" disabled={currentPage === 1} onClick={() => setCurrentPage(prev => prev - 1)}
-                        sx={{ textTransform: 'none', borderRadius: '6px', borderColor: '#ccc', color: '#555', fontSize: '0.85rem', padding: '6px 12px' }}>
                         Previous
                     </Button>
-                    <FormControl size="small">
-                        <StyledSelect
-                            value={currentPage}
-                            onChange={(e) => handlePageChange(e, e.target.value)}
-                            sx={{ minWidth: '60px', height: '32px' }} // Smaller select for page number
-                        >
-                            {Array.from({ length: pageCount }, (_, i) => i + 1).map(page => (
-                                <MenuItem key={page} value={page}>{page}</MenuItem>
-                            ))}
-                        </StyledSelect>
+                    <FormControl size="small" sx={{ width: { xs: '100%', sm: 'auto' } }}>
+                        {pageCount > 0 ? (
+                            <StyledSelect
+                                value={currentPage}
+                                onChange={(e) => handlePageChange(e, e.target.value)}
+                                sx={{ minWidth: { xs: '100%', sm: '60px' }, height: '32px' }}
+                            >
+                                {Array.from({ length: pageCount }, (_, i) => i + 1).map(page => (
+                                    <MenuItem key={page} value={page}>{page}</MenuItem>
+                                ))}
+                            </StyledSelect>
+                        ) : (
+                            <TextField
+                                value="1"
+                                disabled
+                                size="small"
+                                sx={{ minWidth: { xs: '100%', sm: '60px' }, height: '32px', '& .MuiInputBase-input': { padding: '6px 10px' } }}
+                            />
+                        )}
                     </FormControl>
-                    <Button variant="outlined" size="small" disabled={currentPage === pageCount} onClick={() => setCurrentPage(prev => prev + 1)}
-                        sx={{ textTransform: 'none', borderRadius: '6px', borderColor: '#ccc', color: '#555', fontSize: '0.85rem', padding: '6px 12px' }}>
+                    <Button
+                        variant="outlined"
+                        size="small"
+                        disabled={currentPage === pageCount}
+                        onClick={() => setCurrentPage(prev => prev + 1)}
+                        sx={{
+                            textTransform: 'none',
+                            borderRadius: '6px',
+                            borderColor: '#ccc',
+                            color: '#555',
+                            fontSize: { xs: '0.75rem', sm: '0.85rem' },
+                            padding: '6px 12px',
+                            width: { xs: '100%', sm: 'auto' }
+                        }}
+                    >
                         Next
                     </Button>
                 </Box>
             </Container>
+
+            {/* Custom Date Filter Dialog */}
+            <CustomDateFilterDialog
+                open={dateFilterDialogOpen}
+                onClose={() => setDateFilterDialogOpen(false)}
+                selectedDateFilterType={selectedDateFilterType}
+                setSelectedDateFilterType={setSelectedDateFilterType}
+                startDate={startDate}
+                setStartDate={setStartDate}
+                endDate={endDate}
+                setEndDate={setEndDate}
+                onApply={handleApplyDateFilter}
+                onClear={handleClearDateFilter}
+            />
         </Box>
-        </Layout>
     );
 };
 

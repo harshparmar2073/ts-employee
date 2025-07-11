@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
+import axiosService from '../services/axiosService';
+import PasswordStrengthBar from 'react-password-strength-bar';
+import { useToast } from '../context/ToastContext';
 import {
   Box,
   Container,
@@ -22,23 +25,24 @@ import {
   useTheme,
   useMediaQuery,
   Alert,
-  Collapse
+  Collapse,
+  CircularProgress
 } from '@mui/material';
 import { ArrowBack, ArrowForward, Visibility, VisibilityOff } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import logo from '../assets/logo2.png';
 import companyLogo from '../assets/12springslogo.png';
 
-// Validation schema
+// Enhanced validation schema
 const validationSchema = yup.object({
-  invitationCode: yup
+  // invitationCode: yup
+  //   .string()
+  //   // .required('Invitation code is required')
+  //   .min(6, 'Invitation code must be at least 6 characters'),
+  accountName: yup
     .string()
-    .required('Invitation code is required')
-    .min(6, 'Invitation code must be at least 6 characters'),
-  tenantName: yup
-    .string()
-    .required('Tenant name is required')
-    .min(2, 'Tenant name must be at least 2 characters'),
+    .required('Account name is required')
+    .min(2, 'Account name must be at least 2 characters'),
   firstName: yup
     .string()
     .required('First name is required')
@@ -91,29 +95,48 @@ const validationSchema = yup.object({
   }),
 });
 
+// Function to get browser timezone
+const getBrowserTimezoneOffset = () => {
+  const offset = -new Date().getTimezoneOffset(); // Invert the sign!
+  const sign = offset >= 0 ? '+' : '-';
+  const absOffset = Math.abs(offset);
+  const hours = String(Math.floor(absOffset / 60)).padStart(2, '0');
+  const minutes = String(absOffset % 60).padStart(2, '0');
+  return `UTC${sign}${hours}:${minutes}`;
+};
+
 const Signup = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const isTablet = useMediaQuery(theme.breakpoints.down('md'));
+  const { showToast } = useToast();
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [defaultTimezone, setDefaultTimezone] = useState('');
+
+  // Get browser timezone on component mount
+  useEffect(() => {
+    const browserTimezone = getBrowserTimezoneOffset();
+    setDefaultTimezone(browserTimezone);
+  }, []);
 
   const {
     control,
     handleSubmit,
     watch,
     formState: { errors, isValid },
-    reset
+    reset,
+    getValues,
+    setValue
   } = useForm({
     resolver: yupResolver(validationSchema),
     mode: 'onChange',
     defaultValues: {
       invitationCode: '',
-      tenantName: '',
+      accountName: '',
       firstName: '',
       lastName: '',
       email: '',
@@ -131,9 +154,18 @@ const Signup = () => {
     }
   });
 
+  // Set default timezone when it's detected
+  useEffect(() => {
+    if (defaultTimezone) {
+      setValue('timezone', defaultTimezone);
+    }
+  }, [defaultTimezone, setValue]);
+
   const showAddress = watch('showAddress');
+  const currentPassword = watch('password');
 
   const timezones = [
+    { value: 'auto', label: 'Auto-detect from browser' },
     { value: 'UTC-12:00', label: '(UTC-12:00) International Date Line West' },
     { value: 'UTC-11:00', label: '(UTC-11:00) Coordinated Universal Time-11' },
     { value: 'UTC-10:00', label: '(UTC-10:00) Hawaii' },
@@ -177,23 +209,64 @@ const Signup = () => {
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
-    setSubmitError('');
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Prepare the payload according to API requirements
+      const timezoneValue = data.timezone === 'auto' ? defaultTimezone : data.timezone;
+      
+      const payload = {
+        accountName: data.accountName,
+        accountStatus: "active", // Default status
+        auth: {
+          authName: `${data.firstName} ${data.lastName}`,
+          authUserName: data.email,
+          authPassword: data.password,
+          authStatus: "active", // Default status
+          timeZone: timezoneValue
+        }
+      };
 
-      if (!data.showAddress) {
-        const { addressLine1, addressLine2, addressLine3, county, city, postcode, country, ...cleanData } = data;
-        console.log('Signup data:', cleanData);
-      } else {
-        console.log('Signup data:', data);
+      // Add address only if showAddress is true
+      if (data.showAddress) {
+        payload.address = {
+          addressLine1: data.addressLine1,
+          addressLine2: data.addressLine2 || "", // Optional field
+          city: data.city,
+          county: data.county || "", // Optional field
+          postcode: data.postcode,
+          country: data.country,
+          addressType: "primary" // Default address type
+        };
       }
 
-      alert('Account created successfully!');
-      reset();
+      // Make API call
+      const response = await axiosService.post('/account/signup', payload);
+
+      if (response.status === 200 || response.status === 201) {
+        showToast('Account created successfully! Redirecting to login page...', 'success');
+        
+        // Redirect to login page after 2 seconds
+        setTimeout(() => {
+          navigate('/');
+        }, 2000);
+      }
 
     } catch (error) {
-      setSubmitError('An error occurred during signup. Please try again.');
+      console.error('Signup error:', error);
+      
+      let errorMessage = 'An unexpected error occurred. Please try again.';
+      
+      if (error.response) {
+        // Server responded with error status
+        errorMessage = error.response.data?.message || 
+                      error.response.data?.error || 
+                      `Error: ${error.response.status}`;
+      } else if (error.request) {
+        // Request made but no response received
+        errorMessage = 'Network error. Please check your connection and try again.';
+      }
+      
+      showToast(errorMessage, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -203,7 +276,7 @@ const Signup = () => {
     <Box
       sx={{
         minHeight: '100vh',
-        width: '100%', // <-- change from '100vw' to '100%'
+        width: '100%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -246,11 +319,10 @@ const Signup = () => {
         <ArrowBack />
       </IconButton>
 
-      {/* Optimized container width */}
       <Container
-        maxWidth="md" // or "sm" for a narrower form
+        maxWidth="md"
         sx={{
-          px: { xs: 1, sm: 2, md: 4 }, // Responsive horizontal padding
+          px: { xs: 1, sm: 2, md: 4 },
         }}
       >
         <Card
@@ -260,7 +332,6 @@ const Signup = () => {
             borderRadius: isMobile ? 1 : 2,
             position: 'relative',
             overflow: 'hidden',
-            // Remove width: '100%'
           }}
         >
           <CardContent sx={{ p: isMobile ? 2 : 3 }}>
@@ -299,19 +370,12 @@ const Signup = () => {
                 Create your Account
               </Typography>
               <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                Tenant Signup
+                Account Signup
               </Typography>
             </Box>
 
-            {/* Error Alert */}
-            <Collapse in={!!submitError}>
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {submitError}
-              </Alert>
-            </Collapse>
-
             <form onSubmit={handleSubmit(onSubmit)}>
-              {/* Invitation Code - with purple background like in image */}
+              {/* Invitation Code */}
               <Controller
                 name="invitationCode"
                 control={control}
@@ -325,10 +389,30 @@ const Signup = () => {
                     sx={{
                       mb: 2.5,
                       '& .MuiOutlinedInput-root': {
-                        backgroundColor: 'rgba(147, 112, 219, 0.1)', // Light purple background
+                        backgroundColor: 'rgba(147, 112, 219, 0.1)',
                         borderRadius: 1
                       }
                     }}
+                  />
+                )}
+              />
+
+              {/* Account Information */}
+              <Typography sx={{ fontWeight: 600, mb: 1.5, fontSize: isMobile ? 14 : 16 }}>
+                Account Information
+              </Typography>
+
+              <Controller
+                name="accountName"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    placeholder="Account Name"
+                    error={!!errors.accountName}
+                    helperText={errors.accountName?.message}
+                    sx={{ mb: 1.5 }}
                   />
                 )}
               />
@@ -337,21 +421,6 @@ const Signup = () => {
               <Typography sx={{ fontWeight: 600, mb: 1.5, fontSize: isMobile ? 14 : 16 }}>
                 Personal Information
               </Typography>
-
-              <Controller
-                name="tenantName"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    placeholder="Tenant Name"
-                    error={!!errors.tenantName}
-                    helperText={errors.tenantName?.message}
-                    sx={{ mb: 1.5 }}
-                  />
-                )}
-              />
 
               <Controller
                 name="firstName"
@@ -408,25 +477,37 @@ const Signup = () => {
                 name="password"
                 control={control}
                 render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    placeholder="Password"
-                    type={showPassword ? 'text' : 'password'}
-                    error={!!errors.password}
-                    helperText={errors.password?.message}
-                    InputProps={{
-                      endAdornment: (
-                        <IconButton
-                          onClick={() => setShowPassword(!showPassword)}
-                          edge="end"
-                        >
-                          {showPassword ? <VisibilityOff /> : <Visibility />}
-                        </IconButton>
-                      )
-                    }}
-                    sx={{ mb: 1.5 }}
-                  />
+                  <Box sx={{ mb: 1.5 }}>
+                    <TextField
+                      {...field}
+                      fullWidth
+                      placeholder="Password"
+                      type={showPassword ? 'text' : 'password'}
+                      error={!!errors.password}
+                      helperText={errors.password?.message}
+                      InputProps={{
+                        endAdornment: (
+                          <IconButton
+                            onClick={() => setShowPassword(!showPassword)}
+                            edge="end"
+                          >
+                            {showPassword ? <VisibilityOff /> : <Visibility />}
+                          </IconButton>
+                        )
+                      }}
+                    />
+                    {/* Password Strength Bar */}
+                    {currentPassword && (
+                      <Box sx={{ mt: 1 }}>
+                        <PasswordStrengthBar
+                          password={currentPassword}
+                          minLength={8}
+                          scoreWords={['Very Weak', 'Weak', 'Fair', 'Good', 'Strong']}
+                          shortScoreWord="Too Short"
+                        />
+                      </Box>
+                    )}
+                  </Box>
                 )}
               />
 
@@ -465,7 +546,7 @@ const Signup = () => {
                     <Select {...field} label="Timezone">
                       {timezones.map((tz) => (
                         <MenuItem key={tz.value} value={tz.value}>
-                          {tz.label}
+                          {tz.value === 'auto' ? `${tz.label} (${defaultTimezone})` : tz.label}
                         </MenuItem>
                       ))}
                     </Select>
@@ -495,7 +576,7 @@ const Signup = () => {
                         }}
                       />
                     }
-                    label="Provide Address"
+                    label="Provide Address (Optional)"
                     sx={{ mb: showAddress ? 1.5 : 0 }}
                   />
                 )}
@@ -530,7 +611,7 @@ const Signup = () => {
                       <TextField
                         {...field}
                         fullWidth
-                        placeholder="Address Line 2"
+                        placeholder="Address Line 2 (Optional)"
                         sx={{ mb: 1.5 }}
                       />
                     )}
@@ -543,7 +624,7 @@ const Signup = () => {
                       <TextField
                         {...field}
                         fullWidth
-                        placeholder="Address Line 3"
+                        placeholder="Address Line 3 (Optional)"
                         sx={{ mb: 1.5 }}
                       />
                     )}
@@ -565,7 +646,7 @@ const Signup = () => {
                           <TextField
                             {...field}
                             fullWidth
-                            placeholder="County"
+                            placeholder="County (Optional)"
                           />
                         )}
                       />
@@ -632,6 +713,7 @@ const Signup = () => {
                   variant="outlined"
                   startIcon={<ArrowBack />}
                   onClick={handleBack}
+                  disabled={isSubmitting}
                   sx={{
                     height: isMobile ? 45 : 50,
                     width: isMobile ? '100%' : 140,
@@ -645,6 +727,11 @@ const Signup = () => {
                     '&:hover': {
                       backgroundColor: 'rgba(0,0,0,0.05)',
                       borderColor: 'rgb(0, 0, 0)',
+                    },
+                    '&:disabled': {
+                      backgroundColor: 'rgba(0, 0, 0, 0.05)',
+                      borderColor: 'rgba(0, 0, 0, 0.26)',
+                      color: 'rgba(0, 0, 0, 0.26)',
                     }
                   }}
                 >
@@ -654,7 +741,7 @@ const Signup = () => {
                 <Button
                   type="submit"
                   variant="contained"
-                  endIcon={<ArrowForward />}
+                  endIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <ArrowForward />}
                   disabled={isSubmitting}
                   sx={{
                     height: isMobile ? 45 : 50,
