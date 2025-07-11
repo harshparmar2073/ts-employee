@@ -106,6 +106,25 @@ const Login = () => {
 
   const handleSendCode = async () => {
     const { email, password } = getValues();
+    console.log("Selected MFA before sending:", selectedMfa);
+    if (selectedMfa === "TOTP") {
+      // No need to call authenticatePreMfa for TOTP
+      navigate("/verification-code", {
+        state: {
+          username: email,
+          password,
+          mfaSessionId: null, // or generate from backend if needed
+          maskedLabel: "Authenticator App",
+          verificationCodeExpMinutes: 5,
+          mfaType: "TOTP",
+          rememberMe: rememberMe,
+          rememberDuration: rememberDuration,
+        },
+      });
+      return;
+    }
+  
+    // For EMAIL or SMS
     try {
       const response = await authenticatePreMfa(email, password, selectedMfa);
       const data = response?.data?.data;
@@ -130,6 +149,7 @@ const Login = () => {
       );
     }
   };
+
 
   return (
     <Box

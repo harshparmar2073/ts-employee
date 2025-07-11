@@ -122,6 +122,7 @@ const VerificationCodePage = () => {
     }
     setLoading(true);
     setError("");
+    
     try {
       const response = await verifyMfaCode({
         username,
@@ -132,10 +133,7 @@ const VerificationCodePage = () => {
         authRememberMeExpDays: state?.rememberDuration || "1",
         authRememberMe: state?.rememberMe || false,
       });
-      const token =
-        response.data?.token ||
-        response.data?.accessToken ||
-        response.data?.authToken;
+      const token = response.data.data?.authorizationToken;
       if (token) localStorage.setItem("authToken", token);
       localStorage.setItem("authResponse", JSON.stringify(response.data));
       setSuccess(true);
