@@ -36,7 +36,7 @@ import {
 import { styled, useTheme } from '@mui/material/styles';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import {
-    List as ListIcon,
+    List as ListIcon, // Keep ListIcon if needed elsewhere, otherwise remove
     CalendarMonth,
     NotificationsNone,
     SettingsOutlined,
@@ -46,14 +46,11 @@ import {
     Close as CloseIcon,
     LocalOffer,
     Event,
-    AccountBalance,
-    Person,
-    Group,
-    Business,
-    FolderOpen,
     Clear,
-    FilterAltOff,
-    ErrorOutline
+    ErrorOutline,
+    // New icons for Accounts and Users
+    AccountBalance, // For Accounts
+    Person // For Users
 } from '@mui/icons-material';
 import ClearIcon from '@mui/icons-material/Clear';
 
@@ -61,7 +58,7 @@ import ClearIcon from '@mui/icons-material/Clear';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { StaticDatePicker } from '@mui/x-date-pickers/StaticDatePicker'; // Using StaticDatePicker for inline calendar
+import { StaticDatePicker } from '@mui/x-date-pickers/StaticDatePicker';
 
 // Import axios directly
 import axios from 'axios';
@@ -382,12 +379,9 @@ const Membertable = () => {
     const [selectedWebsiteFilter, setSelectedWebsiteFilter] = useState('Website');
     const [selectedTags, setSelectedTags] = useState('Tags');
     const [selectedDateFilterType, setSelectedDateFilterType] = useState('Date');
-    const [selectedAccountingPeriod, setSelectedAccountingPeriod] = useState('Accounting Period');
-    const [selectedAssignee, setSelectedAssignee] = useState('Assignee');
-    const [selectedShowAllAssignees, setSelectedShowAllAssignees] = useState('Show All Assignees');
-    const [selectedClients, setSelectedClients] = useState('Clients');
-    const [selectedClientGroups, setSelectedClientGroups] = useState('Client Groups');
-    const [selectedOpen, setSelectedOpen] = useState('Open');
+    const [selectedAccount, setSelectedAccount] = useState('Accounts');
+    const [selectedUser, setSelectedUser] = useState('Users');
+
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
     const [selectedRows, setSelectedRows] = useState([]);
@@ -413,15 +407,14 @@ const Membertable = () => {
         { title: 'Overdue', count: 2 },
     ];
 
+    // Updated table headers
     const tableHeaders = [
-        { id: 'title', label: 'Title', width: '30%' },
-        { id: 'client', label: 'Client', width: '15%' },
-        { id: 'teamChat', label: 'Team Chat', width: '10%' },
-        { id: 'clientTasks', label: 'Client Tasks', width: '10%' },
-        { id: 'actualBudget', label: 'Actual/Budget', width: '10%' },
-        { id: 'startDate', label: 'Start Date', width: '10%' },
-        { id: 'dueDate', label: 'Due Date', width: '10%' },
-        { id: 'assignees', label: 'Assignees', width: '5%' },
+        { id: 'userName', label: 'User Name', width: '20%' },
+        { id: 'accountName', label: 'Account Name', width: '20%' },
+        { id: 'dateCreated', label: 'Date Created', width: '15%' },
+        { id: 'dateExpire', label: 'Date Expire', width: '15%' },
+        { id: 'status', label: 'Status', width: '15%' },
+        { id: 'rawFP', label: 'Raw FP', width: '15%' },
     ];
 
     // Fetch data from API
@@ -434,11 +427,8 @@ const Membertable = () => {
                     search: searchTerm,
                     projectType: selectedWebsiteFilter === 'Website' ? undefined : selectedWebsiteFilter,
                     tags: selectedTags === 'Tags' ? undefined : selectedTags,
-                    accountingPeriod: selectedAccountingPeriod === 'Accounting Period' ? undefined : selectedAccountingPeriod,
-                    assignee: selectedAssignee === 'Assignee' ? undefined : selectedAssignee,
-                    client: selectedClients === 'Clients' ? undefined : selectedClients,
-                    clientGroup: selectedClientGroups === 'Client Groups' ? undefined : selectedClientGroups,
-                    status: selectedOpen === 'Open' ? undefined : selectedOpen,
+                    account: selectedAccount === 'Accounts' ? undefined : selectedAccount,
+                    user: selectedUser === 'Users' ? undefined : selectedUser,
                 };
 
                 // Add date filter parameters based on selectedDateFilterType
@@ -487,7 +477,8 @@ const Membertable = () => {
 
         fetchTableData();
     }, [searchTerm, selectedWebsiteFilter, selectedTags, selectedDateFilterType, startDate, endDate,
-        selectedAccountingPeriod, selectedAssignee, selectedClients, selectedClientGroups, selectedOpen, rowsPerPage]);
+        selectedAccount, selectedUser,
+        rowsPerPage]);
 
 
     const paginatedRows = tableData.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
@@ -505,12 +496,8 @@ const Membertable = () => {
         setSelectedDateFilterType('Date');
         setStartDate(null);
         setEndDate(null);
-        setSelectedAccountingPeriod('Accounting Period');
-        setSelectedAssignee('Assignee');
-        setSelectedShowAllAssignees('Show All Assignees');
-        setSelectedClients('Clients');
-        setSelectedClientGroups('Client Groups');
-        setSelectedOpen('Open');
+        setSelectedAccount('Accounts');
+        setSelectedUser('Users');
         setCurrentPage(1);
         setSelectedRows([]);
     };
@@ -665,7 +652,7 @@ const Membertable = () => {
                                 <MenuItem value="Getting Started">Getting Started</MenuItem>
                                 <MenuItem value="Invalid Date">Invalid Date</MenuItem>
                                 <MenuItem value="In Progress">In Progress</MenuItem>
-                                <MenuItem value="Review">Review</MenuItem> {/* Corrected closing tag */}
+                                <MenuItem value="Review">Review</MenuItem>
                                 <MenuItem value="Testing">Testing</MenuItem>
                             </StyledSelect>
                         </FormControl>
@@ -689,91 +676,31 @@ const Membertable = () => {
                             </StyledSelect>
                         </FormControl>
 
+                        {/* New Accounts Filter */}
                         <FormControl size="small" sx={{ width: '100%' }}>
                             <StyledSelect
-                                value={selectedAccountingPeriod}
-                                onChange={(e) => setSelectedAccountingPeriod(e.target.value)}
+                                value={selectedAccount}
+                                onChange={(e) => setSelectedAccount(e.target.value)}
                                 displayEmpty
                                 startAdornment={<AccountBalance sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
                             >
-                                <MenuItem value="Accounting Period">Period</MenuItem>
-                                <MenuItem value="Q1 2024">Q1 2024</MenuItem>
-                                <MenuItem value="Q2 2024">Q2 2024</MenuItem>
-                                <MenuItem value="Q3 2024">Q3 2024</MenuItem>
-                                <MenuItem value="Q4 2024">Q4 2024</MenuItem>
+                                <MenuItem value="Accounts">Accounts</MenuItem>
+                                <MenuItem value="Account 1">Account 1</MenuItem>
+                                <MenuItem value="Account 2">Account 2</MenuItem>
                             </StyledSelect>
                         </FormControl>
 
+                        {/* New Users Filter */}
                         <FormControl size="small" sx={{ width: '100%' }}>
                             <StyledSelect
-                                value={selectedAssignee}
-                                onChange={(e) => setSelectedAssignee(e.target.value)}
+                                value={selectedUser}
+                                onChange={(e) => setSelectedUser(e.target.value)}
                                 displayEmpty
                                 startAdornment={<Person sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
                             >
-                                <MenuItem value="Assignee">Assignee</MenuItem>
-                                <MenuItem value="DT">DT</MenuItem>
-                                <MenuItem value="FM">FM</MenuItem>
-                                <MenuItem value="JD">JD</MenuItem>
-                                <MenuItem value="AB">AB</MenuItem>
-                                <MenuItem value="CD">CD</MenuItem>
-                            </StyledSelect>
-                        </FormControl>
-
-                        <FormControl size="small" sx={{ width: '100%' }}>
-                            <StyledSelect
-                                value={selectedShowAllAssignees}
-                                onChange={(e) => setSelectedShowAllAssignees(e.target.value)}
-                                displayEmpty
-                                startAdornment={<Group sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
-                            >
-                                <MenuItem value="Show All Assignees">All</MenuItem>
-                                <MenuItem value="Show Active Only">Active</MenuItem>
-                                <MenuItem value="Show Inactive Only">Inactive</MenuItem>
-                            </StyledSelect>
-                        </FormControl>
-
-                        <FormControl size="small" sx={{ width: '100%' }}>
-                            <StyledSelect
-                                value={selectedClients}
-                                onChange={(e) => setSelectedClients(e.target.value)}
-                                displayEmpty
-                                startAdornment={<Business sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
-                            >
-                                <MenuItem value="Clients">Clients</MenuItem>
-                                <MenuItem value="Customer Shab">Customer Shab</MenuItem>
-                                <MenuItem value="Abby">Abby</MenuItem>
-                                <MenuItem value="Tech Corp">Tech Corp</MenuItem>
-                                <MenuItem value="Shop Inc">Shop Inc</MenuItem>
-                                <MenuItem value="Data Co">Data Co</MenuItem>
-                            </StyledSelect>
-                        </FormControl>
-
-                        <FormControl size="small" sx={{ width: '100%' }}>
-                            <StyledSelect
-                                value={selectedClientGroups}
-                                onChange={(e) => setSelectedClientGroups(e.target.value)}
-                                displayEmpty
-                                startAdornment={<Group sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
-                            >
-                                <MenuItem value="Client Groups">Groups</MenuItem>
-                                <MenuItem value="Enterprise">Enterprise</MenuItem>
-                                <MenuItem value="SMB">SMB</MenuItem>
-                                <MenuItem value="Startup">Startup</MenuItem>
-                            </StyledSelect>
-                        </FormControl>
-
-                        <FormControl size="small" sx={{ width: '100%' }}>
-                            <StyledSelect
-                                value={selectedOpen}
-                                onChange={(e) => setSelectedOpen(e.target.value)}
-                                displayEmpty
-                                startAdornment={<FolderOpen sx={{ fontSize: '0.9rem', mr: 0.5, color: '#666' }} />}
-                            >
-                                <MenuItem value="Open">Open</MenuItem>
-                                <MenuItem value="Closed">Closed</MenuItem>
-                                <MenuItem value="In Progress">In Progress</MenuItem>
-                                <MenuItem value="On Hold">On Hold</MenuItem>
+                                <MenuItem value="Users">Users</MenuItem>
+                                <MenuItem value="User 1">User 1</MenuItem>
+                                <MenuItem value="User 2">User 2</MenuItem>
                             </StyledSelect>
                         </FormControl>
 
@@ -822,12 +749,7 @@ const Membertable = () => {
                                             sx={{ '& .MuiSvgIcon-root': { fontSize: '1.2rem' } }}
                                         />
                                     </TableCell>
-                                    <TableCell
-                                        sx={{ fontWeight: 600, color: '#555', width: '100%', fontSize: { xs: '0.75rem', sm: '0.85rem' }, py: 1.5 }}
-                                    >
-                                        Title
-                                    </TableCell>
-                                    {tableHeaders.slice(1).map((header) => (
+                                    {tableHeaders.map((header) => (
                                         <TableCell
                                             key={header.id}
                                             sx={{
@@ -836,7 +758,9 @@ const Membertable = () => {
                                                 width: header.width,
                                                 fontSize: { xs: '0.75rem', sm: '0.85rem' },
                                                 py: 1.5,
-                                                display: { xs: 'none', md: 'table-cell' }
+                                                display: (header.id === 'userName' || header.id === 'accountName' || header.id === 'status')
+                                                    ? 'table-cell'
+                                                    : { xs: 'none', md: 'table-cell' }
                                             }}
                                         >
                                             {header.label}
@@ -845,7 +769,14 @@ const Membertable = () => {
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {paginatedRows.map((row) => (
+                                {loading && (
+                                    <TableRow>
+                                        <TableCell colSpan={tableHeaders.length + 1} align="center">
+                                            <CircularProgress size={32} />
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                                {!loading && paginatedRows.map((row) => (
                                     <TableRow
                                         key={row.id}
                                         sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': { backgroundColor: '#fdfdfd' } }}
@@ -858,10 +789,11 @@ const Membertable = () => {
                                                 sx={{ '& .MuiSvgIcon-root': { fontSize: '1.2rem' } }}
                                             />
                                         </TableCell>
+                                        {/* User Name */}
                                         <TableCell component="th" scope="row" sx={{ fontSize: { xs: '0.8rem', sm: '0.9rem' } }}>
                                             <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                                                 <Typography variant="body2" sx={{ fontWeight: 500, fontSize: { xs: '0.85rem', sm: '0.9rem' } }}>
-                                                    {row.title}
+                                                    {row.userName || 'N/A'}
                                                 </Typography>
                                                 <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
                                                     {row.tags && row.tags.map((tag, tagIndex) => (
@@ -889,44 +821,38 @@ const Membertable = () => {
                                                 <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', mt: 1, gap: 0.5, backgroundColor: '#f8f9fa', borderRadius: 1, p: 1 }}>
                                                     <Divider sx={{ my: 1 }} />
                                                     <Typography variant="caption" sx={{ color: '#666', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <span>Client: {row.client}</span>
-                                                        <span>Team Chat: {row.teamChat || 'N/A'}</span>
+                                                        <span>Account: {row.accountName || 'N/A'}</span>
+                                                        <span>Status: {row.status || 'N/A'}</span>
                                                     </Typography>
                                                     <Typography variant="caption" sx={{ color: '#666', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <span>Start: {row.startDate}</span>
-                                                        <span>Due: <span style={{ color: row.isOverdue ? '#F44336' : '#333' }}>{row.dueDate}</span></span>
+                                                        <span>Created: {row.dateCreated || 'N/A'}</span>
+                                                        <span>Expire: {row.dateExpire || 'N/A'}</span>
                                                     </Typography>
                                                     <Typography variant="caption" sx={{ color: '#666', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <span>Tasks: {row.clientTasks || 'N/A'}</span>
-                                                        <span>Budget: {row.actualBudget || 'N/A'}</span>
+                                                        <span>Raw FP: {row.rawFP || 'N/A'}</span>
                                                     </Typography>
-                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                                                        <Typography variant="caption" sx={{ color: '#666' }}>Assignees:</Typography>
-                                                        <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                                            {row.assignees && row.assignees.map((assignee, idx) => (
-                                                                <Avatar key={idx} sx={{ width: 20, height: 20, fontSize: '0.6rem', bgcolor: assignee.color }}>{assignee.initial}</Avatar>
-                                                            ))}
-                                                        </Box>
-                                                    </Box>
                                                 </Box>
                                             </Box>
                                         </TableCell>
-                                        {/* Regular table cells, hidden on mobile and medium screens */}
-                                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.client}</TableCell>
-                                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.teamChat}</TableCell>
-                                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.clientTasks}</TableCell>
-                                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.actualBudget}</TableCell>
-                                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.startDate}</TableCell>
-                                        <TableCell sx={{ color: row.isOverdue ? '#F44336' : '#333', fontWeight: row.isOverdue ? 600 : 400, fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.dueDate}</TableCell>
-                                        <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
-                                            <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                                                {row.assignees && row.assignees.map((assignee, idx) => (
-                                                    <Avatar key={idx} sx={{ width: 24, height: 24, fontSize: '0.7rem', bgcolor: assignee.color, mr: 0.5 }}>{assignee.initial}</Avatar>
-                                                ))}
-                                            </Box>
-                                        </TableCell>
+                                        {/* Account Name */}
+                                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.accountName || 'N/A'}</TableCell>
+                                        {/* Date Created */}
+                                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.dateCreated || 'N/A'}</TableCell>
+                                        {/* Date Expire */}
+                                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.dateExpire || 'N/A'}</TableCell>
+                                        {/* Status */}
+                                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.status || 'N/A'}</TableCell>
+                                        {/* Raw FP */}
+                                        <TableCell sx={{ fontSize: { xs: '0.75rem', sm: '0.85rem' }, display: { xs: 'none', md: 'table-cell' } }}>{row.rawFP || 'N/A'}</TableCell>
                                     </TableRow>
                                 ))}
+                                {!loading && paginatedRows.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={tableHeaders.length + 1} align="center">
+                                            No data available.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
                             </TableBody>
                         </Table>
                     </TableContainer>
