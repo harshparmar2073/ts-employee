@@ -72,7 +72,7 @@ const SidebarItems = [
 ];
 
 export default function Sidebar({
-  drawerWidth = 250,
+  drawerWidth = 260,
   collapsed,
   handleCollapseToggle,
   selectedSection,
@@ -101,49 +101,44 @@ export default function Sidebar({
       setLogoutDialogOpen(true);
     } else {
       setSelectedSection(item.text);
-      if (item.text === 'Dashboard') {
-        navigate('/dashboard/dashboard-content');
-      } else if (item.text === 'Security') {
-        navigate('/dashboard/security');
-      } else if (item.text === 'Token Sessions') {
-        navigate('/dashboard/member-table');
-      }
+      if (item.text === 'Dashboard') navigate('/dashboard/dashboard-content');
+      else if (item.text === 'Security') navigate('/dashboard/security');
+      else if (item.text === 'Token Sessions') navigate('/dashboard/member-table');
     }
   };
 
   const drawer = (
     <Box
-  sx={{
-    height: '100%',
-    width: drawerWidth,
-    background: 'linear-gradient(to top, #9370DB, #b2f5ea)', // purple to light green
-    color: 'black',
-    display: 'flex',
-    flexDirection: 'column',
-    fontFamily: '"Inter", "Roboto", "Helvetica Neue", sans-serif',
-  }}
-
+      sx={{
+        height: '100%',
+        width: drawerWidth,
+        background: 'linear-gradient(to bottom right, #2E2A5A, #A0EACF)',
+        color: '#fff',
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: '"DM Sans", "Roboto", sans-serif',
+      }}
     >
       <Box display="flex" alignItems="center" justifyContent="space-between" px={2} py={2}>
         {!collapsed && (
           <Typography
-            variant="h4"
+            variant="h5"
             sx={{
-              background: 'linear-gradient(45deg, #9c27b0, #00cba9)',
+              background: 'linear-gradient(to right, #d1c4e9, #00cba9)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              fontWeight: 800,
-              fontSize: { xs: '1.5rem', sm: '2.125rem' },
+              fontWeight: 700,
+              letterSpacing: 0.5,
             }}
           >
             Antalyze
           </Typography>
         )}
-        <IconButton size="small" onClick={handleCollapseToggle} sx={{ color: 'white' }}>
+        <IconButton size="small" onClick={handleCollapseToggle} sx={{ color: '#eee' }}>
           <ChevronLeftIcon sx={{ transform: collapsed ? 'rotate(180deg)' : 'none' }} />
         </IconButton>
       </Box>
-      <Divider sx={{ borderColor: 'rgba(255,255,255,0.3)' }} />
+      <Divider sx={{ borderColor: 'rgba(255,255,255,0.15)' }} />
       <List sx={{ flexGrow: 1 }}>
         {SidebarItems.map((item) => (
           <Box key={item.text}>
@@ -152,7 +147,6 @@ export default function Sidebar({
               placement="right"
               arrow
               enterDelay={300}
-              sx={{ fontSize: '1rem' }}
             >
               <ListItem disablePadding>
                 <ListItemButton
@@ -160,20 +154,22 @@ export default function Sidebar({
                   selected={selectedSection === item.text}
                   sx={{
                     '&:hover': {
-                      background: 'linear-gradient(90deg, #d1c4e9, #b2f5ea)',
-                      fontWeight: 'bold',
+                      background: 'rgba(255,255,255,0.08)',
+                      transform: 'scale(1.01)',
                     },
                     '&.Mui-selected': {
-                      background: 'linear-gradient(90deg, #a084ca, #b2f5ea)',
-                      fontWeight: 'bold',
+                      background: 'rgba(255,255,255,0.12)',
+                      fontWeight: 600,
                     },
-                    transition: 'all 0.3s ease-in-out',
-                    borderRadius: 2,
                     mx: 1,
                     my: 0.5,
+                    borderRadius: 2,
+                    px: 2,
+                    py: 1,
+                    transition: 'all 0.2s ease-in-out',
                   }}
                 >
-                  <ListItemIcon sx={{ color: 'white' }}>{item.icon}</ListItemIcon>
+                  <ListItemIcon sx={{ color: '#fff' }}>{item.icon}</ListItemIcon>
                   {!collapsed && <ListItemText primary={item.text} />}
                   {!collapsed && item.expandable && (
                     expandedSections[item.text] ? <ExpandLess /> : <ExpandMore />
@@ -190,21 +186,20 @@ export default function Sidebar({
                         onClick={() => handleItemClick(subItem)}
                         selected={selectedSection === subItem.text}
                         sx={{
-                          pl: 4,
+                          pl: 5,
                           '&:hover': {
-                            background: 'linear-gradient(90deg, #d1c4e9, #b2f5ea)',
-                            fontWeight: 'bold',
+                            background: 'rgba(255,255,255,0.08)',
                           },
                           '&.Mui-selected': {
-                            background: 'linear-gradient(90deg, #a084ca, #b2f5ea)',
-                            fontWeight: 'bold',
+                            background: 'rgba(255,255,255,0.12)',
+                            fontWeight: 600,
                           },
-                          borderRadius: 2,
                           mx: 1,
-                          my: 0.5,
+                          my: 0.25,
+                          borderRadius: 2,
                         }}
                       >
-                        <ListItemIcon sx={{ color: 'white' }}>{subItem.icon}</ListItemIcon>
+                        <ListItemIcon sx={{ color: '#fff' }}>{subItem.icon}</ListItemIcon>
                         <ListItemText primary={subItem.text} />
                       </ListItemButton>
                     </ListItem>
@@ -231,6 +226,8 @@ export default function Sidebar({
               width: drawerWidth,
               boxSizing: 'border-box',
               transition: 'all 0.3s ease-in-out',
+              border: 'none',
+              boxShadow: '4px 0 12px rgba(0,0,0,0.1)',
             },
           }}
         >
