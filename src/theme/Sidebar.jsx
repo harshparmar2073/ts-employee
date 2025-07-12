@@ -10,8 +10,8 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Button,
   Collapse,
+  Tooltip,
 } from '@mui/material';
 import {
   ChevronLeft as ChevronLeftIcon,
@@ -105,8 +105,7 @@ export default function Sidebar({
         navigate('/dashboard/dashboard-content');
       } else if (item.text === 'Security') {
         navigate('/dashboard/security');
-      }
-      else if (item.text === 'Token Sessions') {
+      } else if (item.text === 'Token Sessions') {
         navigate('/dashboard/member-table');
       }
     }
@@ -114,22 +113,23 @@ export default function Sidebar({
 
   const drawer = (
     <Box
-      sx={{
-        height: '100%',
-        width: drawerWidth,
-        background: 'linear-gradient(to top, #7e5b72, #2d3e65)',
-        color: 'white',
-        display: 'flex',
-        flexDirection: 'column',
-        fontFamily: '"Inter", sans-serif',
-      }}
+  sx={{
+    height: '100%',
+    width: drawerWidth,
+    background: 'linear-gradient(to top, #9370DB, #b2f5ea)', // purple to light green
+    color: 'black',
+    display: 'flex',
+    flexDirection: 'column',
+    fontFamily: '"Inter", "Roboto", "Helvetica Neue", sans-serif',
+  }}
+
     >
       <Box display="flex" alignItems="center" justifyContent="space-between" px={2} py={2}>
         {!collapsed && (
           <Typography
             variant="h4"
             sx={{
-              background: 'linear-gradient(45deg, #b2195b,rgb(139, 36, 155),rgb(116, 83, 167))',
+              background: 'linear-gradient(45deg, #9c27b0, #00cba9)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               fontWeight: 800,
@@ -147,21 +147,63 @@ export default function Sidebar({
       <List sx={{ flexGrow: 1 }}>
         {SidebarItems.map((item) => (
           <Box key={item.text}>
-            <ListItem disablePadding>
-              <ListItemButton onClick={() => handleItemClick(item)}>
-                <ListItemIcon sx={{ color: 'white' }}>{item.icon}</ListItemIcon>
-                {!collapsed && <ListItemText primary={item.text} />}
-                {!collapsed && item.expandable && (
-                  expandedSections[item.text] ? <ExpandLess /> : <ExpandMore />
-                )}
-              </ListItemButton>
-            </ListItem>
+            <Tooltip
+              title={collapsed ? item.text : ''}
+              placement="right"
+              arrow
+              enterDelay={300}
+              sx={{ fontSize: '1rem' }}
+            >
+              <ListItem disablePadding>
+                <ListItemButton
+                  onClick={() => handleItemClick(item)}
+                  selected={selectedSection === item.text}
+                  sx={{
+                    '&:hover': {
+                      background: 'linear-gradient(90deg, #d1c4e9, #b2f5ea)',
+                      fontWeight: 'bold',
+                    },
+                    '&.Mui-selected': {
+                      background: 'linear-gradient(90deg, #a084ca, #b2f5ea)',
+                      fontWeight: 'bold',
+                    },
+                    transition: 'all 0.3s ease-in-out',
+                    borderRadius: 2,
+                    mx: 1,
+                    my: 0.5,
+                  }}
+                >
+                  <ListItemIcon sx={{ color: 'white' }}>{item.icon}</ListItemIcon>
+                  {!collapsed && <ListItemText primary={item.text} />}
+                  {!collapsed && item.expandable && (
+                    expandedSections[item.text] ? <ExpandLess /> : <ExpandMore />
+                  )}
+                </ListItemButton>
+              </ListItem>
+            </Tooltip>
             {item.expandable && !collapsed && (
               <Collapse in={expandedSections[item.text]} timeout="auto" unmountOnExit>
                 <List component="div" disablePadding>
                   {item.subItems.map((subItem) => (
                     <ListItem key={subItem.text} disablePadding>
-                      <ListItemButton onClick={() => handleItemClick(subItem)} sx={{ pl: 4 }}>
+                      <ListItemButton
+                        onClick={() => handleItemClick(subItem)}
+                        selected={selectedSection === subItem.text}
+                        sx={{
+                          pl: 4,
+                          '&:hover': {
+                            background: 'linear-gradient(90deg, #d1c4e9, #b2f5ea)',
+                            fontWeight: 'bold',
+                          },
+                          '&.Mui-selected': {
+                            background: 'linear-gradient(90deg, #a084ca, #b2f5ea)',
+                            fontWeight: 'bold',
+                          },
+                          borderRadius: 2,
+                          mx: 1,
+                          my: 0.5,
+                        }}
+                      >
                         <ListItemIcon sx={{ color: 'white' }}>{subItem.icon}</ListItemIcon>
                         <ListItemText primary={subItem.text} />
                       </ListItemButton>
