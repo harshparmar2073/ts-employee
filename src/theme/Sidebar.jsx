@@ -14,7 +14,7 @@ import {
   Tooltip,
 } from '@mui/material';
 import {
-  ChevronLeft as ChevronLeftIcon,
+  ChevronLeft,
   ExpandLess,
   ExpandMore,
   Dashboard,
@@ -31,7 +31,7 @@ import {
   Help,
   AutoAwesome,
   Message,
-  Lock as LockIcon,
+  Lock,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import LogoutDialog from '../components/LogoutDialog';
@@ -47,7 +47,7 @@ const SidebarItems = [
       { text: 'CRM', icon: <People /> },
       { text: 'Vendors', icon: <Business /> },
       { text: 'Customers', icon: <PersonAdd /> },
-      { text: 'Token Sessions', icon: <LockIcon /> },
+      { text: 'Token Sessions', icon: <Lock /> },
     ],
   },
   {
@@ -65,14 +65,14 @@ const SidebarItems = [
     text: 'Settings',
     icon: <Settings />,
     expandable: true,
-    subItems: [{ text: 'Security', icon: <LockIcon /> }],
+    subItems: [{ text: 'Security', icon: <Lock /> }],
   },
   { text: 'Logout', icon: <Logout />, expandable: false },
   { text: 'Sprint', icon: <RocketLaunch />, expandable: false },
 ];
 
 export default function Sidebar({
-  drawerWidth = 260,
+  drawerWidth = 250,
   collapsed,
   handleCollapseToggle,
   selectedSection,
@@ -101,9 +101,13 @@ export default function Sidebar({
       setLogoutDialogOpen(true);
     } else {
       setSelectedSection(item.text);
-      if (item.text === 'Dashboard') navigate('/dashboard/dashboard-content');
-      else if (item.text === 'Security') navigate('/dashboard/security');
-      else if (item.text === 'Token Sessions') navigate('/dashboard/member-table');
+      if (item.text === 'Dashboard') {
+        navigate('/dashboard/dashboard-content');
+      } else if (item.text === 'Security') {
+        navigate('/dashboard/security');
+      } else if (item.text === 'Token Sessions') {
+        navigate('/dashboard/member-table');
+      }
     }
   };
 
@@ -112,11 +116,12 @@ export default function Sidebar({
       sx={{
         height: '100%',
         width: drawerWidth,
-        background: 'linear-gradient(to bottom right, #2E2A5A, #A0EACF)',
-        color: '#fff',
+        background: 'linear-gradient(to bottom, #f9f9fb, #e0e4ec)', // gentle pastel
+        color: '#212121',
         display: 'flex',
         flexDirection: 'column',
-        fontFamily: '"DM Sans", "Roboto", sans-serif',
+        fontFamily: '"Segoe UI", "Inter", "Roboto", sans-serif',
+        borderRight: '1px solid #ddd',
       }}
     >
       <Box display="flex" alignItems="center" justifyContent="space-between" px={2} py={2}>
@@ -124,21 +129,20 @@ export default function Sidebar({
           <Typography
             variant="h5"
             sx={{
-              background: 'linear-gradient(to right, #d1c4e9, #00cba9)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
               fontWeight: 700,
-              letterSpacing: 0.5,
+              fontSize: '1.8rem',
+              letterSpacing: '0.5px',
+              color: '#5e35b1',
             }}
           >
             Antalyze
           </Typography>
         )}
-        <IconButton size="small" onClick={handleCollapseToggle} sx={{ color: '#eee' }}>
-          <ChevronLeftIcon sx={{ transform: collapsed ? 'rotate(180deg)' : 'none' }} />
+        <IconButton onClick={handleCollapseToggle}>
+          <ChevronLeft />
         </IconButton>
       </Box>
-      <Divider sx={{ borderColor: 'rgba(255,255,255,0.15)' }} />
+      <Divider />
       <List sx={{ flexGrow: 1 }}>
         {SidebarItems.map((item) => (
           <Box key={item.text}>
@@ -154,22 +158,21 @@ export default function Sidebar({
                   selected={selectedSection === item.text}
                   sx={{
                     '&:hover': {
-                      background: 'rgba(255,255,255,0.08)',
-                      transform: 'scale(1.01)',
-                    },
-                    '&.Mui-selected': {
-                      background: 'rgba(255,255,255,0.12)',
+                      background: 'linear-gradient(90deg, #ede7f6, #e0f2f1)',
                       fontWeight: 600,
                     },
+                    '&.Mui-selected': {
+                      backgroundColor: '#d1c4e9',
+                      fontWeight: 600,
+                    },
+                    borderRadius: 2,
                     mx: 1,
                     my: 0.5,
-                    borderRadius: 2,
                     px: 2,
-                    py: 1,
                     transition: 'all 0.2s ease-in-out',
                   }}
                 >
-                  <ListItemIcon sx={{ color: '#fff' }}>{item.icon}</ListItemIcon>
+                  <ListItemIcon sx={{ color: '#5e35b1' }}>{item.icon}</ListItemIcon>
                   {!collapsed && <ListItemText primary={item.text} />}
                   {!collapsed && item.expandable && (
                     expandedSections[item.text] ? <ExpandLess /> : <ExpandMore />
@@ -186,20 +189,22 @@ export default function Sidebar({
                         onClick={() => handleItemClick(subItem)}
                         selected={selectedSection === subItem.text}
                         sx={{
-                          pl: 5,
+                          pl: 4,
                           '&:hover': {
-                            background: 'rgba(255,255,255,0.08)',
+                            background: 'linear-gradient(90deg, #ede7f6, #e0f2f1)',
+                            fontWeight: 500,
                           },
                           '&.Mui-selected': {
-                            background: 'rgba(255,255,255,0.12)',
+                            backgroundColor: '#d1c4e9',
                             fontWeight: 600,
                           },
-                          mx: 1,
-                          my: 0.25,
                           borderRadius: 2,
+                          mx: 1,
+                          my: 0.3,
+                          px: 2,
                         }}
                       >
-                        <ListItemIcon sx={{ color: '#fff' }}>{subItem.icon}</ListItemIcon>
+                        <ListItemIcon sx={{ color: '#5e35b1' }}>{subItem.icon}</ListItemIcon>
                         <ListItemText primary={subItem.text} />
                       </ListItemButton>
                     </ListItem>
@@ -226,8 +231,8 @@ export default function Sidebar({
               width: drawerWidth,
               boxSizing: 'border-box',
               transition: 'all 0.3s ease-in-out',
-              border: 'none',
-              boxShadow: '4px 0 12px rgba(0,0,0,0.1)',
+              borderRight: 'none',
+              background: 'transparent',
             },
           }}
         >
