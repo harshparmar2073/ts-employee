@@ -159,7 +159,9 @@ const Login = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(90deg, #7e5b72 0%, #2d3e65 100%)",
+        background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)",          // "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)",
+
+        // background: "linear-gradient(90deg, #7e5b72 0%, #2d3e65 100%)",
         backgroundAttachment: "fixed",
         overflowY: "hidden",
       }}
@@ -183,7 +185,7 @@ const Login = () => {
           }}
         >
           <Box sx={{ textAlign: "center", mb: 4 }}>
-            <img src={logo} alt="logo" style={{ height: 80 }} />
+            <img src={logo} alt="logo" style={{ height: 200 }} />
           </Box>
 
           <Typography variant="h4" align="center" gutterBottom>
