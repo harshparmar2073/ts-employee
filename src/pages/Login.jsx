@@ -1,4 +1,4 @@
-// Updated Login.jsx with refined UI/UX for Remember Me and MFA options
+// Updated Login.jsx with theme integration
 import React, { useState } from "react";
 import { useToast } from "../context/ToastContext";
 import {
@@ -20,6 +20,7 @@ import {
   MenuItem,
   Select,
 } from "@mui/material";
+import theme from "../theme/theme";
 import { useNavigate } from "react-router-dom";
 import {
   Visibility,
@@ -69,24 +70,20 @@ const Login = () => {
   const handleShowPassword = () => setShowPassword(!showPassword);
  
   const handleInitialLogin = async () => {
-    const { email, password } = getValues();      // only form fields
+    const { email, password } = getValues();
     try {
-      // pass the remember-me flag from state, not from form
       const { data } = await authenticate(email, password, rememberMe);
       const payload = data.data;
   
-      /* ── 1)  Skip-MFA branch  ───────────────────────────────────────── */
-      // compare tokenType case-insensitively OR use the exact string
       if (
         payload.tokenType?.toLowerCase() === "express-bearer" &&
         payload.authorizationToken
       ) {
         localStorage.setItem("authToken", payload.authorizationToken);
         navigate("/dashboard");
-        return;                                   // stop here
+        return;
       }
   
-      /* ── 2)  Normal MFA branch  ─────────────────────────────────────── */
       const mfaTypes = payload.supportedMfaTypes ?? [];
       if (mfaTypes.length === 0) {
         throw new Error("No MFA methods available.");
@@ -103,17 +100,15 @@ const Login = () => {
     }
   };
 
-
   const handleSendCode = async () => {
     const { email, password } = getValues();
     console.log("Selected MFA before sending:", selectedMfa);
     if (selectedMfa === "TOTP") {
-      // No need to call authenticatePreMfa for TOTP
       navigate("/verification-code", {
         state: {
           username: email,
           password,
-          mfaSessionId: null, // or generate from backend if needed
+          mfaSessionId: null,
           maskedLabel: "Authenticator App",
           verificationCodeExpMinutes: 5,
           mfaType: "TOTP",
@@ -124,7 +119,6 @@ const Login = () => {
       return;
     }
   
-    // For EMAIL or SMS
     try {
       const response = await authenticatePreMfa(email, password, selectedMfa);
       const data = response?.data?.data;
@@ -150,7 +144,6 @@ const Login = () => {
     }
   };
 
-
   return (
     <Box
       sx={{
@@ -159,9 +152,7 @@ const Login = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)",          // "linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)",
-
-        // background: "linear-gradient(90deg, #7e5b72 0%, #2d3e65 100%)",
+        background: theme.palette.background.gradientBackground,
         backgroundAttachment: "fixed",
         overflowY: "hidden",
       }}
@@ -174,7 +165,7 @@ const Login = () => {
             maxWidth: 700,
             px: 6,
             py: 5,
-            backgroundColor: "white",
+            backgroundColor: theme.palette.background.paper,
             borderRadius: 1.5,
             boxShadow: "0 12px 32px rgba(0, 0, 0, 0.2)",
             backdropFilter: "blur(4px)",
@@ -188,7 +179,16 @@ const Login = () => {
             <img src={logo} alt="logo" style={{ height: 200 }} />
           </Box>
 
-          <Typography variant="h4" align="center" gutterBottom>
+          <Typography 
+            variant="h4" 
+            align="center" 
+            gutterBottom
+            sx={{
+              fontFamily: theme.typography.fontFamily,
+              fontWeight: theme.typography.fontWeightBold,
+              color: theme.palette.text.primary,
+            }}
+          >
             Login
           </Typography>
 
@@ -209,6 +209,7 @@ const Login = () => {
                   margin="normal"
                   error={!!errors.email}
                   helperText={errors.email?.message}
+                 
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -232,6 +233,7 @@ const Login = () => {
                   margin="normal"
                   error={!!errors.password}
                   helperText={errors.password?.message}
+                
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -325,7 +327,16 @@ const Login = () => {
                 <Box
                   sx={{ display: "flex", alignItems: "center", mt: 3, gap: 2 }}
                 >
-                  <Typography variant="body2">Remember Me</Typography>
+                  <Typography 
+                    variant="body2"
+                    sx={{
+                      fontFamily: theme.typography.fontFamily,
+                      fontWeight: theme.typography.fontWeightRegular,
+                      color: theme.palette.text.primary,
+                    }}
+                  >
+                    Remember Me
+                  </Typography>
                   <Switch
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
@@ -353,7 +364,11 @@ const Login = () => {
               variant="contained"
               fullWidth
               endIcon={<ArrowForward />}
-              sx={{ mt: 3 }}
+              sx={{ 
+                mt: 3,
+                ...theme.components.MuiButton.styleOverrides.root,
+                ...theme.components.MuiButton.styleOverrides.containedPrimary,
+              }}
               disabled={isSubmitting}
             >
               {step === 1
@@ -374,7 +389,14 @@ const Login = () => {
           </Box>
 
           <Box sx={{ textAlign: "center", mt: 3 }}>
-            <Typography variant="body2">
+            <Typography 
+              variant="body2"
+              sx={{
+                fontFamily: theme.typography.fontFamily,
+                fontWeight: theme.typography.fontWeightRegular,
+                color: theme.palette.text.primary,
+              }}
+            >
               Not a member?{" "}
               <Link component="button" onClick={() => navigate("/signup")}>
                 Create Account
@@ -383,7 +405,15 @@ const Login = () => {
           </Box>
 
           <Box sx={{ textAlign: "center", mt: 4 }}>
-            <Typography variant="caption" display="block">
+            <Typography 
+              variant="caption" 
+              display="block"
+              sx={{
+                fontFamily: theme.typography.fontFamily,
+                fontWeight: theme.typography.fontWeightRegular,
+                color: theme.palette.text.secondary,
+              }}
+            >
               POWERED BY
             </Typography>
             <img

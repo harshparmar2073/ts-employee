@@ -24,6 +24,7 @@ import {
 } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
 import { verifyMfaCode, authenticatePreMfa } from "../services/authService";
+import theme from "../theme/theme";
 
 const VerificationCodePage = () => {
   const navigate = useNavigate();
@@ -178,7 +179,7 @@ const VerificationCodePage = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(to right, #7e5b72, #2d3e65)",
+        background: theme.palette.background.gradientBackground,
         backgroundAttachment: "fixed",
         backgroundSize: "cover",
         overflow: "hidden",
@@ -190,11 +191,11 @@ const VerificationCodePage = () => {
         <Paper
           sx={{
             p: 4,
-            borderRadius: 4,
+            borderRadius: theme.shape ? theme.shape.borderRadius * 2 : 8,
             maxWidth: 520,
             width: "100%",
-            backgroundColor: "rgba(255,255,255,0.95)",
-            boxShadow: "0 12px 32px rgba(0,0,0,0.15)",
+            backgroundColor: theme.palette.background.paper,
+            boxShadow: theme.shadows ? theme.shadows[8] : "0 12px 32px rgba(0,0,0,0.15)",
             zIndex: 1,
             textAlign: "center",
           }}
@@ -202,31 +203,31 @@ const VerificationCodePage = () => {
           <Zoom in timeout={1200}>
             <Box sx={{ mb: 3 }}>
               {success ? (
-                <CheckCircle color="success" sx={{ fontSize: 40 }} />
+                <CheckCircle sx={{ fontSize: 40, color: theme.palette.success.main }} />
               ) : (
-                <Security color="primary" sx={{ fontSize: 40 }} />
+                <Security sx={{ fontSize: 40, color: theme.palette.primary.main }} />
               )}
             </Box>
           </Zoom>
 
           <Fade in timeout={1400}>
             <Box>
-              <Typography variant="h5" sx={{ fontWeight: 700, mb: 1 }}>
+              <Typography variant="h5" sx={{ fontWeight: theme.typography.fontWeightBold, mb: 1, color: theme.palette.text.primary, fontFamily: theme.typography.fontFamily }}>
                 {success ? "Verification was successful!" : "Verify Your Account"}
               </Typography>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", mb: 2 }}>
-                <Mail sx={{ mr: 1, color: "primary.main" }} />
-                <Typography variant="body1">
+                <Mail sx={{ mr: 1, color: theme.palette.primary.main }} />
+                <Typography variant="body1" sx={{ color: theme.palette.text.primary, fontFamily: theme.typography.fontFamily }}>
                   A verification code was sent to <strong>{maskedLabel}</strong>
                 </Typography>
               </Box>
               <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 1, mb: 3 }}>
-                <AccessTime fontSize="small" />
-                <Typography variant="body2">
+                <AccessTime fontSize="small" sx={{ color: theme.palette.text.secondary }} />
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
                   Code expires in {formatTime(timeLeft)}
                 </Typography>
               </Box>
-              <Typography variant="body2" sx={{ mb: 3 }}>
+              <Typography variant="body2" sx={{ mb: 3, color: theme.palette.text.primary, fontFamily: theme.typography.fontFamily }}>
                 Enter the code below to continue
               </Typography>
             </Box>
@@ -256,14 +257,14 @@ const VerificationCodePage = () => {
             variant="contained"
             onClick={handleVerify}
             disabled={loading || success || code.join("").length !== 6 || timeLeft === 0}
-            sx={{ mb: 2 }}
+            sx={{ mb: 2, ...theme.components.MuiButton.styleOverrides.root, ...theme.components.MuiButton.styleOverrides.containedPrimary }}
           >
-            {loading ? <CircularProgress size={24} sx={{ color: "white" }} /> : success ? "Verified!" : "Verify"}
+            {loading ? <CircularProgress size={24} sx={{ color: theme.palette.primary.contrastText }} /> : success ? "Verified!" : "Verify"}
           </Button>
 
-          <Typography variant="body2">
+          <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontFamily: theme.typography.fontFamily }}>
             Didn’t get a code?
-            <Button onClick={handleResend} disabled={resendLoading} sx={{ ml: 1 }}>
+            <Button onClick={handleResend} disabled={resendLoading} sx={{ ml: 1, ...theme.components.MuiButton.styleOverrides.root, ...theme.components.MuiButton.styleOverrides.outlinedPrimary }}>
               {resendLoading ? <CircularProgress size={16} /> : <><Refresh fontSize="small" sx={{ mr: 0.5 }} /> Resend</>}
             </Button>
           </Typography>

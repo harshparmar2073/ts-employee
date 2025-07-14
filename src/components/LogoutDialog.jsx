@@ -1,4 +1,3 @@
-// components/LogoutDialog.jsx
 import React from 'react';
 import {
   Dialog,
@@ -8,7 +7,8 @@ import {
   Slide,
   Typography,
   Button,
-  Box
+  Box,
+  useTheme // Import useTheme
 } from '@mui/material';
 import { Logout as LogoutIcon } from '@mui/icons-material';
 
@@ -17,6 +17,8 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 });
 
 const LogoutDialog = ({ open, onClose, onConfirm }) => {
+  const theme = useTheme(); // Access the theme object
+
   return (
     <Dialog
       open={open}
@@ -31,15 +33,22 @@ const LogoutDialog = ({ open, onClose, onConfirm }) => {
           display: 'flex',
           alignItems: 'center',
           gap: 1,
-          fontWeight: 700,
-          color: '#2d3e65'
+          fontWeight: theme.typography.fontWeightBold, // Using theme fontWeight
+          color: theme.palette.text.primary // Using theme text color
         }}
       >
         <LogoutIcon color="error" /> Confirm Logout
       </DialogTitle>
 
       <DialogContent>
-        <Typography variant="body1" sx={{ mt: 1 }}>
+        <Typography
+          variant="body1"
+          sx={{
+            mt: 1,
+            fontFamily: theme.typography.fontFamily, // Using theme fontFamily
+            color: theme.palette.text.primary // Using theme text color
+          }}
+        >
           Are you sure you want to log out? You’ll need to sign in again to continue.
         </Typography>
       </DialogContent>
@@ -49,8 +58,8 @@ const LogoutDialog = ({ open, onClose, onConfirm }) => {
           onClick={onClose}
           variant="outlined"
           sx={{
-            textTransform: 'none',
-            borderRadius: 2
+            ...theme.components.MuiButton.styleOverrides.root,
+            ...theme.components.MuiButton.styleOverrides.outlinedPrimary,
           }}
         >
           Cancel
@@ -59,14 +68,8 @@ const LogoutDialog = ({ open, onClose, onConfirm }) => {
           onClick={onConfirm}
           variant="contained"
           sx={{
-            textTransform: 'none',
-            borderRadius: 2,
-            background: 'linear-gradient(to right, #b2195b, #6c5ce7)',
-            color: 'white',
-            fontWeight: 600,
-            '&:hover': {
-              background: 'linear-gradient(to right, #a21856, #594fd8)'
-            }
+            ...theme.components.MuiButton.styleOverrides.root,
+            ...theme.components.MuiButton.styleOverrides.containedPrimary,
           }}
         >
           Logout
