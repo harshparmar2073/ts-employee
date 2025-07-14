@@ -1,4 +1,3 @@
-// theme.js
 import { createTheme } from '@mui/material/styles';
 
 const theme = createTheme({
@@ -14,6 +13,7 @@ const theme = createTheme({
       default: '#f4f5f7',        // Light gray background
       paper: '#ffffff',          // White cards
       sidebar: 'linear-gradient(to bottom, #f9f9fb, #e0e4ec)', // Soft gradient
+      gradientBackground: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)', // New: Login background gradient
     },
     text: {
       primary: '#212121',
@@ -117,14 +117,14 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 6,
-          backgroundColor: '#ffffff',
+          backgroundColor: '#FFFFFF',
           '& .MuiOutlinedInput-root': {
             borderRadius: 8,
             '&:hover .MuiOutlinedInput-notchedOutline': {
-              borderColor: '#5e35b1',
+              borderColor: '#5E35B1',
             },
             '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-              borderColor: '#5e35b1',
+              borderColor: '#5E35B1',
             },
           },
         },

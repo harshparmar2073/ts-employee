@@ -16,8 +16,18 @@ import {
   NotificationsNone as NotificationsIcon,
   ArrowDropDown as ArrowDropDownIcon
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router';
 
-export default function Appbar({ drawerWidth, isMobile, handleDrawerToggle, userData, selectedSection, anchorEl, handleProfileMenuOpen, handleProfileMenuClose }) {
+export default function Appbar({ drawerWidth, isMobile, handleDrawerToggle, userData, selectedSection, anchorEl, handleProfileMenuOpen, handleProfileMenuClose, onSelectSection,
+}
+  
+) {
+  const navigate = useNavigate();
+
+  const goTo = (path) => {
+    navigate(path);
+    handleProfileMenuClose();
+  };
   return (
     <AppBar
       position="fixed"
@@ -58,11 +68,16 @@ export default function Appbar({ drawerWidth, isMobile, handleDrawerToggle, user
               }
             }}
           >
-            <MenuItem onClick={handleProfileMenuClose}>My Profile</MenuItem>
-            <MenuItem onClick={handleProfileMenuClose}>Settings</MenuItem>
-            <MenuItem onClick={handleProfileMenuClose}>Profile Info</MenuItem>
-            <Divider />
-            <MenuItem onClick={handleProfileMenuClose}>Logout</MenuItem>
+<MenuItem onClick={() => goTo('/dashboard/account-info')}>
+      Account Info
+    </MenuItem>
+<MenuItem onClick={() =>goTo('/dashboard/security')}>Settings</MenuItem>         
+<MenuItem onClick={() => goTo('/dashboard/profile-info')}>
+      Profile Info
+    </MenuItem>        <Divider />
+    <MenuItem onClick={() => goTo('/logout')}>
+      Logout
+    </MenuItem> 
           </Menu>
         </Box>
       </Toolbar>

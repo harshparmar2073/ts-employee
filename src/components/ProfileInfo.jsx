@@ -1,9 +1,9 @@
+// AccountInfo.jsx
 import React, { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import axiosService from "../services/axiosService";
-import PasswordStrengthBar from "react-password-strength-bar";
 import { useToast } from "../context/ToastContext";
 import {
   Autocomplete,
@@ -14,43 +14,23 @@ import {
   Typography,
   TextField,
   Button,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Switch,
   FormControlLabel,
+  Switch,
   IconButton,
-  Grid,
-  FormHelperText,
-  useTheme,
-  useMediaQuery,
-  Alert,
   Collapse,
   CircularProgress,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
-import {
-  ArrowBack,
-  ArrowForward,
-  Visibility,
-  VisibilityOff,
-} from "@mui/icons-material";
+import { ArrowBack, ArrowForward, Visibility, VisibilityOff } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo2.png";
 import companyLogo from "../assets/12springslogo.png";
+import theme from "../theme/theme";
+import PasswordStrengthBar from "react-password-strength-bar";
 
-// Enhanced validation schema
+// Validation schema
 const validationSchema = yup.object({
-  accountName: yup
-    .string()
-    .required("Account name is required")
-    .min(2, "Account name must be at least 2 characters"),
-
-  invitationCode: yup
-    .string()
-    .required("Invitation code is required")
-    .min(6, "Invitation code must be at least 6 characters"),
-
   firstName: yup
     .string()
     .required("First name is required")
@@ -82,51 +62,41 @@ const validationSchema = yup.object({
   addressLine1: yup.string().when("showAddress", {
     is: true,
     then: (schema) => schema.required("Address line 1 is required"),
-    otherwise: (schema) => schema.notRequired(),
   }),
   city: yup.string().when("showAddress", {
     is: true,
     then: (schema) => schema.required("City is required"),
-    otherwise: (schema) => schema.notRequired(),
   }),
   postcode: yup.string().when("showAddress", {
     is: true,
     then: (schema) => schema.required("Postcode is required"),
-    otherwise: (schema) => schema.notRequired(),
   }),
   country: yup.string().when("showAddress", {
     is: true,
     then: (schema) => schema.required("Country is required"),
-    otherwise: (schema) => schema.notRequired(),
   }),
 });
 
-const Signup = () => {
-  const theme = useTheme();
+const ProfileInfo = () => {
+  const muiTheme = useTheme();
   const navigate = useNavigate();
-  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const isTablet = useMediaQuery(theme.breakpoints.down("md")); // isTablet is already defined, keep it.
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down("sm"));
   const { showToast } = useToast();
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [timezones, setTimezones] = useState([]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [defaultTimezone, setDefaultTimezone] = useState("");
 
   const {
     control,
     handleSubmit,
     watch,
     formState: { errors, isValid },
-    reset,
-    getValues,
     setValue,
   } = useForm({
     resolver: yupResolver(validationSchema),
     mode: "onChange",
     defaultValues: {
-      invitationCode: "",
-      accountName: "",
       firstName: "",
       lastName: "",
       email: "",
@@ -147,91 +117,46 @@ const Signup = () => {
   const showAddress = watch("showAddress");
   const currentPassword = watch("password");
 
-  const [timezones, setTimezones] = useState([]);
-  const [defaultTz, setDefaultTz] = useState("");
-
-  // Load timezones and detect browser timezone
+  // Load timezones
   useEffect(() => {
     const tzList = Intl.supportedValuesOf("timeZone");
     setTimezones(tzList);
-
     const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    setDefaultTz(browserTz);
-
-    // Set the default timezone in form after load
     setValue("timezone", browserTz);
   }, [setValue]);
 
-  const handleBack = () => navigate("/");
+  const handleBack = () => navigate(-1);
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
-
     try {
-      // Prepare the payload according to API requirements
-      const timezoneValue =
-        data.timezone === "auto" ? defaultTimezone : data.timezone;
-
       const payload = {
-        invitationCode: data.invitationCode,
-        accountName: data.accountName,
         firstName: data.firstName,
         lastName: data.lastName,
-        accountStatus: "active", // Default status
-        auth: {
-          authName: `${data.firstName} ${data.lastName}`,
-          authUserName: data.email,
-          authPassword: data.password,
-          authStatus: "active", // Default status
-          timeZone: timezoneValue,
-        },
+        email: data.email,
+        password: data.password,
+        timeZone: data.timezone,
       };
-
-      // Add address only if showAddress is true
       if (data.showAddress) {
         payload.address = {
           addressLine1: data.addressLine1,
-          addressLine2: data.addressLine2 || "", // Optional field
+          addressLine2: data.addressLine2,
           city: data.city,
-          county: data.county || "", // Optional field
+          county: data.county,
           postcode: data.postcode,
           country: data.country,
-          addressType: "primary", // Default address type
         };
       }
-
-      // Make API call
-      const response = await axiosService.post("/account/signup", payload);
-
-      if (response.status === 200 || response.status === 201) {
-        showToast(
-          "Account created successfully! Redirecting to login page...",
-          "success"
-        );
-
-        // Redirect to login page after 2 seconds
-        setTimeout(() => {
-          navigate("/");
-        }, 2000);
+      const response = await axiosService.post("/account/update", payload);
+      if (response.status < 300) {
+        showToast("Profile info saved successfully", "success");
+        navigate("/dashboard");
       }
     } catch (error) {
-      console.error("Signup error:", error);
-
-      let errorMessage = "An unexpected error occurred. Please try again.";
-
-      if (error.response) {
-        // Server responded with error status
-        errorMessage =
-          error.response.data?.message ||
-          error.response.data?.error ||
-          `Error: ${error.response.status}`;
-      } else if (error.request) {
-        // Request made but no response received
-        errorMessage =
-          "Network error. Please check your connection and try again.";
-      }
-
-      showToast(errorMessage, "error");
+      showToast(
+        error.response?.data?.message || "Failed to save. Please try again.",
+        "error"
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -245,21 +170,8 @@ const Signup = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: theme.palette.background.gradientBackground,
-        padding: { xs: 1, sm: 2 }, // Responsive padding
-        position: "relative",
-        overflow: "auto",
-        "&::before": {
-          content: '""',
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background:
-            "radial-gradient(circle at 20% 80%, rgba(255,255,255,0.1) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255,255,255,0.15) 0%, transparent 50%)",
-          pointerEvents: "none",
-        },
+        background: theme.palette.background.default,
+        padding: isMobile ? 1 : 2,
       }}
     >
       {/* Back arrow */}
@@ -267,37 +179,28 @@ const Signup = () => {
         onClick={handleBack}
         sx={{
           position: "absolute",
-          top: { xs: 8, sm: 16 }, // Responsive top
-          left: { xs: 8, sm: 16 }, // Responsive left
-          color: theme.palette.primary.main,
-          bgcolor: "rgba(255,255,255,0.9)",
-          "&:hover": {
-            bgcolor: theme.palette.background.paper,
-            color: theme.palette.secondary.main,
-          },
+          top: isMobile ? 8 : 16,
+          left: isMobile ? 8 : 16,
+          color: "#000",
+          bgcolor: "rgba(255,255,255,0.7)",
+          "&:hover": { bgcolor: "rgba(255,255,255,0.9)" },
           zIndex: 1,
         }}
       >
         <ArrowBack />
       </IconButton>
 
-      <Container
-        maxWidth="md"
-        sx={{
-          px: { xs: 1, sm: 2, md: 4 }, // Responsive horizontal padding
-        }}
-      >
+      <Container maxWidth="md" sx={{ px: { xs: 1, sm: 2, md: 4 } }}>
         <Card
           elevation={0}
           sx={{
             mx: "auto",
-            borderRadius: { xs: 1, sm: 2 }, // Responsive border radius
+            borderRadius: isMobile ? 1 : 2,
             position: "relative",
             overflow: "hidden",
-            backgroundColor: theme.palette.background.paper,
           }}
         >
-          <CardContent sx={{ p: { xs: 2, sm: 3 } }}> {/* Responsive padding */}
+          <CardContent sx={{ p: isMobile ? 2 : 3 }}>
             {/* Logo & Title */}
             <Box sx={{ textAlign: "center", mb: 3 }}>
               <Box
@@ -314,105 +217,34 @@ const Signup = () => {
                   src={logo}
                   alt="logo"
                   sx={{
-                    height: { xs: 60, sm: 80 }, // Responsive height
+                    height: isMobile ? 60 : 80,
                     maxWidth: "60%",
                     objectFit: "contain",
                     mx: "auto",
                     display: "block",
                     boxShadow: "0 4px 24px rgba(102,126,234,0.10)",
                     borderRadius: 2,
-                    background: "rgba(255,255,255,0.9)",
+                    background: "rgba(255,255,255,0.7)",
                     p: 1,
                   }}
                 />
               </Box>
               <Typography
                 variant={isMobile ? "h6" : "h5"}
-                sx={{
-                  mt: 1,
-                  fontWeight: theme.typography.fontWeightBold,
-                  fontFamily: theme.typography.fontFamily,
-                  color: theme.palette.text.primary,
-                  mb: 0.5
-                }}
+                sx={{ mt: 1, fontWeight: muiTheme.typography.fontWeightBold, mb: 0.5 }}
               >
-                Create your Account
+                Profile Information
               </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: theme.palette.text.secondary,
-                  fontFamily: theme.typography.fontFamily,
-                }}
-              >
-                Account Signup
+              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+                Update your profile details
               </Typography>
             </Box>
 
             <form onSubmit={handleSubmit(onSubmit)}>
-              {/* Invitation Code */}
-              <Controller
-                name="invitationCode"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    placeholder="Invitation Code"
-                    error={!!errors.invitationCode}
-                    helperText={errors.invitationCode?.message}
-                    sx={{
-                      mb: 2.5,
-                      "& .MuiOutlinedInput-root": {
-                        backgroundColor: "#ede7f6",
-                        borderRadius: 2,
-                      },
-                    }}
-                  />
-                )}
-              />
-
-              {/* Account Information */}
-              <Typography
-                sx={{
-                  fontWeight: theme.typography.fontWeightBold,
-                  fontFamily: theme.typography.fontFamily,
-                  color: theme.palette.text.primary,
-                  mb: 1.5,
-                  fontSize: { xs: 14, sm: 16 } // Responsive font size
-                }}
-              >
-                Account Information
-              </Typography>
-
-              <Controller
-                name="accountName"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    placeholder="Account Name"
-                    error={!!errors.accountName}
-                    helperText={errors.accountName?.message}
-                    sx={{ mb: 1.5 }}
-                  />
-                )}
-              />
-
               {/* Personal Information */}
-              <Typography
-                sx={{
-                  fontWeight: theme.typography.fontWeightBold,
-                  fontFamily: theme.typography.fontFamily,
-                  color: theme.palette.text.primary,
-                  mb: 1.5,
-                  fontSize: { xs: 14, sm: 16 } // Responsive font size
-                }}
-              >
+              <Typography sx={{ fontWeight: 600, mb: 1.5, fontSize: isMobile ? 14 : 16 }}>
                 Personal Information
               </Typography>
-
               <Controller
                 name="firstName"
                 control={control}
@@ -427,7 +259,6 @@ const Signup = () => {
                   />
                 )}
               />
-
               <Controller
                 name="lastName"
                 control={control}
@@ -444,39 +275,9 @@ const Signup = () => {
               />
 
               {/* Login */}
-              <Typography
-                sx={{
-                  fontWeight: theme.typography.fontWeightBold,
-                  fontFamily: theme.typography.fontFamily,
-                  color: theme.palette.text.primary,
-                  mb: 1.5,
-                  fontSize: { xs: 14, sm: 16 } // Responsive font size
-                }}
-              >
+              <Typography sx={{ fontWeight: 600, mb: 1.5, fontSize: isMobile ? 14 : 16 }}>
                 Login
               </Typography>
-              <Box sx={{ mb: 2 }}>
-                <Alert
-                  severity="info"
-                  variant="outlined"
-                  sx={{
-                    borderRadius: 2,
-                    borderColor: theme.palette.secondary.main,
-                    color: theme.palette.text.primary,
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontFamily: theme.typography.fontFamily,
-                    }}
-                  >
-                    Two-factor authentication is enabled by default. A security
-                    code will be emailed to your username (<strong>email</strong>)
-                    when logging in.
-                  </Typography>
-                </Alert>
-              </Box>
               <Controller
                 name="email"
                 control={control}
@@ -492,7 +293,6 @@ const Signup = () => {
                   />
                 )}
               />
-
               <Controller
                 name="password"
                 control={control}
@@ -510,12 +310,6 @@ const Signup = () => {
                           <IconButton
                             onClick={() => setShowPassword(!showPassword)}
                             edge="end"
-                            sx={{
-                              color: theme.palette.secondary.main,
-                              "&:hover": {
-                                color: theme.palette.primary.main,
-                              },
-                            }}
                           >
                             {showPassword ? <VisibilityOff /> : <Visibility />}
                           </IconButton>
@@ -542,7 +336,6 @@ const Signup = () => {
                   </Box>
                 )}
               />
-
               <Controller
                 name="confirmPassword"
                 control={control}
@@ -557,22 +350,10 @@ const Signup = () => {
                     InputProps={{
                       endAdornment: (
                         <IconButton
-                          onClick={() =>
-                            setShowConfirmPassword(!showConfirmPassword)
-                          }
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                           edge="end"
-                          sx={{
-                            color: theme.palette.secondary.main,
-                            "&:hover": {
-                              color: theme.palette.primary.main,
-                            },
-                          }}
                         >
-                          {showConfirmPassword ? (
-                            <VisibilityOff />
-                          ) : (
-                            <Visibility />
-                          )}
+                          {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
                         </IconButton>
                       ),
                     }}
@@ -581,11 +362,12 @@ const Signup = () => {
                 )}
               />
 
+              {/* Timezone */}
               <Controller
                 name="timezone"
                 control={control}
                 render={({ field }) => (
-                  <Box sx={{ mb: 3 }}>
+                  <Box sx={{ mb: 5 }}>
                     <Autocomplete
                       options={timezones}
                       value={field.value}
@@ -599,16 +381,12 @@ const Signup = () => {
                         />
                       )}
                       disableClearable
-                      sx={{
-                        "& .MuiAutocomplete-inputRoot": {
-                          fontFamily: theme.typography.fontFamily,
-                        },
-                      }}
                     />
                   </Box>
                 )}
               />
 
+              {/* Address Toggle */}
               <Controller
                 name="showAddress"
                 control={control}
@@ -618,52 +396,47 @@ const Signup = () => {
                       <Switch
                         checked={field.value}
                         onChange={field.onChange}
+                        color="secondary"
                         sx={{
-                          transform: "scale(1.2)",
+                          transform: "scale(1.4)",
                           mx: 1,
-                          "& .MuiSwitch-switchBase.Mui-checked": {
-                            color: theme.palette.background.paper,
-                            "& + .MuiSwitch-track": {
-                              backgroundColor: theme.palette.secondary.main,
-                            },
+                          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                          "& .MuiSwitch-switchBase": {
+                            transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                          },
+                          "& .MuiSwitch-thumb": {
+                            boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
                           },
                           "& .MuiSwitch-track": {
-                            backgroundColor: "rgba(0, 0, 0, 0.38)",
+                            borderRadius: "20px",
+                            transition: "background-color 0.3s",
+                          },
+                          "& .MuiSwitch-switchBase.Mui-checked": {
+                            color: "#fff",
+                            transform: "translateX(18px)",
+                            "& + .MuiSwitch-track": {
+                              background:
+                                "linear-gradient(45deg, #667eea, #764ba2)",
+                              opacity: 1,
+                            },
                           },
                         }}
                       />
                     }
-                    label={
-                      <Typography
-                        sx={{
-                          fontFamily: theme.typography.fontFamily,
-                          fontWeight: theme.typography.fontWeightMedium,
-                          color: theme.palette.text.primary,
-                        }}
-                      >
-                        Provide Address (Optional)
-                      </Typography>
-                    }
+                    label="Provide Address (Optional)"
                     sx={{ mb: showAddress ? 1.5 : 0 }}
                   />
                 )}
               />
 
-              {/* Address Information */}
+              {/* Address Fields */}
               <Collapse in={showAddress}>
                 <Box sx={{ mb: 2 }}>
                   <Typography
-                    sx={{
-                      fontWeight: theme.typography.fontWeightBold,
-                      fontFamily: theme.typography.fontFamily,
-                      color: theme.palette.text.primary,
-                      mb: 1.5,
-                      fontSize: { xs: 14, sm: 16 }, // Responsive font size
-                    }}
+                    sx={{ fontWeight: 600, mb: 1.5, fontSize: isMobile ? 14 : 16 }}
                   >
                     Address Information
                   </Typography>
-
                   <Controller
                     name="addressLine1"
                     control={control}
@@ -678,7 +451,6 @@ const Signup = () => {
                       />
                     )}
                   />
-
                   <Controller
                     name="addressLine2"
                     control={control}
@@ -691,7 +463,6 @@ const Signup = () => {
                       />
                     )}
                   />
-
                   <Controller
                     name="addressLine3"
                     control={control}
@@ -704,7 +475,6 @@ const Signup = () => {
                       />
                     )}
                   />
-
                   {/* 2x2 Grid for County, City, Postcode, Country */}
                   <Box
                     sx={{
@@ -713,7 +483,7 @@ const Signup = () => {
                       gap: 1.5,
                     }}
                   >
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" } }}> {/* Responsive flex basis */}
+                    <Box sx={{ flex: "1 1 48%" }}>
                       <Controller
                         name="county"
                         control={control}
@@ -726,7 +496,7 @@ const Signup = () => {
                         )}
                       />
                     </Box>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" } }}> {/* Responsive flex basis */}
+                    <Box sx={{ flex: "1 1 48%" }}>
                       <Controller
                         name="city"
                         control={control}
@@ -741,7 +511,7 @@ const Signup = () => {
                         )}
                       />
                     </Box>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" } }}> {/* Responsive flex basis */}
+                    <Box sx={{ flex: "1 1 48%" }}>
                       <Controller
                         name="postcode"
                         control={control}
@@ -756,7 +526,7 @@ const Signup = () => {
                         )}
                       />
                     </Box>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" } }}> {/* Responsive flex basis */}
+                    <Box sx={{ flex: "1 1 48%" }}>
                       <Controller
                         name="country"
                         control={control}
@@ -781,9 +551,9 @@ const Signup = () => {
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  mt: 4,
+                  mt: 3,
                   gap: 2,
-                  flexDirection: { xs: "column", sm: "row" }, // Responsive flex direction
+                  flexDirection: "row",
                 }}
               >
                 <Button
@@ -791,43 +561,18 @@ const Signup = () => {
                   startIcon={<ArrowBack />}
                   onClick={handleBack}
                   disabled={isSubmitting}
-                  sx={{
-                    width: { xs: "100%", sm: 140 }, // Responsive width
-                    height: theme.components.MuiButton.styleOverrides.root.height,
-                    fontSize: theme.components.MuiButton.styleOverrides.root.fontSize,
-                    fontFamily: theme.components.MuiButton.styleOverrides.root.fontFamily,
-                    fontWeight: theme.components.MuiButton.styleOverrides.root.fontWeight,
-                    borderRadius: theme.components.MuiButton.styleOverrides.root.borderRadius,
-                    textTransform: theme.components.MuiButton.styleOverrides.root.textTransform,
-                    order: { xs: 2, sm: 1 }, // Order for mobile vs desktop
-                  }}
+                  sx={{ flex: 1 }}
                 >
                   Back
                 </Button>
-
                 <Button
                   type="submit"
                   variant="contained"
-                  endIcon={
-                    isSubmitting ? (
-                      <CircularProgress size={20} color="inherit" />
-                    ) : (
-                      <ArrowForward />
-                    )
-                  }
-                  disabled={isSubmitting}
-                  sx={{
-                    width: { xs: "100%", sm: 140 }, // Responsive width
-                    height: theme.components.MuiButton.styleOverrides.root.height,
-                    fontSize: theme.components.MuiButton.styleOverrides.root.fontSize,
-                    fontFamily: theme.components.MuiButton.styleOverrides.root.fontFamily,
-                    fontWeight: theme.components.MuiButton.styleOverrides.root.fontWeight,
-                    borderRadius: theme.components.MuiButton.styleOverrides.root.borderRadius,
-                    textTransform: theme.components.MuiButton.styleOverrides.root.textTransform,
-                    order: { xs: 1, sm: 2 }, // Order for mobile vs desktop
-                  }}
+                  endIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <ArrowForward />}
+                  disabled={!isValid || isSubmitting}
+                  sx={{ flex: 1 }}
                 >
-                  {isSubmitting ? "Creating..." : "Signup"}
+                  {isSubmitting ? "Saving..." : "Save"}
                 </Button>
               </Box>
 
@@ -839,16 +584,15 @@ const Signup = () => {
                   justifyContent: "center",
                   gap: 2,
                   mt: 4,
-                  flexDirection: { xs: "column", sm: "row" }, // Responsive flex direction
+                  flexDirection: isMobile ? "column" : "row",
                 }}
               >
                 <Typography
                   sx={{
                     m: 0,
-                    fontFamily: theme.typography.fontFamily,
-                    fontSize: { xs: 14, sm: 16 }, // Responsive font size
-                    fontWeight: theme.typography.fontWeightBold,
-                    color: theme.palette.text.primary,
+                    fontFamily: "Poppins, sans-serif",
+                    fontSize: isMobile ? 14 : 16,
+                    fontWeight: 600,
                   }}
                 >
                   Powered by
@@ -857,7 +601,7 @@ const Signup = () => {
                   component="img"
                   src={companyLogo}
                   alt="Twelve Springs"
-                  sx={{ height: { xs: 30, sm: 35 } }} // Responsive height
+                  sx={{ height: isMobile ? 30 : 35 }}
                 />
               </Box>
             </form>
@@ -868,4 +612,4 @@ const Signup = () => {
   );
 };
 
-export default Signup;
+export default ProfileInfo;
