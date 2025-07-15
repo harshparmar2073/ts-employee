@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, forwardRef } from "react";
 import {
   Box,
   Typography,
@@ -7,20 +7,32 @@ import {
   IconButton,
   Tooltip,
   Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  Divider,
+  Slide,
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import DeleteIcon from "@mui/icons-material/Delete";
+import CloseIcon from "@mui/icons-material/Close";
 import axiosService from "../services/axiosService";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
-import { Chip } from "@mui/material"; // ✅ Add this at the top
+import { Chip } from "@mui/material";
+
+const Transition = forwardRef(function Transition(props, ref) {
+  return <Slide direction="down" ref={ref} {...props} />;
+});
 
 const TokenSessions = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
+  const [selectedFingerprint, setSelectedFingerprint] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const fetchSessions = async (filter = null) => {
     setLoading(true);
@@ -38,7 +50,6 @@ const TokenSessions = () => {
   };
 
   const revokeTransaction = async (row) => {
-    console.log("Revoke transaction for row:", row);
     if (!row) return;
     setLoading(true);
     try {
@@ -59,6 +70,11 @@ const TokenSessions = () => {
     }
   };
 
+  const openFingerprintDialog = (fingerprint) => {
+    setSelectedFingerprint(fingerprint);
+    setDialogOpen(true);
+  };
+
   useEffect(() => {
     fetchSessions();
   }, []);
@@ -68,16 +84,35 @@ const TokenSessions = () => {
     { field: "accountName", headerName: "Acount Name", flex: 1 },
     { field: "ipaddress", headerName: "IP Address", flex: 1 },
     {
-        field: "createdDate",
-        headerName: "Created On",
-        flex: 1,
-        renderCell: (params) => params.row.createdDate || "-",
-      },
+      field: "createdDate",
+      headerName: "Created On",
+      flex: 1,
+      renderCell: (params) => params.row.createdDate || "-",
+    },
     {
       field: "authTokenExpireDate",
       headerName: "Token Expiry",
       flex: 1,
       renderCell: (params) => params.row.authTokenExpireDate || "-",
+    },
+    {
+      field: "plainDeviceFingerPrint",
+      headerName: "Plain Fingerprint",
+      flex: 1,
+      renderCell: (params) =>
+        params.row.plainDeviceFingerPrint ? (
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() =>
+              openFingerprintDialog(params.row.plainDeviceFingerPrint)
+            }
+          >
+            Show
+          </Button>
+        ) : (
+          "-"
+        ),
     },
     {
       field: "authRememberMeExp",
@@ -106,17 +141,17 @@ const TokenSessions = () => {
       renderCell: (params) => {
         const { authRememberMe } = params.row;
         return authRememberMe ? (
-            <Chip
+          <Chip
             label="Remember Me"
             size="small"
             sx={{
               fontWeight: 600,
-              borderRadius: '6px',
+              borderRadius: "6px",
               px: 1.5,
-              background: 'linear-gradient(135deg, #c8e6c9, #a5d6a7)',
-              color: '#1b5e20',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)',
-              border: '1px solid #81c784',
+              background: "linear-gradient(135deg, #c8e6c9, #a5d6a7)",
+              color: "#1b5e20",
+              boxShadow: "0 1px 3px rgba(0, 0, 0, 0.2)",
+              border: "1px solid #81c784",
             }}
           />
         ) : (
@@ -124,7 +159,6 @@ const TokenSessions = () => {
         );
       },
     },
-    
     {
       field: "actions",
       headerName: "",
@@ -174,9 +208,10 @@ const TokenSessions = () => {
       </LocalizationProvider>
 
       <Paper
-        elevation={4}
+        elevation={7}
         sx={{
-          p: 2,
+          p: 3,
+          mt: 6,
           borderRadius: 4,
           background: "linear-gradient(135deg, #e0f7fa, #f1f8e9)",
           boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
@@ -215,6 +250,49 @@ const TokenSessions = () => {
           </Box>
         )}
       </Paper>
+
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+        TransitionComponent={Transition}
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            background: "linear-gradient(135deg, #fafafa, #e3f2fd)",
+            boxShadow: 24,
+            p: 2,
+          },
+        }}
+      >
+        <Box display="flex" justifyContent="space-between" alignItems="center" p={2} pb={1}>
+          <Typography variant="h6" fontWeight={600}>
+            Device Fingerprint
+          </Typography>
+          <IconButton onClick={() => setDialogOpen(false)}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+        <Divider />
+        <DialogContent
+          dividers
+          sx={{
+            fontFamily: "monospace",
+            whiteSpace: "pre-wrap",
+            fontSize: "0.9rem",
+            color: "#333",
+            background: "#ffffff",
+            borderRadius: 2,
+            mt: 2,
+            mb: 2,
+          }}
+        >
+          {selectedFingerprint
+            ?.replace(/786/, "")
+            .replace(/786$/, "")}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 };
