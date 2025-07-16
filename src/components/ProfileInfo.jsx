@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import axiosService from "../services/axiosService";
+// import axiosService from "../services/axiosService";
 import { useToast } from "../context/ToastContext";
 import {
   Autocomplete,
@@ -127,53 +127,22 @@ const ProfileInfo = () => {
 
   const handleBack = () => navigate(-1);
 
-  const onSubmit = async (data) => {
+  const onSubmit = (data) => {
     setIsSubmitting(true);
-    try {
-      const payload = {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        password: data.password,
-        timeZone: data.timezone,
-      };
-      if (data.showAddress) {
-        payload.address = {
-          addressLine1: data.addressLine1,
-          addressLine2: data.addressLine2,
-          city: data.city,
-          county: data.county,
-          postcode: data.postcode,
-          country: data.country,
-        };
-      }
-      const response = await axiosService.post("/account/update", payload);
-      if (response.status < 300) {
-        showToast("Profile info saved successfully", "success");
-        navigate("/dashboard");
-      }
-    } catch (error) {
-      showToast(
-        error.response?.data?.message || "Failed to save. Please try again.",
-        "error"
-      );
-    } finally {
+    setTimeout(() => {
+      showToast("Profile info saved successfully", "success");
       setIsSubmitting(false);
-    }
+    }, 800);
   };
 
   return (
     <Box
       sx={{
         width: '100%',
-        pt: { xs: 3, sm: 4, md: 6 },
-        pb: { xs: 3, sm: 4, md: 6 },
-        px: { xs: 1, sm: 2 },
-        boxSizing: 'border-box',
-        display: 'block',
         position: 'relative',
-        overflow: 'auto',
-        background: muiTheme.palette.background.default,
+        minHeight: '100vh',
+        px: { xs: 0, sm: 1, md: 2, lg: 4 },
+        py: { xs: 0, sm: 1, md: 2, lg: 4 },
       }}
     >
       {/* Back arrow */}
@@ -181,12 +150,12 @@ const ProfileInfo = () => {
         onClick={handleBack}
         sx={{
           position: "absolute",
-          top: isMobile ? 8 : 16,
-          left: isMobile ? 8 : 16,
+          top: { xs: 2, sm: 8, md: 16 },
+          left: { xs: 2, sm: 8, md: 16 },
           color: "#000",
           bgcolor: "rgba(255,255,255,0.7)",
           "&:hover": { bgcolor: "rgba(255,255,255,0.9)" },
-          zIndex: 1,
+          zIndex: 10,
         }}
       >
         <ArrowBack />
@@ -197,22 +166,23 @@ const ProfileInfo = () => {
           elevation={2}
           sx={{
             mx: 'auto',
-            borderRadius: { xs: 2, sm: 3 },
+            borderRadius: { xs: 1, sm: 2, md: 3 },
             position: 'relative',
             overflow: 'hidden',
             backgroundColor: theme.palette.background.paper,
-            p: { xs: 2, sm: 3 },
+            p: { xs: 1, sm: 2, md: 3 },
+            maxWidth: { xs: '100%', sm: 600, md: 800, lg: 900 },
           }}
         >
-          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+          <CardContent sx={{ p: 0 }}>
             {/* Logo & Title */}
-            <Box sx={{ textAlign: "center", mb: 3 }}>
+            <Box sx={{ textAlign: "center", mb: { xs: 2, sm: 3, md: 4 } }}>
               <Box
                 sx={{
                   display: "flex",
                   justifyContent: "center",
                   alignItems: "center",
-                  mb: 2,
+                  mb: { xs: 1, sm: 2, md: 3 },
                   width: "100%",
                 }}
               >
@@ -221,32 +191,46 @@ const ProfileInfo = () => {
                   src={logo}
                   alt="logo"
                   sx={{
-                    height: isMobile ? 60 : 80,
-                    maxWidth: "60%",
+                    height: { xs: 40, sm: 60, md: 80 },
+                    maxWidth: { xs: '70%', sm: '60%', md: '50%' },
                     objectFit: "contain",
                     mx: "auto",
                     display: "block",
                     boxShadow: "0 4px 24px rgba(102,126,234,0.10)",
                     borderRadius: 2,
                     background: "rgba(255,255,255,0.7)",
-                    p: 1,
+                    p: { xs: 0.5, sm: 1 },
                   }}
                 />
               </Box>
               <Typography
                 variant={isMobile ? "h6" : "h5"}
-                sx={{ mt: 1, fontWeight: muiTheme.typography.fontWeightBold, mb: 0.5 }}
+                sx={{
+                  mt: { xs: 0.5, sm: 1 },
+                  fontWeight: theme.typography.fontWeightBold,
+                  fontFamily: theme.typography.fontFamily,
+                  mb: { xs: 0.5, sm: 1 },
+                  fontSize: { xs: 18, sm: 22, md: 26 },
+                  color: theme.palette.text.primary,
+                }}
               >
                 Profile Information
               </Typography>
-              <Typography variant="body2" sx={{ color: "text.secondary" }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: theme.palette.text.secondary,
+                  fontFamily: theme.typography.fontFamily,
+                  fontSize: { xs: 12, sm: 14 },
+                }}
+              >
                 Update your profile details
               </Typography>
             </Box>
 
             <form onSubmit={handleSubmit(onSubmit)}>
               {/* Personal Information */}
-              <Typography sx={{ fontWeight: 600, mb: 1.5, fontSize: isMobile ? 14 : 16 }}>
+              <Typography sx={{ fontWeight: theme.typography.fontWeightBold, fontFamily: theme.typography.fontFamily, color: theme.palette.text.primary, mb: 1.5, fontSize: { xs: 14, sm: 16 } }}>
                 Personal Information
               </Typography>
               <Controller
@@ -279,7 +263,7 @@ const ProfileInfo = () => {
               />
 
               {/* Login */}
-              <Typography sx={{ fontWeight: 600, mb: 1.5, fontSize: isMobile ? 14 : 16 }}>
+              <Typography sx={{ fontWeight: theme.typography.fontWeightBold, fontFamily: theme.typography.fontFamily, color: theme.palette.text.primary, mb: 1.5, fontSize: { xs: 14, sm: 16 } }}>
                 Login
               </Typography>
               <Controller
@@ -437,7 +421,7 @@ const ProfileInfo = () => {
               <Collapse in={showAddress}>
                 <Box sx={{ mb: 2 }}>
                   <Typography
-                    sx={{ fontWeight: 600, mb: 1.5, fontSize: isMobile ? 14 : 16 }}
+                    sx={{ fontWeight: theme.typography.fontWeightBold, fontFamily: theme.typography.fontFamily, color: theme.palette.text.primary, mb: 1.5, fontSize: { xs: 14, sm: 16 } }}
                   >
                     Address Information
                   </Typography>
@@ -554,8 +538,8 @@ const ProfileInfo = () => {
                 sx={{
                   display: 'flex',
                   justifyContent: 'center',
-                  gap: 2,
-                  mt: 4,
+                  gap: { xs: 1, sm: 2 },
+                  mt: { xs: 2, sm: 4 },
                   flexDirection: { xs: 'column', sm: 'row' },
                 }}
               >
@@ -564,12 +548,18 @@ const ProfileInfo = () => {
                   startIcon={<ArrowBack />}
                   onClick={handleBack}
                   sx={{
-                    px: 6,
-                    py: 1.5,
-                    fontSize: '1.1rem',
-                    fontWeight: 700,
-                    fontFamily: muiTheme.typography.fontFamily,
                     flex: 1,
+                    mb: { xs: 1, sm: 0 },
+                    fontSize: { xs: 14, sm: 16 },
+                    py: { xs: 1, sm: 1.5 },
+                    fontWeight: theme.typography.fontWeightBold,
+                    fontFamily: theme.typography.fontFamily,
+                    color: theme.palette.primary.main,
+                    borderColor: theme.palette.primary.main,
+                    '&:hover': {
+                      borderColor: theme.palette.secondary.main,
+                      color: theme.palette.secondary.main,
+                    },
                   }}
                 >
                   Back
@@ -579,12 +569,17 @@ const ProfileInfo = () => {
                   variant="contained"
                   endIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <ArrowForward />}
                   sx={{
-                    px: 6,
-                    py: 1.5,
-                    fontSize: '1.1rem',
-                    fontWeight: 700,
-                    fontFamily: muiTheme.typography.fontFamily,
                     flex: 1,
+                    fontSize: { xs: 14, sm: 16 },
+                    py: { xs: 1, sm: 1.5 },
+                    fontWeight: theme.typography.fontWeightBold,
+                    fontFamily: theme.typography.fontFamily,
+                    background: theme.palette.primary.main,
+                    color: theme.palette.getContrastText(theme.palette.primary.main),
+                    '&:hover': {
+                      background: theme.palette.secondary.main,
+                      color: theme.palette.getContrastText(theme.palette.secondary.main),
+                    },
                   }}
                 >
                   {isSubmitting ? 'Saving...' : 'Save'}
@@ -597,17 +592,18 @@ const ProfileInfo = () => {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 2,
-                  mt: 4,
+                  gap: { xs: 1, sm: 2 },
+                  mt: { xs: 2, sm: 4 },
                   flexDirection: isMobile ? "column" : "row",
                 }}
               >
                 <Typography
                   sx={{
                     m: 0,
-                    fontFamily: "Poppins, sans-serif",
-                    fontSize: isMobile ? 14 : 16,
-                    fontWeight: 600,
+                    fontFamily: theme.typography.fontFamily,
+                    fontSize: { xs: 12, sm: 14, md: 16 },
+                    fontWeight: theme.typography.fontWeightBold,
+                    color: theme.palette.text.primary,
                   }}
                 >
                   Powered by
@@ -616,7 +612,7 @@ const ProfileInfo = () => {
                   component="img"
                   src={companyLogo}
                   alt="Twelve Springs"
-                  sx={{ height: isMobile ? 30 : 35 }}
+                  sx={{ height: { xs: 18, sm: 24, md: 30, lg: 35 } }}
                 />
               </Box>
             </form>

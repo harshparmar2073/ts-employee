@@ -108,7 +108,8 @@ const AccountInfo = () => {
       setIsLoading(true);
       try {
         const response = await axiosService.get('/account');
-        const data = response.data;
+        const data = response.data.data; // <-- use .data.data
+        console.log(data)
 
         // Set form values based on the API response
         setValue('accountName', data.accountName || '');
@@ -165,6 +166,9 @@ const AccountInfo = () => {
       if (data.showAddress) {
         payload.address = {
           addressLine1: data.addressLine1,
+          addressLine2: data.addressLine2,
+          addressLine3: data.addressLine3,
+          county:data.county,
           city: data.city,
           postcode: data.postcode,
           country: data.country,
@@ -178,8 +182,7 @@ const AccountInfo = () => {
         
       );
       if (response.status < 300) {
-        showToast("Account info saved successfully", "success");
-        navigate("/dashboard");
+        showToast("Your account information has been updated successfully!", "success");
       }
     } catch (error) {
       showToast(
