@@ -165,13 +165,15 @@ const ProfileInfo = () => {
   return (
     <Box
       sx={{
-        minHeight: "100vh",
-        width: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: theme.palette.background.default,
-        padding: isMobile ? 1 : 2,
+        width: '100%',
+        pt: { xs: 3, sm: 4, md: 6 },
+        pb: { xs: 3, sm: 4, md: 6 },
+        px: { xs: 1, sm: 2 },
+        boxSizing: 'border-box',
+        display: 'block',
+        position: 'relative',
+        overflow: 'auto',
+        background: muiTheme.palette.background.default,
       }}
     >
       {/* Back arrow */}
@@ -192,15 +194,17 @@ const ProfileInfo = () => {
 
       <Container maxWidth="md" sx={{ px: { xs: 1, sm: 2, md: 4 } }}>
         <Card
-          elevation={0}
+          elevation={2}
           sx={{
-            mx: "auto",
-            borderRadius: isMobile ? 1 : 2,
-            position: "relative",
-            overflow: "hidden",
+            mx: 'auto',
+            borderRadius: { xs: 2, sm: 3 },
+            position: 'relative',
+            overflow: 'hidden',
+            backgroundColor: theme.palette.background.paper,
+            p: { xs: 2, sm: 3 },
           }}
         >
-          <CardContent sx={{ p: isMobile ? 2 : 3 }}>
+          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
             {/* Logo & Title */}
             <Box sx={{ textAlign: "center", mb: 3 }}>
               <Box
@@ -548,20 +552,25 @@ const ProfileInfo = () => {
               {/* Buttons */}
               <Box
                 sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mt: 3,
+                  display: 'flex',
+                  justifyContent: 'center',
                   gap: 2,
-                  flexDirection: "row",
+                  mt: 4,
+                  flexDirection: { xs: 'column', sm: 'row' },
                 }}
               >
                 <Button
                   variant="outlined"
                   startIcon={<ArrowBack />}
                   onClick={handleBack}
-                  disabled={isSubmitting}
-                  sx={{ flex: 1 }}
+                  sx={{
+                    px: 6,
+                    py: 1.5,
+                    fontSize: '1.1rem',
+                    fontWeight: 700,
+                    fontFamily: muiTheme.typography.fontFamily,
+                    flex: 1,
+                  }}
                 >
                   Back
                 </Button>
@@ -569,10 +578,16 @@ const ProfileInfo = () => {
                   type="submit"
                   variant="contained"
                   endIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <ArrowForward />}
-                  disabled={!isValid || isSubmitting}
-                  sx={{ flex: 1 }}
+                  sx={{
+                    px: 6,
+                    py: 1.5,
+                    fontSize: '1.1rem',
+                    fontWeight: 700,
+                    fontFamily: muiTheme.typography.fontFamily,
+                    flex: 1,
+                  }}
                 >
-                  {isSubmitting ? "Saving..." : "Save"}
+                  {isSubmitting ? 'Saving...' : 'Save'}
                 </Button>
               </Box>
 

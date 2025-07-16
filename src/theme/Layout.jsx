@@ -67,7 +67,7 @@ export default function Layout({ userData }) {
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           background: 'rgba(240,240,240,0.8)',
           backdropFilter: 'blur(8px)',
-          minHeight: '100vh',
+          // minHeight: '100vh',
         }}
       >
         <Outlet />
