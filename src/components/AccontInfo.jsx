@@ -72,6 +72,7 @@ const AccountInfo = () => {
   const { showToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [timezones, setTimezones] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const {
     control,
@@ -100,13 +101,53 @@ const AccountInfo = () => {
 
   const showAddress = watch("showAddress");
 
-  // Load timezones
+
+
   useEffect(() => {
-    const tzList = Intl.supportedValuesOf("timeZone");
-    setTimezones(tzList);
-    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    setValue("timezone", browserTz);
-  }, [setValue]);
+    const fetchAccountInfo = async () => {
+      setIsLoading(true);
+      try {
+        const response = await axiosService.get('/account');
+        const data = response.data;
+
+        // Set form values based on the API response
+        setValue('accountName', data.accountName || '');
+        setValue('firstName', data.firstName || '');
+        setValue('lastName', data.lastName || '');
+        setValue('timezone', data.timeZone || '');
+        if (data.address) {
+          setValue('showAddress', true);
+          setValue('addressLine1', data.address.addressLine1 || '');
+          setValue('addressLine2', data.address.addressLine2 || '');
+          setValue('addressLine3', data.address.addressLine3 || '');
+          setValue('county', data.address.county || '');
+          setValue('city', data.address.city || '');
+          setValue('postcode', data.address.postcode || '');
+          setValue('country', data.address.country || '');
+        } else {
+          setValue('showAddress', false);
+        }
+      } catch (error) {
+        showToast(
+          error.response?.data?.message || "Failed to fetch account info.",
+          "error"
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAccountInfo();
+  }, [setValue, showToast]);
+
+
+    // Load timezones
+    useEffect(() => {
+      const tzList = Intl.supportedValuesOf("timeZone");
+      setTimezones(tzList);
+      const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      setValue("timezone", browserTz);
+    }, [setValue]);
 
   const handleBack = () => navigate(-1);
 
@@ -125,7 +166,6 @@ const AccountInfo = () => {
         payload.address = {
           addressLine1: data.addressLine1,
           city: data.city,
-          county: data.county,
           postcode: data.postcode,
           country: data.country,
         };
@@ -150,6 +190,14 @@ const AccountInfo = () => {
       setIsSubmitting(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <Box sx={{ width: '100%', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ width: '100%', position: 'relative', minHeight: '100vh' }}>
