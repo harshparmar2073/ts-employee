@@ -146,20 +146,7 @@ const ProfileInfo = () => {
       }}
     >
       {/* Back arrow */}
-      <IconButton
-        onClick={handleBack}
-        sx={{
-          position: "absolute",
-          top: { xs: 2, sm: 8, md: 16 },
-          left: { xs: 2, sm: 8, md: 16 },
-          color: "#000",
-          bgcolor: "rgba(255,255,255,0.7)",
-          "&:hover": { bgcolor: "rgba(255,255,255,0.9)" },
-          zIndex: 10,
-        }}
-      >
-        <ArrowBack />
-      </IconButton>
+      {/* Remove the IconButton with ArrowBack from the component. */}
 
       <Container maxWidth="md" sx={{ px: { xs: 1, sm: 2, md: 4 } }}>
         <Card

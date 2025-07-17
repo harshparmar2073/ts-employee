@@ -130,6 +130,47 @@ const theme = createTheme({
         },
       },
     },
+
+    MuiInputLabel: {
+      styleOverrides: {
+        root: {
+          color: '#6b6b6b', // Use MUI default grey for all form labels
+        },
+      },
+    },
+
+    MuiSelect: {
+      styleOverrides: {
+        select: {
+          '&:hover': {
+            backgroundColor: '#ede7f6',
+            color: '#5e35b1',
+          },
+        },
+      },
+    },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          '&:hover': {
+            backgroundColor: '#ede7f6',
+            color: '#5e35b1',
+          },
+        },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          '&:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#5e35b1',
+          },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#5e35b1',
+          },
+        },
+      },
+    },
   },
 });
 
