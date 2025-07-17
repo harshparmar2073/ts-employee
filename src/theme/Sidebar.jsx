@@ -33,6 +33,7 @@ import {
   Message,
   Lock,
 } from '@mui/icons-material';
+import PersonIcon from '@mui/icons-material/Person';
 import { useNavigate } from 'react-router-dom';
 import LogoutDialog from '../components/LogoutDialog';
 
@@ -44,6 +45,7 @@ const SidebarItems = [
     icon: <DataUsage />,
     expandable: true,
     subItems: [
+      {text:'Employee',icon:<PersonIcon/>},
       { text: 'CRM', icon: <People /> },
       { text: 'Vendors', icon: <Business /> },
       { text: 'Customers', icon: <PersonAdd /> },
@@ -107,6 +109,8 @@ export default function Sidebar({
         navigate('/dashboard/security');
       } else if (item.text === 'Token Sessions') {
         navigate('/dashboard/member-table');
+      } else if (item.text === 'Employee') {
+        navigate('/dashboard/employee-contract-form');
       }
     }
   };

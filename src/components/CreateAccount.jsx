@@ -38,6 +38,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo2.png";
 import companyLogo from "../assets/12springslogo.png";
+import FlagsSelect from "react-flags-select";
 
 // Enhanced validation schema
 const validationSchema = yup.object({
@@ -761,13 +762,67 @@ const Signup = () => {
                         name="country"
                         control={control}
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            fullWidth
-                            placeholder="Country"
-                            error={!!errors.country}
-                            helperText={errors.country?.message}
-                          />
+                          <Box sx={{ mb: 1.5 }}>
+                            <FlagsSelect
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              placeholder="Select Country"
+                              searchable
+                              alignOptionsToRight={false}
+                              showSelectedLabel={true}
+                              showOptionLabel={true}
+                              fullWidth
+                              selectedSize={theme.typography.fontSize}
+                              optionsSize={theme.typography.fontSize}
+                              className="mui-flags-select"
+                              style={{
+                                width: '100%',
+                                height: 56,
+                                borderRadius: 8,
+                                fontFamily: theme.typography.fontFamily,
+                                fontSize: theme.typography.fontSize,
+                                fontWeight: theme.typography.fontWeightRegular,
+                                background: '#fff',
+                                border: errors.country ? '1.5px solid #d32f2f' : '1.5px solid #c4c4c4',
+                                paddingLeft: 14,
+                                paddingRight: 14,
+                                display: 'flex',
+                                alignItems: 'center',
+                                boxSizing: 'border-box',
+                                transition: 'border-color 0.2s',
+                              }}
+                            />
+                            <style>{`
+                              .mui-flags-select .ReactFlagsSelect-module_selectBtn__19wW7 {
+                                font-family: ${theme.typography.fontFamily} !important;
+                                font-size: ${theme.typography.fontSize}px !important;
+                                font-weight: ${theme.typography.fontWeightRegular} !important;
+                                height: 56px !important;
+                                min-height: 56px !important;
+                                color: ${theme.palette.text.primary} !important;
+                                background: #fff !important;
+                                border-radius: 8px !important;
+                                /* Remove border: none to allow outer border to show */
+                                box-shadow: none !important;
+                                outline: none !important;
+                                padding-left: 0 !important;
+                                transition: border-color 0.2s !important;
+                              }
+                              .mui-flags-select .ReactFlagsSelect-module_selectBtn__19wW7:focus {
+                                border: 1.5px solid #5E35B1 !important;
+                                box-shadow: 0 0 0 2px rgba(94,53,177,0.15) !important;
+                              }
+                              .mui-flags-select .ReactFlagsSelect-module_selectBtn__19wW7::placeholder {
+                                font-family: ${theme.typography.fontFamily} !important;
+                                font-size: ${theme.typography.fontSize}px !important;
+                                color: #888 !important;
+                                opacity: 1 !important;
+                              }
+                            `}</style>
+                            {errors.country && (
+                              <FormHelperText error>{errors.country.message}</FormHelperText>
+                            )}
+                          </Box>
                         )}
                       />
                     </Box>

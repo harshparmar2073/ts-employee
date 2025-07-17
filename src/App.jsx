@@ -11,6 +11,7 @@ import Layout from './theme/Layout';
 import Logout from './pages/auth/Logout';
 import AccountInfo from './components/AccontInfo';
 import ProfileInfo from './components/ProfileInfo';
+import EmployeeContractorForm from './components/EmployeeContractForm';
 
 const userData = {
   name: 'John Doe',
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="member-table" element={<Membertable />} />
         <Route path="account-info" element={<AccountInfo/>}/>
         <Route path="profile-info" element={<ProfileInfo/>}/>
+        <Route path="employee-contract-form" element={<EmployeeContractorForm/>}/>
 
 
         {/* Optionally, redirect /dashboard to /dashboard/dashboard-content */}

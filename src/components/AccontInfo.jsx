@@ -21,6 +21,7 @@ import {
 import { ArrowBack, ArrowForward } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import logo from "../assets/logo2.png";
+import FlagsSelect from "react-flags-select";
 
 const validationSchema = yup.object({
   accountName: yup.string().required("Account name is required").min(2),
@@ -66,9 +67,14 @@ const AccountInfo = () => {
       county: "",
       city: "",
       postcode: "",
-      country: "",
+      country: "GB", // Set default country to UK
     },
   });
+
+  useEffect(() => {
+    // Ensure default country is set if not changed
+    setValue('country', (value) => value || 'GB');
+  }, [setValue]);
 
   useEffect(() => {
     const fetchAccountInfo = async () => {
@@ -153,12 +159,7 @@ const AccountInfo = () => {
 
   return (
     <Box sx={{ width: "100%", position: "relative", minHeight: "100vh" }}>
-      <IconButton
-        onClick={() => navigate(-1)}
-        sx={{ position: "absolute", top: 16, left: 16 }}
-      >
-        <ArrowBack />
-      </IconButton>
+      
 
       <Container maxWidth="md" sx={{ py: 6 }}>
         {/* Outer Card */}
@@ -327,13 +328,71 @@ const AccountInfo = () => {
                     name="country"
                     control={control}
                     render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        placeholder="Country"
-                        error={!!errors.country}
-                        helperText={errors.country?.message}
-                      />
+                      <Box sx={{ mb: 1.5 }}>
+                        <FlagsSelect
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          placeholder="Select Country"
+                          searchable
+                          alignOptionsToRight={false}
+                          showSelectedLabel={true}
+                          showOptionLabel={true}
+                          fullWidth
+                          selectedSize={muiTheme.typography.fontSize}
+                          optionsSize={muiTheme.typography.fontSize}
+                          className="mui-flags-select"
+                          style={{
+                            width: '100%',
+                            height: 56,
+                            borderRadius: 8,
+                            fontFamily: muiTheme.typography.fontFamily,
+                            fontSize: muiTheme.typography.fontSize,
+                            fontWeight: muiTheme.typography.fontWeightRegular,
+                            background: '#fff',
+                            border: errors.country ? '1.5px solid #d32f2f' : '1.5px solid #c4c4c4',
+                            paddingLeft: 14,
+                            paddingRight: 14,
+                            display: 'flex',
+                            alignItems: 'center',
+                            boxSizing: 'border-box',
+                            transition: 'border-color 0.2s',
+                          }}
+                        />
+                        <style>{`
+                          .mui-flags-select .ReactFlagsSelect-module_selectBtn__19wW7 {
+                            font-family: ${muiTheme.typography.fontFamily} !important;
+                            font-size: ${muiTheme.typography.fontSize}px !important;
+                            font-weight: ${muiTheme.typography.fontWeightRegular} !important;
+                            height: 56px !important;
+                            min-height: 56px !important;
+                            color: ${muiTheme.palette.text.primary} !important;
+                            background: #fff !important;
+                            border-radius: 8px !important;
+                            box-shadow: none !important;
+                            outline: none !important;
+                            padding-left: 0 !important;
+                            transition: border-color 0.2s !important;
+                          }
+                          .mui-flags-select .ReactFlagsSelect-module_selectBtn__19wW7:hover {
+                            border: 1.5px solid #5E35B1 !important;
+                          }
+                          .mui-flags-select .ReactFlagsSelect-module_selectBtn__19wW7:focus {
+                            border: 1.5px solid #5E35B1 !important;
+                            box-shadow: 0 0 0 2px rgba(94,53,177,0.15) !important;
+                          }
+                          .mui-flags-select .ReactFlagsSelect-module_selectBtn__19wW7::placeholder {
+                            font-family: ${muiTheme.typography.fontFamily} !important;
+                            font-size: ${muiTheme.typography.fontSize}px !important;
+                            color: #888 !important;
+                            opacity: 1 !important;
+                          }
+                        `}</style>
+                        {errors.country && (
+                          <Typography color="error" variant="caption" sx={{ ml: 1 }}>
+                            {errors.country.message}
+                          </Typography>
+                        )}
+                      </Box>
                     )}
                   />
                 </Box>
