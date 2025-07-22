@@ -153,7 +153,13 @@ const endDate = parseInTimeZone(data.endDate, data.endTime, data.timezone);
       ...(recurrenceRule ? { recurrenceRule } : {}),
     };
 
-    console.log("Event Form Data:", { ...fullData, formattedStartDate, formattedEndDate });
+    console.log("Event Form Data:", { 
+      ...fullData, 
+      formattedStartDate, 
+      formattedEndDate,
+      startDateISO: startDate.toISOString(),
+      endDateISO: endDate.toISOString()
+    });
     onSave(fullData);
   };
 
