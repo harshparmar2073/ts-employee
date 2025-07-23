@@ -1,27 +1,27 @@
-// src/pages/CalendarView.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import listPlugin from "@fullcalendar/list";
 import interactionPlugin from "@fullcalendar/interaction";
+import rrulePlugin from "@fullcalendar/rrule";
+import { startOfMonth, endOfMonth } from "date-fns";
+import axiosService from "../services/axiosService";
+
 import {
   Box,
   Card,
   CardContent,
   Typography,
-  Button,
   useTheme,
   useMediaQuery,
   Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions,
+  Fab,
 } from "@mui/material";
-import EventForm from "./EventForm"; // <-- Step 2 will create this
-import EventIcon from '@mui/icons-material/Event';
-import rrulePlugin from '@fullcalendar/rrule';
-import CustomRecurrenceDialog from "./CustomRecurrenceDialog"; // Import your dialog
+import AddIcon from "@mui/icons-material/Add";
+import EventForm from "./EventForm";
+import CustomRecurrenceDialog from "./CustomRecurrenceDialog";
 
 const CalendarView = () => {
   const theme = useTheme();
@@ -45,65 +45,97 @@ const CalendarView = () => {
         right: "dayGridMonth,timeGridWeek,timeGridDay,listYear",
       };
 
- const handleCreate = (date) => {
-    // clone and zero time so it's always local-midnight of the clicked day
+  const handleCreate = (date) => {
     const localMidnight = new Date(date);
     localMidnight.setHours(0, 0, 0, 0);
     setSelectedDate(localMidnight);
     setDialogOpen(true);
   };
 
-  const handleSaveEvent = (eventData) => {
-    let eventForCalendar;
- if (eventData.recurrenceRule) {
-      // For recurring, keep the rule but still convert your start into a Date for logging
-      const { ...rest } = eventData;
-      eventForCalendar = {
-        ...rest,
-        startDate: eventData.startDate,
-        endDate: eventData.endDate,
-        formattedStartDate: eventData.formattedStartDate,
-        formattedEndDate: eventData.formattedEndDate,
-        rrule: eventData.recurrenceRule,
-      };
-    } else {
-      // Non-recurring: convert both start/end into real Date objects
-      eventForCalendar = {
-        ...eventData,
-        
-      };
+  const handleSaveEvent = async (eventData) => {
+    const payload = {
+      originalEventId: null,
+      title: eventData.title,
+      startDateTime: eventData.startDate,
+      endDateTime: eventData.endDate,
+      location: eventData.location || "",
+      meetingUrl: eventData.meetingUrl || "",
+      description: eventData.description || "",
+      eventStatus: "Active",
+      timezone: eventData.timezone,
+      reference: eventData.reference || "",
+      recurrenceRule: eventData.recurrenceRule || null,
+    };
+
+    try {
+      const response = await axiosService.post("/auth/calendar-events/create", payload);
+      console.log("✅ Event created via API:", response.data);
+      fetchEvents(); // refresh calendar
+    } catch (error) {
+      console.error("❌ Error creating event via API:", error);
     }
-    console.log('Event passed to FullCalendar:', eventForCalendar);
-    // setEvents([...events, eventForCalendar]); // Commented out to not display events
+
     setDialogOpen(false);
   };
 
-  const handleNextRecurring = (eventData) => {
-    // ...handle recurring logic or open another dialog/step...
-    setDialogOpen(false);
+  const fetchEvents = async () => {
+    const from = startOfMonth(new Date()).toISOString();
+    const to = endOfMonth(new Date()).toISOString();
+
+    try {
+      const response = await axiosService.get("/auth/calendar-events/load", {
+        params: { from, to },
+      });
+
+      const fetchedEvents = response.data.map((event) => {
+        const calendarEvent = {
+          id: event.id,
+          title: event.title,
+          start: event.startDateTime,
+          end: event.endDateTime,
+        };
+
+        if (event.recurrenceRule) {
+          calendarEvent.rrule = event.recurrenceRule;
+        }
+
+        return calendarEvent;
+      });
+
+      setEvents(fetchedEvents);
+      console.log("✅ Loaded events via /load:", fetchedEvents);
+    } catch (error) {
+      console.error("❌ Failed to fetch events via /load:", error);
+    }
   };
 
-  // Handler to open recurrence dialog
-  const handleOpenRecurrenceDialog = (initialData) => {
-    setRecurrenceInitialData(initialData);
-    setRecurrenceDialogOpen(true);
-  };
-
-  // Handler to close recurrence dialog
-  const handleCloseRecurrenceDialog = () => {
-    setRecurrenceDialogOpen(false);
-    setRecurrenceInitialData(null);
-  };
+  useEffect(() => {
+    fetchEvents();
+  }, []);
 
   return (
     <>
-      <Box sx={{ position: "relative", minHeight: "calc(100vh - 64px)" }}>
-        <Card elevation={6} sx={{ borderRadius: 5, p: 3, background: "#f5f5f5" }}>
+      <Box
+        sx={{
+          position: "relative",
+          minHeight: "calc(100vh - 64px)",
+          background: "linear-gradient(135deg, #e3f2fd, #fce4ec)",
+          p: 3,
+        }}
+      >
+        <Card
+          elevation={8}
+          sx={{
+            borderRadius: 5,
+            p: 3,
+            background: "linear-gradient(135deg, #ffffff, #f1f8e9)",
+          }}
+        >
           <CardContent>
-            <Typography variant="h4" gutterBottom>
-              Calendar
+            <Typography variant="h4" gutterBottom fontWeight={600}>
+              📅 Calendar
             </Typography>
-            <Box sx={{ position: "relative" }}>
+            <Box sx={{ position: "relative", borderRadius: 3, overflow: "hidden" }}>
               <FullCalendar
                 plugins={[
                   dayGridPlugin,
@@ -117,66 +149,82 @@ const CalendarView = () => {
                 customButtons={{
                   createButton: {
                     text: "Create",
-                    click: () => handleCreate(new Date()), // today still works
-                 },
+                    click: () => handleCreate(new Date()),
+                  },
                 }}
                 events={events}
                 selectable
                 editable
-dateClick={({ dateStr }) => handleCreate(new Date(dateStr))}
+                dateClick={({ dateStr }) => handleCreate(new Date(dateStr))}
                 eventClick={() => {}}
+                eventBackgroundColor="#64b5f6"
+                eventBorderColor="#42a5f5"
+                eventTextColor="#fff"
+                height="auto"
               />
             </Box>
           </CardContent>
         </Card>
+
+        <Fab
+          color="primary"
+          aria-label="add"
+          onClick={() => handleCreate(new Date())}
+          sx={{
+            position: "fixed",
+            bottom: 24,
+            right: 24,
+            background: "linear-gradient(135deg, #00bcd4, #2196f3)",
+            color: "#fff",
+          }}
+        >
+          <AddIcon />
+        </Fab>
       </Box>
 
-      {/* EventForm Dialog */}
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         fullWidth
         maxWidth="md"
         scroll="body"
-      slotProps={{
+        slotProps={{
           paper: {
             sx: {
-              bgcolor: 'white',                    // pure white background
-              borderRadius: isMobile ? 0 : 2,      // same rounding
-              m: { xs: 0, sm: '4px 0', md: '6px 0' },
-              mx: 'auto',                          // center horizontally
-              width: { xs: '100%', sm: 600, md: 800 },
-              overflow: 'visible',
-            }
-          }
+              bgcolor: "white",
+              borderRadius: isMobile ? 0 : 2,
+              m: { xs: 0, sm: "4px 0", md: "6px 0" },
+              mx: "auto",
+              width: { xs: "100%", sm: 600, md: 800 },
+              overflow: "visible",
+            },
+          },
         }}
       >
-<DialogContent
+        <DialogContent
           sx={{
             p: 0,
-            overflow: 'visible',
-            bgcolor: 'white',
-            borderRadius: isMobile ? 0 : 2,     // <— also round the content so inner Box doesn’t overflow
-            m: 1                                // <— give a tiny margin so you can see the rounding
+            overflow: "visible",
+            bgcolor: "white",
+            borderRadius: isMobile ? 0 : 2,
+            m: 1,
           }}
-        >         
- <EventForm
+        >
+          <EventForm
             initialDate={selectedDate}
             onSave={handleSaveEvent}
             onCancel={() => setDialogOpen(false)}
-            onNextRecurring={handleNextRecurring}
-            onOpenRecurrenceDialog={handleOpenRecurrenceDialog}
-            minHeight={{ xs: 350, sm: 420, md: 500 }} // Pass minHeight as prop for responsive height
+            onNextRecurring={() => setDialogOpen(false)}
+            onOpenRecurrenceDialog={setRecurrenceDialogOpen}
+            minHeight={{ xs: 350, sm: 420, md: 500 }}
           />
         </DialogContent>
       </Dialog>
 
-      {/* Render CustomRecurrenceDialog at the same level */}
       <CustomRecurrenceDialog
         open={recurrenceDialogOpen}
-        onClose={handleCloseRecurrenceDialog}
+        onClose={() => setRecurrenceDialogOpen(false)}
         initialData={recurrenceInitialData}
-        // ...other props as needed
       />
     </>
   );

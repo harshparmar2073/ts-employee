@@ -1,3 +1,4 @@
+// EventForm.jsx
 import React, { useState, useEffect } from "react";
 import {
   Box,
@@ -6,206 +7,198 @@ import {
   Typography,
   Card,
   CardContent,
-  Divider,
   Stack,
-  Avatar,
   Autocomplete,
   Checkbox,
   FormControlLabel,
+  MenuItem,
+  Select,
+  InputLabel,
+  FormControl,
 } from "@mui/material";
-import EventIcon from '@mui/icons-material/Event';
-import CustomRecurrenceDialog from './CustomRecurrenceDialog';
-import * as yup from "yup";
+import { DatePicker } from "@mui/x-date-pickers";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { toZonedTime, formatInTimeZone, fromZonedTime } from 'date-fns-tz';
+import * as yup from "yup";
+import { fromZonedTime } from "date-fns-tz";
+import { RRule } from "rrule";
 
+// Get timezones
 const getIanaTimezones = () => {
-  if (typeof Intl.supportedValuesOf === 'function') {
-    return Intl.supportedValuesOf('timeZone');
+  if (typeof Intl.supportedValuesOf === "function") {
+    return Intl.supportedValuesOf("timeZone");
   }
- 
-
+  return [];
 };
 
+// Schema
 const eventSchema = yup.object({
-  title: yup.string().required("Title is required").min(3, "Title must be at least 3 characters"),
+  title: yup.string().required("Title is required").min(3),
   startDate: yup.date().required("Start date is required"),
   endDate: yup
     .date()
     .required("End date is required")
     .min(yup.ref("startDate"), "End date cannot be before start date"),
   startTime: yup.string().required("Start time is required"),
-  endTime: yup
-    .string()
-    .required("End time is required")
-    .test("is-after", "End time must be after start time", function (value) {
-      const { startTime } = this.parent;
-      return value > startTime;
-    }),
+  endTime: yup.string().required("End time is required"),
   timezone: yup.string().required("Timezone is required"),
-  description: yup.string().max(500, "Description too long"),
+  description: yup.string().max(500),
   allDay: yup.boolean(),
+  recurrence: yup.string().nullable(),
+  recurrenceEnd: yup.string().nullable(),
+  weekdays: yup.array().nullable(),
+  dayOfMonth: yup.number().nullable(),
+  monthOfYear: yup.number().nullable(),
 });
 
-function parseInTimeZone(dateStr, timeStr, timezone) {
-  if (!dateStr || !timeStr || !timezone) return null;
+// Time parser
+function parseInTimeZone(
+  dateStr,
+  timeStr,
+  timezone,
+  allDay = false,
+  isEnd = false
+) {
+  if (!dateStr || (!timeStr && !allDay) || !timezone) return null;
+  const pad = (n) => n.toString().padStart(2, "0");
 
-  // If dateStr is a Date object, convert it to 'YYYY-MM-DD' string based on its local components
   if (dateStr instanceof Date) {
-    const pad = (n) => n.toString().padStart(2, '0');
-    dateStr = `${dateStr.getFullYear()}-${pad(dateStr.getMonth() + 1)}-${pad(dateStr.getDate())}`;
+    dateStr = `${dateStr.getFullYear()}-${pad(dateStr.getMonth() + 1)}-${pad(
+      dateStr.getDate()
+    )}`;
   }
 
-  // Combine date and time into ISO format string
-  const dateTimeStr = `${dateStr}T${timeStr}:00`;
-
-  // Convert to UTC based on the specified timezone
+  let time = allDay
+    ? isEnd
+      ? "23:59:59.999"
+      : "00:00:00.000"
+    : `${timeStr}:00`;
+  const dateTimeStr = `${dateStr}T${time}`;
   const utcDate = fromZonedTime(dateTimeStr, timezone);
-
   return new Date(utcDate);
 }
 
-const EventForm = ({ initialDate, onSave, onCancel, onNextRecurring, minHeight }) => {
+// Component
+const EventForm = ({ initialDate, onSave, onCancel }) => {
   const [timezones, setTimezones] = useState([]);
-  const [recurrenceDialogOpen, setRecurrenceDialogOpen] = useState(false);
-  const [recurrenceRule, setRecurrenceRule] = useState(null);
+  const weekdays = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+  const now = new Date();
+
+  const pad = (n) => n.toString().padStart(2, "0");
+  const minutes = now.getMinutes();
+  const roundedMinutes = minutes <= 30 ? 30 : 0;
+  const roundedHours =
+    minutes <= 30 ? now.getHours() : (now.getHours() + 1) % 24;
+
+  const startTimeDate = new Date(now);
+  startTimeDate.setHours(roundedHours, roundedMinutes, 0, 0);
+  const endTimeDate = new Date(startTimeDate.getTime() + 30 * 60000);
+
+  const defaultTime = `${pad(startTimeDate.getHours())}:${pad(
+    startTimeDate.getMinutes()
+  )}`;
+  const defaultEndTime = `${pad(endTimeDate.getHours())}:${pad(
+    endTimeDate.getMinutes()
+  )}`;
+
+  const {
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors },
+  } = useForm({
+    resolver: yupResolver(eventSchema),
+    defaultValues: {
+      title: "",
+      startDate: initialDate || new Date(),
+      endDate: initialDate || new Date(),
+      startTime: defaultTime,
+      endTime: defaultEndTime,
+      description: "",
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      allDay: false,
+      recurrence: "",
+      recurrenceEnd: "",
+      weekdays: [],
+      dayOfMonth: null,
+      monthOfYear: null,
+    },
+  });
+
+  const form = watch();
+  useEffect(() => {
+    const subscription = watch((value, { name, type }) => {
+      if (name === "startDate" && value.startDate) {
+        setValue("endDate", value.startDate);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, setValue]);
 
   useEffect(() => {
     setTimezones(getIanaTimezones());
   }, []);
 
-  const now = new Date();
-  const pad = (n) => n.toString().padStart(2, '0');
-  const defaultDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  const defaultTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
-
-  const {
-    control,
-     setValue,
-    handleSubmit,
-    formState: { errors },
-    watch,
-  } = useForm({
-    resolver: yupResolver(eventSchema),
-      defaultValues: {
-      title: "",
-      // use the same pad(...) helper to format local YYYY-MM-DD
-      startDate: initialDate
-        ? `${initialDate.getFullYear()}-${pad(initialDate.getMonth()+1)}-${pad(initialDate.getDate())}`
-        : defaultDate,
-      endDate:   initialDate
-        ? `${initialDate.getFullYear()}-${pad(initialDate.getMonth()+1)}-${pad(initialDate.getDate())}`
-        : defaultDate,
-        startTime: defaultTime,
-     endTime:   defaultTime,
-      description: "",
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      allDay: false,
-    },
-  });
-
-   const startTime = watch("startTime");
-  useEffect(() => {
-    if (!startTime) return;
-    const [h, m] = startTime.split(":").map(Number);
-    const startMs = h * 3600000 + m * 60000;
-    const endMs = startMs + 30 * 60000;
-    const pad = (n) => n.toString().padStart(2, "0");
-    const newEnd = `${pad(Math.floor(endMs / 3600000) % 24)}:${pad(Math.floor((endMs % 3600000) / 60000))}`;
-    const currEnd = watch("endTime");
-    if (currEnd === startTime || !currEnd) {
-      setValue("endTime", newEnd, { shouldValidate: true });
+  const buildRRule = (data, dtstart) => {
+    const options = {
+      freq: RRule[data.recurrence?.toUpperCase()],
+      dtstart,
+      interval: 1,
+    };
+    if (data.recurrenceEnd) options.until = new Date(data.recurrenceEnd);
+    if (data.recurrence === "weekly" && data.weekdays.length) {
+      options.byweekday = data.weekdays.map((day) => RRule[day]);
     }
-  }, [startTime, setValue, watch]);
-
-  const form = watch();
-
-  const formatDate = (date) => {
-    if (!date) return "";
-    if (typeof date === "string") return date; // already ISO
-    // If it's a Date object, format as YYYY-MM-DD
-    return date.toISOString().slice(0, 10);
+    if (data.recurrence === "monthly" && data.dayOfMonth) {
+      options.bymonthday = data.dayOfMonth;
+    }
+    if (data.recurrence === "yearly" && data.dayOfMonth && data.monthOfYear) {
+      options.bymonth = data.monthOfYear;
+      options.bymonthday = data.dayOfMonth;
+    }
+    return new RRule(options).toString();
   };
 
   const handleSave = (data) => {
- const startDate = parseInTimeZone(data.startDate, data.startTime, data.timezone);
-const endDate = parseInTimeZone(data.endDate, data.endTime, data.timezone);
+    const startDate = parseInTimeZone(
+      data.startDate,
+      data.startTime,
+      data.timezone,
+      data.allDay,
+      false
+    );
+    const endDate = parseInTimeZone(
+      data.endDate,
+      data.endTime,
+      data.timezone,
+      data.allDay,
+      true
+    );
 
+    let rrule = null;
+    if (data.recurrence) {
+      rrule = buildRRule(data, startDate);
+    }
 
-    // 2) formatter in that zone
-    const fmt = (d) =>
-      new Intl.DateTimeFormat("en-GB", {
-        timeZone: data.timezone,
-        year: "numeric", month: "short", day: "2-digit",
-        hour: "2-digit", minute: "2-digit", hour12: false,
-      }).format(d);
-
-    const formattedStartDate = formatInTimeZone(startDate, data.timezone, 'EEE MMM dd yyyy HH:mm:ss xxx (OOOO)');
-    const formattedEndDate = formatInTimeZone(endDate, data.timezone, 'EEE MMM dd yyyy HH:mm:ss xxx (OOOO)');
     const fullData = {
       ...data,
-      formattedStartDate,
-      formattedEndDate,
-      startDate: startDate,
-      endDate:   endDate,
-      
-      ...(recurrenceRule ? { recurrenceRule } : {}),
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      recurrenceRule: rrule,
     };
-
-    console.log("Event Form Data:", { 
-      ...fullData, 
-      formattedStartDate, 
-      formattedEndDate,
-      startDateISO: startDate.toISOString(),
-      endDateISO: endDate.toISOString()
-    });
     onSave(fullData);
   };
 
-  const handleNextRecurring = () => {
-    setRecurrenceDialogOpen(true);
-  };
-
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: 'auto',
-        backgroundColor: 'white',
-        borderRadius:4,
-        px: { xs: 1, sm: 2, md: 4 }, // Responsive horizontal padding
-        py: { xs: 2, sm: 4 },        // Responsive vertical padding (add this line)
-      }}
-    >
-      <Card
-        elevation={8}
-        sx={{
-          width: '100%',
-          maxWidth: { xs: '100%', sm: 600, md: 800, lg: 1000 },
-          minHeight: minHeight || { xs: 520, sm: 600, md: 700, lg: 700 }, // Taller on sm/md screens
-          borderRadius: 5,
-          boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.15)',
-          m: 0,
-          display: 'flex',           // Make Card a flex container
-          flexDirection: 'column',   // Stack children vertically
-          justifyContent: 'center',  // Center content vertically
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', pt: 3, pb: 1 }}>
-          <Avatar sx={{ bgcolor: 'primary.main', width: 48, height: 48, mr: 2 }}>
-            <EventIcon fontSize="large" />
-          </Avatar>
-          <Typography variant="h5" fontWeight={700} color="primary.main" letterSpacing={1}>
+    <Box p={3}>
+      <Card elevation={3}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
             New Event
           </Typography>
-        </Box>
-        <Divider sx={{ mb: 3, mx: 4 }} />
-        <CardContent sx={{ p: { xs: 4, sm: 4, md: 8 }, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <form onSubmit={handleSubmit(handleSave)} noValidate>
-            <Stack spacing={3}>
+          <form onSubmit={handleSubmit(handleSave)}>
+            <Stack spacing={2}>
               <Controller
                 name="title"
                 control={control}
@@ -214,28 +207,29 @@ const endDate = parseInTimeZone(data.endDate, data.endTime, data.timezone);
                     {...field}
                     label="Title"
                     fullWidth
-                    required
-                    variant="outlined"
                     error={!!errors.title}
                     helperText={errors.title?.message}
                   />
                 )}
               />
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+
+              {/* Date Pickers */}
+              <Stack direction="row" spacing={2}>
                 <Controller
                   name="startDate"
                   control={control}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
+                    <DatePicker
                       label="Start Date"
-                      type="date"
-                      fullWidth
-                      InputLabelProps={{ shrink: true }}
-                      required
-                      variant="outlined"
-                      error={!!errors.startDate}
-                      helperText={errors.startDate?.message}
+                      value={field.value ? new Date(field.value) : null}
+                      onChange={field.onChange}
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                          error: !!errors.startDate,
+                          helperText: errors.startDate?.message,
+                        },
+                      }}
                     />
                   )}
                 />
@@ -243,36 +237,24 @@ const endDate = parseInTimeZone(data.endDate, data.endTime, data.timezone);
                   name="endDate"
                   control={control}
                   render={({ field }) => (
-                    <TextField
-                      {...field}
+                    <DatePicker
                       label="End Date"
-                      type="date"
-                      fullWidth
-                      InputLabelProps={{ shrink: true }}
-                      required
-                      variant="outlined"
-                      error={!!errors.endDate}
-                      helperText={errors.endDate?.message}
+                      value={field.value ? new Date(field.value) : null}
+                      onChange={field.onChange}
+                      slotProps={{
+                        textField: {
+                          fullWidth: true,
+                          error: !!errors.endDate,
+                          helperText: errors.endDate?.message,
+                        },
+                      }}
                     />
                   )}
                 />
               </Stack>
-              <Controller
-                name="allDay"
-                control={control}
-                render={({ field }) => (
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        {...field}
-                        checked={field.value}
-                      />
-                    }
-                    label="All day"
-                  />
-                )}
-              />
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+
+              {/* Time */}
+              <Stack direction="row" spacing={2}>
                 <Controller
                   name="startTime"
                   control={control}
@@ -282,12 +264,7 @@ const endDate = parseInTimeZone(data.endDate, data.endTime, data.timezone);
                       label="Start Time"
                       type="time"
                       fullWidth
-                      InputLabelProps={{ shrink: true }}
-                      required
-                      variant="outlined"
-                      error={!!errors.startTime}
-                      helperText={errors.startTime?.message}
-                      disabled={watch("allDay")}
+                      disabled={form.allDay}
                     />
                   )}
                 />
@@ -300,16 +277,23 @@ const endDate = parseInTimeZone(data.endDate, data.endTime, data.timezone);
                       label="End Time"
                       type="time"
                       fullWidth
-                      InputLabelProps={{ shrink: true }}
-                      required
-                      variant="outlined"
-                      error={!!errors.endTime}
-                      helperText={errors.endTime?.message}
-                      disabled={watch("allDay")}
+                      disabled={form.allDay}
                     />
                   )}
                 />
               </Stack>
+
+              <Controller
+                name="allDay"
+                control={control}
+                render={({ field }) => (
+                  <FormControlLabel
+                    control={<Checkbox {...field} checked={field.value} />}
+                    label="All Day"
+                  />
+                )}
+              />
+
               <Controller
                 name="description"
                 control={control}
@@ -320,64 +304,156 @@ const endDate = parseInTimeZone(data.endDate, data.endTime, data.timezone);
                     fullWidth
                     multiline
                     rows={3}
-                    variant="outlined"
-                    error={!!errors.description}
-                    helperText={errors.description?.message}
                   />
                 )}
               />
-              <Box>
-                <Typography variant="subtitle1" sx={{ mb: 1 }}>
-                  Timezone
-                </Typography>
+
+              <Controller
+                name="timezone"
+                control={control}
+                render={({ field }) => (
+                  <Autocomplete
+                    options={timezones}
+                    value={field.value}
+                    onChange={(_, value) => field.onChange(value)}
+                    renderInput={(params) => (
+                      <TextField {...params} label="Timezone" fullWidth />
+                    )}
+                    disableClearable
+                  />
+                )}
+              />
+
+              {/* Recurrence */}
+              <Controller
+                name="recurrence"
+                control={control}
+                render={({ field }) => (
+                  <FormControl fullWidth>
+                    <InputLabel>Repeat</InputLabel>
+                    <Select {...field} label="Repeat">
+                      <MenuItem value="">None</MenuItem>
+                      <MenuItem value="daily">Daily</MenuItem>
+                      <MenuItem value="weekly">Weekly</MenuItem>
+                      <MenuItem value="monthly">Monthly</MenuItem>
+                      <MenuItem value="yearly">Yearly</MenuItem>
+                    </Select>
+                  </FormControl>
+                )}
+              />
+
+              {/* Dynamic Recurrence Options */}
+              {form.recurrence === "daily" && (
                 <Controller
-                  name="timezone"
+                  name="recurrenceEnd"
                   control={control}
                   render={({ field }) => (
-                    <Autocomplete
-                      options={timezones}
-                      value={field.value}
-                      onChange={(_, newValue) => field.onChange(newValue)}
-                      renderInput={(params) => (
-                        <TextField {...params} label="Select Timezone" variant="outlined" fullWidth required error={!!errors.timezone} helperText={errors.timezone?.message} />
-                      )}
+                    <TextField
+                      {...field}
+                      type="date"
+                      label="Repeat Until (optional)"
+                      InputLabelProps={{ shrink: true }}
                       fullWidth
-                      isOptionEqualToValue={(option, value) => option === value}
-                      disableClearable
                     />
                   )}
                 />
-              </Box>
-              <Divider sx={{ my: 1 }} />
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1, gap: 2, flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center' }}>
-                <Button onClick={onCancel}  variant="outlined" sx={{ minWidth: 120, py: { xs: 1, sm: 1.25, md: 1.5 } }}>
+              )}
+
+              {form.recurrence === "weekly" && (
+                <Stack direction="row">
+                  {weekdays.map((day) => (
+                    <Controller
+                      key={day}
+                      name="weekdays"
+                      control={control}
+                      render={({ field }) => (
+                        <FormControlLabel
+                          control={
+                            <Checkbox
+                              checked={field.value.includes(day)}
+                              onChange={(e) => {
+                                const newDays = e.target.checked
+                                  ? [...field.value, day]
+                                  : field.value.filter((d) => d !== day);
+                                field.onChange(newDays);
+                              }}
+                            />
+                          }
+                          label={day}
+                        />
+                      )}
+                    />
+                  ))}
+                </Stack>
+              )}
+
+              {form.recurrence === "monthly" && (
+                <Controller
+                  name="dayOfMonth"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      label="Day of Month"
+                      type="number"
+                      fullWidth
+                    />
+                  )}
+                />
+              )}
+
+              {form.recurrence === "yearly" && (
+                <Stack direction="row" spacing={2}>
+                  <Controller
+                    name="monthOfYear"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField {...field} select label="Month" fullWidth>
+                        {Array.from({ length: 12 }, (_, i) => (
+                          <MenuItem key={i + 1} value={i + 1}>
+                            {new Date(0, i).toLocaleString("en", {
+                              month: "long",
+                            })}
+                          </MenuItem>
+                        ))}
+                      </TextField>
+                    )}
+                  />
+                  <Controller
+                    name="dayOfMonth"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        label="Day"
+                        type="number"
+                        fullWidth
+                      />
+                    )}
+                  />
+                </Stack>
+              )}
+
+              {/* Action buttons */}
+              <Box display="flex" justifyContent="space-between">
+                <Button variant="outlined" onClick={onCancel}>
                   Cancel
                 </Button>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  <Button variant="contained" type="submit" sx={{ py: { xs: 1, sm: 1.25, md: 1.5 } }}>
-                    Save 
+                <Box display="flex" gap={2}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => console.log("Next Recurring Event")}
+                  >
+                    Next Recurring Event
                   </Button>
-                  <Button variant="contained"  onClick={handleNextRecurring} sx={{ py: { xs: 1, sm: 1.25, md: 1.5 } }}>
-                    Next / Recurring
+                  <Button variant="contained" type="submit">
+                    Save
                   </Button>
                 </Box>
               </Box>
             </Stack>
           </form>
         </CardContent>
-        <CustomRecurrenceDialog
-          open={recurrenceDialogOpen}
-          onClose={() => setRecurrenceDialogOpen(false)}
-          onDone={({ rruleString, customOptions }) => {
-            setRecurrenceRule(rruleString);
-            setRecurrenceDialogOpen(false);
-          }}
-          start={
-            form.startDate && form.startTime
-              ? new Date(`${form.startDate}T${form.startTime}`)
-              : new Date()
-          }
-        />
       </Card>
     </Box>
   );
