@@ -27,7 +27,7 @@ import { RRule } from "rrule";
 import { ColorPicker, useColor } from "react-color-palette";
 import "react-color-palette/css";
 import Popover from "@mui/material/Popover";
-import Tooltip from '@mui/material/Tooltip';
+import Tooltip from "@mui/material/Tooltip";
 // Get timezones
 const getIanaTimezones = () => {
   if (typeof Intl.supportedValuesOf === "function") {
@@ -147,7 +147,13 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
   useEffect(() => {
     setTimezones(getIanaTimezones());
     // Sync color picker with form value
-    setColor({ hex: form.eventColour || "#4285f4", rgb: { r: 66, g: 133, b: 244 }, hsv: { h: 221, s: 0.73, v: 0.96 }, oldHue: 221, source: "hex" });
+    setColor({
+      hex: form.eventColour || "#4285f4",
+      rgb: { r: 66, g: 133, b: 244 },
+      hsv: { h: 221, s: 0.73, v: 0.96 },
+      oldHue: 221,
+      source: "hex",
+    });
   }, []);
 
   // Keep color picker and form in sync
@@ -217,7 +223,8 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
     );
 
     let rrule = null;
-    if (data.recurrence && data.recurrence !== "") { // Only build RRule if recurrence is selected
+    if (data.recurrence && data.recurrence !== "") {
+      // Only build RRule if recurrence is selected
       rrule = buildRRule(data, startDate);
     }
 
@@ -227,11 +234,13 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
       endDate: endDate.toISOString(),
       recurrenceRule: rrule,
       // Ensure recurrenceEnd is ISO string if it exists
-      recurrenceEnd: data.recurrenceEnd ? data.recurrenceEnd.toISOString() : null,
-      eventColour:   data.eventColour,
+      recurrenceEnd: data.recurrenceEnd
+        ? data.recurrenceEnd.toISOString()
+        : null,
+      eventColour: data.eventColour,
       skipWeekends: !!data.skipWeekends,
     };
-    console.log('EventForm outgoing payload:', fullData);
+    console.log("EventForm outgoing payload:", fullData);
     onSave(fullData);
   };
 
@@ -299,31 +308,31 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
               </Stack>
 
               {/* Time */}
-              { !form.allDay && (
+              {!form.allDay && (
                 <Stack direction="row" spacing={2}>
-                <Controller
-                  name="startTime"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="Start Time"
-                      type="time"
-                      fullWidth
+                  <Controller
+                    name="startTime"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        label="Start Time"
+                        type="time"
+                        fullWidth
                         error={!!errors.startTime}
                         helperText={errors.startTime?.message}
-                    />
-                  )}
-                />
-                <Controller
-                  name="endTime"
-                  control={control}
-                  render={({ field }) => (
-                    <TextField
-                      {...field}
-                      label="End Time"
-                      type="time"
-                      fullWidth
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="endTime"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        label="End Time"
+                        type="time"
+                        fullWidth
                         error={!!errors.endTime}
                         helperText={errors.endTime?.message}
                       />
@@ -348,8 +357,24 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                   name="eventColour"
                   control={control}
                   render={({ field }) => (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, ml: 12 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 700, color: 'linear-gradient(90deg, #4285f4, #9c27b0)', minWidth: 90, fontFamily: 'Poppins, Roboto, Arial, sans-serif', letterSpacing: 0.5 }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 2,
+                        ml: 12,
+                      }}
+                    >
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 700,
+                          color: "linear-gradient(90deg, #4285f4, #9c27b0)",
+                          minWidth: 90,
+                          fontFamily: "Poppins, Roboto, Arial, sans-serif",
+                          letterSpacing: 0.5,
+                        }}
+                      >
                         Event Color:
                       </Typography>
                       <Tooltip title="Pick event color" arrow>
@@ -357,30 +382,30 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                           sx={{
                             width: 40,
                             height: 40,
-                            borderRadius: '50%',
+                            borderRadius: "50%",
                             background: `linear-gradient(135deg, #4285f4 0%, #9c27b0 100%) padding-box, ${field.value} border-box`,
-                            border: '3px solid transparent',
-                            boxShadow: '0 4px 18px rgba(76, 110, 245, 0.18)',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'box-shadow 0.2s, transform 0.2s',
-                            position: 'relative',
-                            '&:hover': {
-                              boxShadow: '0 8px 28px rgba(156, 39, 176, 0.22)',
-                              transform: 'scale(1.08)',
+                            border: "3px solid transparent",
+                            boxShadow: "0 4px 18px rgba(76, 110, 245, 0.18)",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            transition: "box-shadow 0.2s, transform 0.2s",
+                            position: "relative",
+                            "&:hover": {
+                              boxShadow: "0 8px 28px rgba(156, 39, 176, 0.22)",
+                              transform: "scale(1.08)",
                             },
-                            '::after': {
+                            "::after": {
                               content: '""',
-                              position: 'absolute',
+                              position: "absolute",
                               top: 4,
                               left: 4,
                               right: 4,
                               bottom: 4,
-                              borderRadius: '50%',
+                              borderRadius: "50%",
                               background: field.value,
-                              boxShadow: '0 1px 6px rgba(0,0,0,0.10)',
+                              boxShadow: "0 1px 6px rgba(0,0,0,0.10)",
                             },
                           }}
                           onClick={(e) => setAnchorEl(e.currentTarget)}
@@ -390,14 +415,17 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                         open={Boolean(anchorEl)}
                         anchorEl={anchorEl}
                         onClose={() => setAnchorEl(null)}
-                        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                        anchorOrigin={{
+                          vertical: "bottom",
+                          horizontal: "left",
+                        }}
                         PaperProps={{
                           sx: {
                             borderRadius: 3,
-                            boxShadow: '0 6px 32px rgba(25, 118, 210, 0.18)',
-                            border: '1.5px solid #e3eafc',
+                            boxShadow: "0 6px 32px rgba(25, 118, 210, 0.18)",
+                            border: "1.5px solid #e3eafc",
                             p: 2,
-                            bgcolor: '#f8fafd',
+                            bgcolor: "#f8fafd",
                           },
                         }}
                       >
@@ -471,63 +499,79 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                       <MenuItem value="monthly">Monthly</MenuItem>
                       <MenuItem value="yearly">Yearly</MenuItem>
                     </Select>
-                    {errors.recurrence && <Typography color="error" variant="caption">{errors.recurrence?.message}</Typography>}
+                    {errors.recurrence && (
+                      <Typography color="error" variant="caption">
+                        {errors.recurrence?.message}
+                      </Typography>
+                    )}
                   </FormControl>
                 )}
               />
 
               {/* Enhanced Recurrence Details Section */}
-              {(form.recurrence === "daily" || form.recurrence === "weekly" || form.recurrence === "monthly" || form.recurrence === "yearly") && (
-                <Card 
+              {(form.recurrence === "daily" ||
+                form.recurrence === "weekly" ||
+                form.recurrence === "monthly" ||
+                form.recurrence === "yearly") && (
+                <Card
                   elevation={1}
                   sx={{
-                    borderRadius: '20px',
+                    borderRadius: "20px",
                     mt: 3,
-                    border: '2px solid #f0f4ff',
-                    background: 'linear-gradient(145deg, #fafbff 0%, #f8faff 100%)',
-                    position: 'relative',
-                    overflow: 'visible',
-                    '&::before': {
+                    border: "2px solid #f0f4ff",
+                    background:
+                      "linear-gradient(145deg, #fafbff 0%, #f8faff 100%)",
+                    position: "relative",
+                    overflow: "visible",
+                    "&::before": {
                       content: '""',
-                      position: 'absolute',
+                      position: "absolute",
                       top: -2,
                       left: -2,
                       right: -2,
                       bottom: -2,
-                      background: 'linear-gradient(145deg, #4285f4, #9c27b0, #ff6b6b)',
-                      borderRadius: '22px',
+                      background:
+                        "linear-gradient(145deg, #4285f4, #9c27b0, #ff6b6b)",
+                      borderRadius: "22px",
                       zIndex: -1,
                       opacity: 0.1,
-                    }
+                    },
                   }}
                 >
                   <CardContent sx={{ p: 3 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
                       <Box
                         sx={{
                           width: 48,
                           height: 48,
-                          borderRadius: '16px',
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
+                          borderRadius: "16px",
+                          background:
+                            "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
                           mr: 2,
-                          boxShadow: '0 8px 16px rgba(102, 126, 234, 0.3)',
+                          boxShadow: "0 8px 16px rgba(102, 126, 234, 0.3)",
                         }}
                       >
-                        <Typography sx={{ color: 'white', fontWeight: 'bold', fontSize: '20px' }}>
+                        <Typography
+                          sx={{
+                            color: "white",
+                            fontWeight: "bold",
+                            fontSize: "20px",
+                          }}
+                        >
                           🔄
                         </Typography>
                       </Box>
                       <Box>
-                        <Typography 
-                          variant="h6" 
-                          sx={{ 
-                            color: '#2c3e50', 
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            color: "#2c3e50",
                             fontWeight: 700,
-                            textTransform: 'capitalize',
-                            mb: 0.5
+                            textTransform: "capitalize",
+                            mb: 0.5,
                           }}
                         >
                           {form.recurrence} Recurrence
@@ -537,17 +581,17 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                         </Typography>
                       </Box>
                     </Box>
-                    
+
                     <Stack spacing={3}>
                       {/* Daily: Skip Weekends Option */}
                       {form.recurrence === "daily" && (
                         <Box
                           sx={{
                             p: 2.5,
-                            borderRadius: '16px',
-                            bgcolor: 'white',
-                            border: '1px solid #e3f2fd',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            borderRadius: "16px",
+                            bgcolor: "white",
+                            border: "1px solid #e3f2fd",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
                           }}
                         >
                           <Controller
@@ -555,7 +599,12 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                             control={control}
                             render={({ field }) => (
                               <FormControlLabel
-                                control={<Checkbox {...field} checked={!!field.value} />}
+                                control={
+                                  <Checkbox
+                                    {...field}
+                                    checked={!!field.value}
+                                  />
+                                }
                                 label="Skip Weekends (Saturday & Sunday)"
                               />
                             )}
@@ -563,25 +612,27 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                         </Box>
                       )}
                       {/* Interval Section */}
-                      {(form.recurrence === "weekly" || form.recurrence === "monthly" || form.recurrence === "yearly") && (
+                      {(form.recurrence === "weekly" ||
+                        form.recurrence === "monthly" ||
+                        form.recurrence === "yearly") && (
                         <Box
                           sx={{
                             p: 2.5,
-                            borderRadius: '16px',
-                            bgcolor: 'white',
-                            border: '1px solid #e3f2fd',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            borderRadius: "16px",
+                            bgcolor: "white",
+                            border: "1px solid #e3f2fd",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
                           }}
                         >
-                          <Typography 
-                            variant="subtitle2" 
-                            sx={{ 
-                              mb: 2, 
+                          <Typography
+                            variant="subtitle2"
+                            sx={{
+                              mb: 2,
                               fontWeight: 600,
-                              color: '#1565c0',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1
+                              color: "#1565c0",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
                             }}
                           >
                             ⏱️ Frequency
@@ -590,8 +641,20 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                             name="interval"
                             control={control}
                             render={({ field }) => (
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <Typography variant="body1" sx={{ minWidth: 'fit-content', color: '#424242' }}>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 2,
+                                }}
+                              >
+                                <Typography
+                                  variant="body1"
+                                  sx={{
+                                    minWidth: "fit-content",
+                                    color: "#424242",
+                                  }}
+                                >
                                   Every
                                 </Typography>
                                 <TextField
@@ -601,21 +664,29 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                                   error={!!errors.interval}
                                   helperText={errors.interval?.message}
                                   sx={{
-                                    width: '80px',
-                                    '& .MuiOutlinedInput-root': {
-                                      borderRadius: '12px',
-                                      bgcolor: '#f8f9fa'
-                                    }
+                                    width: "80px",
+                                    "& .MuiOutlinedInput-root": {
+                                      borderRadius: "12px",
+                                      bgcolor: "#f8f9fa",
+                                    },
                                   }}
                                   size="small"
                                 />
-                                <Typography variant="body1" sx={{ color: '#424242' }}>
-                                  {form.recurrence === "weekly" 
-                                    ? (field.value === 1 ? "week" : "weeks")
-                                    : form.recurrence === "monthly" 
-                                    ? (field.value === 1 ? "month" : "months")
-                                    : (field.value === 1 ? "year" : "years")
-                                  }
+                                <Typography
+                                  variant="body1"
+                                  sx={{ color: "#424242" }}
+                                >
+                                  {form.recurrence === "weekly"
+                                    ? field.value === 1
+                                      ? "week"
+                                      : "weeks"
+                                    : form.recurrence === "monthly"
+                                    ? field.value === 1
+                                      ? "month"
+                                      : "months"
+                                    : field.value === 1
+                                    ? "year"
+                                    : "years"}
                                 </Typography>
                               </Box>
                             )}
@@ -628,26 +699,28 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                         <Box
                           sx={{
                             p: 2.5,
-                            borderRadius: '16px',
-                            bgcolor: 'white',
-                            border: '1px solid #e8f5e8',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            borderRadius: "16px",
+                            bgcolor: "white",
+                            border: "1px solid #e8f5e8",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
                           }}
                         >
-                          <Typography 
-                            variant="subtitle2" 
-                            sx={{ 
-                              mb: 2.5, 
+                          <Typography
+                            variant="subtitle2"
+                            sx={{
+                              mb: 2.5,
                               fontWeight: 600,
-                              color: '#2e7d32',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1
+                              color: "#2e7d32",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
                             }}
                           >
                             📅 Repeat On
                           </Typography>
-                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
+                          <Box
+                            sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}
+                          >
                             {weekdays.map((day, index) => (
                               <Controller
                                 key={day}
@@ -663,28 +736,40 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                                         : [...field.value, day];
                                       field.onChange(newDays);
                                     }}
-                                    variant={field.value.includes(day) ? "filled" : "outlined"}
+                                    variant={
+                                      field.value.includes(day)
+                                        ? "filled"
+                                        : "outlined"
+                                    }
                                     sx={{
-                                      minWidth: '56px',
-                                      height: '40px',
+                                      minWidth: "56px",
+                                      height: "40px",
                                       fontWeight: 600,
-                                      fontSize: '0.875rem',
-                                      borderRadius: '12px',
-                                      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                      '&:hover': {
-                                        transform: 'translateY(-2px)',
-                                        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                                        bgcolor: field.value.includes(day) ? '#1565c0' : '#f5f5f5',
-                                        color: field.value.includes(day) ? 'white' : '#1976d2',
-                                        border: '1px solid #1976d2'
+                                      fontSize: "0.875rem",
+                                      borderRadius: "12px",
+                                      transition:
+                                        "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                                      "&:hover": {
+                                        transform: "translateY(-2px)",
+                                        boxShadow:
+                                          "0 4px 12px rgba(0,0,0,0.15)",
+                                        bgcolor: field.value.includes(day)
+                                          ? "#1565c0"
+                                          : "#f5f5f5",
+                                        color: field.value.includes(day)
+                                          ? "white"
+                                          : "#1976d2",
+                                        border: "1px solid #1976d2",
                                       },
-                                      ...(field.value.includes(day) ? {
-                                        bgcolor: '#1976d2',
-                                        color: 'white'
-                                      } : {
-                                        color: '#1976d2',
-                                        border: '1px solid #e0e0e0'
-                                      })
+                                      ...(field.value.includes(day)
+                                        ? {
+                                            bgcolor: "#1976d2",
+                                            color: "white",
+                                          }
+                                        : {
+                                            color: "#1976d2",
+                                            border: "1px solid #e0e0e0",
+                                          }),
                                     }}
                                   />
                                 )}
@@ -699,21 +784,21 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                         <Box
                           sx={{
                             p: 2.5,
-                            borderRadius: '16px',
-                            bgcolor: 'white',
-                            border: '1px solid #fff3e0',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            borderRadius: "16px",
+                            bgcolor: "white",
+                            border: "1px solid #fff3e0",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
                           }}
                         >
-                          <Typography 
-                            variant="subtitle2" 
-                            sx={{ 
-                              mb: 2, 
+                          <Typography
+                            variant="subtitle2"
+                            sx={{
+                              mb: 2,
                               fontWeight: 600,
-                              color: '#ef6c00',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1
+                              color: "#ef6c00",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
                             }}
                           >
                             📆 Day of Month
@@ -730,11 +815,11 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                                 error={!!errors.dayOfMonth}
                                 helperText={errors.dayOfMonth?.message}
                                 sx={{
-                                  maxWidth: '120px',
-                                  '& .MuiOutlinedInput-root': {
-                                    borderRadius: '12px',
-                                    bgcolor: '#fafafa'
-                                  }
+                                  maxWidth: "120px",
+                                  "& .MuiOutlinedInput-root": {
+                                    borderRadius: "12px",
+                                    bgcolor: "#fafafa",
+                                  },
                                 }}
                               />
                             )}
@@ -747,21 +832,21 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                         <Box
                           sx={{
                             p: 2.5,
-                            borderRadius: '16px',
-                            bgcolor: 'white',
-                            border: '1px solid #fce4ec',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                            borderRadius: "16px",
+                            bgcolor: "white",
+                            border: "1px solid #fce4ec",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
                           }}
                         >
-                          <Typography 
-                            variant="subtitle2" 
-                            sx={{ 
-                              mb: 2, 
+                          <Typography
+                            variant="subtitle2"
+                            sx={{
+                              mb: 2,
                               fontWeight: 600,
-                              color: '#c2185b',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 1
+                              color: "#c2185b",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
                             }}
                           >
                             🗓️ Annual Date
@@ -771,15 +856,18 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                               name="monthOfYear"
                               control={control}
                               render={({ field }) => (
-                                <TextField {...field} select label="Month" 
+                                <TextField
+                                  {...field}
+                                  select
+                                  label="Month"
                                   error={!!errors.monthOfYear}
                                   helperText={errors.monthOfYear?.message}
                                   sx={{
-                                    minWidth: '140px',
-                                    '& .MuiOutlinedInput-root': {
-                                      borderRadius: '12px',
-                                      bgcolor: '#fafafa'
-                                    }
+                                    minWidth: "140px",
+                                    "& .MuiOutlinedInput-root": {
+                                      borderRadius: "12px",
+                                      bgcolor: "#fafafa",
+                                    },
                                   }}
                                 >
                                   {Array.from({ length: 12 }, (_, i) => (
@@ -804,11 +892,11 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                                   error={!!errors.dayOfMonth}
                                   helperText={errors.dayOfMonth?.message}
                                   sx={{
-                                    maxWidth: '100px',
-                                    '& .MuiOutlinedInput-root': {
-                                      borderRadius: '12px',
-                                      bgcolor: '#fafafa'
-                                    }
+                                    maxWidth: "100px",
+                                    "& .MuiOutlinedInput-root": {
+                                      borderRadius: "12px",
+                                      bgcolor: "#fafafa",
+                                    },
                                   }}
                                 />
                               )}
@@ -821,21 +909,21 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                       <Box
                         sx={{
                           p: 2.5,
-                          borderRadius: '16px',
-                          bgcolor: 'white',
-                          border: '1px solid #f3e5f5',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                          borderRadius: "16px",
+                          bgcolor: "white",
+                          border: "1px solid #f3e5f5",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
                         }}
                       >
-                        <Typography 
-                          variant="subtitle2" 
-                          sx={{ 
-                            mb: 2, 
+                        <Typography
+                          variant="subtitle2"
+                          sx={{
+                            mb: 2,
                             fontWeight: 600,
-                            color: '#7b1fa2',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1
+                            color: "#7b1fa2",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
                           }}
                         >
                           🏁 End Date (Optional)
@@ -853,12 +941,12 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                                   error: !!errors.recurrenceEnd,
                                   helperText: errors.recurrenceEnd?.message,
                                   sx: {
-                                    maxWidth: '200px',
-                                    '& .MuiOutlinedInput-root': {
-                                      borderRadius: '12px',
-                                      bgcolor: '#fafafa'
-                                    }
-                                  }
+                                    maxWidth: "200px",
+                                    "& .MuiOutlinedInput-root": {
+                                      borderRadius: "12px",
+                                      bgcolor: "#fafafa",
+                                    },
+                                  },
                                 },
                               }}
                             />
@@ -870,13 +958,35 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                 </Card>
               )}
 
+              {/* Preview Card based on selected event color */}
+              <Card
+                elevation={5}
+                sx={{
+                  borderRadius: 4,
+                  mt: 4,
+                  p: 2,
+                  background: form.eventColour,
+                  color: "#fff",
+                  boxShadow: `0 8px 20px ${form.eventColour}99`,
+                  transition: "all 0.3s ease-in-out",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                  🎨 Event Color Preview
+                </Typography>
+                <Typography variant="body2" sx={{ opacity: 0.85 }}>
+                  This is how your event will look using the selected color.
+                </Typography>
+              </Card>
+
               {/* Action buttons */}
               <Box display="flex" justifyContent="space-between">
                 <Button variant="outlined" onClick={onCancel}>
                   Cancel
                 </Button>
                 <Box display="flex" gap={2}>
-                
                   <Button variant="contained" type="submit">
                     Save
                   </Button>
