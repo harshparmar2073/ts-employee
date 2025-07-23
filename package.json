@@ -30,6 +30,7 @@
     "date-fns-tz": "^3.2.0",
     "formik": "^2.4.6",
     "react": "^19.1.0",
+    "react-color-palette": "^7.3.0",
     "react-dom": "^19.1.0",
     "react-flags-select": "^2.5.0",
     "react-hook-form": "^7.60.0",
