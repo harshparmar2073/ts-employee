@@ -62,6 +62,7 @@ const CalendarView = () => {
       meetingUrl: eventData.meetingUrl || "",
       description: eventData.description || "",
       eventStatus: "Active",
+      eventColour:  eventData.eventColour,
       timezone: eventData.timezone,
       reference: eventData.reference || "",
       recurrenceRule: eventData.recurrenceRule || null,
@@ -97,6 +98,11 @@ const CalendarView = () => {
 
         if (event.recurrenceRule) {
           calendarEvent.rrule = event.recurrenceRule;
+        }
+
+        if (event.eventColour) {
+          calendarEvent.backgroundColor = event.eventColour
+          calendarEvent.borderColor = event.eventColour;
         }
 
         return calendarEvent;
@@ -221,11 +227,6 @@ const CalendarView = () => {
         </DialogContent>
       </Dialog>
 
-      <CustomRecurrenceDialog
-        open={recurrenceDialogOpen}
-        onClose={() => setRecurrenceDialogOpen(false)}
-        initialData={recurrenceInitialData}
-      />
     </>
   );
 };
