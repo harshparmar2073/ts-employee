@@ -12,6 +12,8 @@ import Logout from './pages/auth/Logout';
 import AccountInfo from './components/AccontInfo';
 import ProfileInfo from './components/ProfileInfo';
 import EmployeeContractorForm from './components/EmployeeContractForm';
+import CalendarView from './components/Calendar-View';
+import './App.css';
 
 const userData = {
   name: 'John Doe',
@@ -34,6 +36,7 @@ export default function App() {
         <Route path="account-info" element={<AccountInfo/>}/>
         <Route path="profile-info" element={<ProfileInfo/>}/>
         <Route path="employee-contract-form" element={<EmployeeContractorForm/>}/>
+        <Route path="calendar-view" element={<CalendarView/>}/>
 
 
         {/* Optionally, redirect /dashboard to /dashboard/dashboard-content */}

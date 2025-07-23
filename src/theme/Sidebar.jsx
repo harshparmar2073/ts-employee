@@ -32,6 +32,7 @@ import {
   AutoAwesome,
   Message,
   Lock,
+  CalendarMonth,
 } from '@mui/icons-material';
 import PersonIcon from '@mui/icons-material/Person';
 import { useNavigate } from 'react-router-dom';
@@ -39,6 +40,7 @@ import LogoutDialog from '../components/LogoutDialog';
 
 const SidebarItems = [
   { text: 'Dashboard', icon: <Dashboard />, expandable: false },
+  { text: 'Calendar', icon: <CalendarMonth/>, expandable: false },
   { text: 'Workspace', icon: <Workspaces />, expandable: false },
   {
     text: 'Datahub',
@@ -105,6 +107,8 @@ export default function Sidebar({
       setSelectedSection(item.text);
       if (item.text === 'Dashboard') {
         navigate('/dashboard/dashboard-content');
+      } else if (item.text === 'Calendar') {
+        navigate('/dashboard/calendar-view');
       } else if (item.text === 'Security') {
         navigate('/dashboard/security');
       } else if (item.text === 'Token Sessions') {
