@@ -7,7 +7,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import listPlugin from "@fullcalendar/list";
 import interactionPlugin from "@fullcalendar/interaction";
 import rrulePlugin from "@fullcalendar/rrule";
-import { startOfMonth, endOfMonth } from "date-fns";
+import { startOfMonth, endOfMonth, format, parseISO, differenceInMinutes } from "date-fns";
 import axiosService from "../services/axiosService";
 import Slide from "@mui/material/Slide";
 import EventForm from "../components/EventForm";
@@ -42,9 +42,23 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 
 import { rrulestr } from "rrule";
 
-const parseRRuleString = (ruleStr) => {
-  return rrulestr(ruleStr, { forceset: false }).options;
+// TODO: timezone handling
+const parseRRuleString = (ruleStr, dtstart) => {
+  return rrulestr(ruleStr, { forceset: false, dtstart: new Date(dtstart) }).options;
 };
+
+function formatDuration(startISO, endISO) {
+  const start = parseISO(startISO);
+  const end = parseISO(endISO);
+
+  let totalMinutes = differenceInMinutes(end, start);
+  if (totalMinutes < 0) totalMinutes = 0; // Handle negative durations
+
+  const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+  const minutes = String(totalMinutes % 60).padStart(2, '0');
+
+  return `${hours}:${minutes}`;
+}
 
 const CalendarView = () => {
   const theme = useTheme();
@@ -138,9 +152,11 @@ const CalendarView = () => {
 
         if (event.recurrenceRule) {
           calendarEvent.rrule = {
-            ...parseRRuleString(event.recurrenceRule),
+            ...parseRRuleString(event.recurrenceRule, event.startDateTime),
             dtstart: event.startDateTime,
           };
+          calendarEvent.duration = formatDuration(event.startDateTime, event.endDateTime);
+          calendarEvent.exdate = event.exceptionDates
         } else {
           calendarEvent.start = event.startDateTime;
           calendarEvent.end = event.endDateTime;
