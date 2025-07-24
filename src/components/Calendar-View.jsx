@@ -98,6 +98,7 @@ const CalendarView = () => {
       timezone: eventData.timezone,
       reference: eventData.reference || "",
       recurrenceRule: eventData.recurrenceRule || null,
+      attendees: eventData.attendees || [],
     };
 
     try {
@@ -119,6 +120,8 @@ const CalendarView = () => {
         params: { from, to },
       });
 
+      console.log(" API /load response:", response.data);
+
       const fetchedEvents = response.data.map((event) => {
         const calendarEvent = {
           id: event.id,
@@ -129,6 +132,7 @@ const CalendarView = () => {
             timezone: event.timezone,
             meetingUrl: event.meetingUrl,
             recurrenceRule: event.recurrenceRule,
+            attendees: event.attendees,
           },
         };
 
@@ -319,6 +323,16 @@ const CalendarView = () => {
           <Typography>
             Recurrence: {eventToView?.extendedProps?.recurrenceRule || "None"}
           </Typography>
+          {eventToView?.extendedProps?.attendees && Array.isArray(eventToView.extendedProps.attendees) && eventToView.extendedProps.attendees.length > 0 && (
+            <Box mt={2}>
+              <Typography fontWeight={600} mb={0.5}>Attendees:</Typography>
+              {eventToView.extendedProps.attendees.map((att, idx) => (
+                <Typography key={idx} variant="body2" sx={{ ml: 1 }}>
+                  {att.name} ({att.email})
+                </Typography>
+              ))}
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button

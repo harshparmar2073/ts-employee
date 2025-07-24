@@ -24,10 +24,16 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { fromZonedTime } from "date-fns-tz";
 import { RRule } from "rrule";
-import { ColorPicker, useColor } from "react-color-palette";
-import "react-color-palette/css";
+import { HexColorPicker } from "react-colorful";
 import Popover from "@mui/material/Popover";
 import Tooltip from "@mui/material/Tooltip";
+import { RgbaColorPicker } from "react-colorful";
+import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
+import Avatar from '@mui/material/Avatar';
+import Accordion from '@mui/material/Accordion';
+import AccordionSummary from '@mui/material/AccordionSummary';
+import AccordionDetails from '@mui/material/AccordionDetails';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 // Get timezones
 const getIanaTimezones = () => {
   if (typeof Intl.supportedValuesOf === "function") {
@@ -58,6 +64,15 @@ const eventSchema = yup.object({
   interval: yup.number().min(1, "Interval must be at least 1").nullable(),
   eventColour: yup.string().required("Event color is required"),
   skipWeekends: yup.boolean().nullable(),
+  attendees: yup
+    .array()
+    .of(
+      yup.object({
+        name: yup.string().required("Name is required"),
+        email: yup.string().email("Invalid email").required("Email is required"),
+      })
+    )
+    .min(1, "At least one attendee is required"),
 });
 
 // Time parser
@@ -136,30 +151,30 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
       interval: 1, // Default interval
       eventColour: "#4285f4", // Default color
       skipWeekends: false, // For daily recurrence
+      attendees: [],
     },
   });
 
   const form = watch();
-  // For react-color-palette, we need a [color, setColor] state
-  const [color, setColor] = useColor("hex", form.eventColour || "#4285f4");
+  const [color, setColor] = useState(form.eventColour || "#4285f4");
+  // For attendee input
+  const [attendeeName, setAttendeeName] = useState("");
+  const [attendeeEmail, setAttendeeEmail] = useState("");
   const [anchorEl, setAnchorEl] = useState(null);
+  const [attendeeNameTouched, setAttendeeNameTouched] = useState(false);
+  const [attendeeEmailTouched, setAttendeeEmailTouched] = useState(false);
+  // Remove email validation button logic
+
 
   useEffect(() => {
     setTimezones(getIanaTimezones());
-    // Sync color picker with form value
-    setColor({
-      hex: form.eventColour || "#4285f4",
-      rgb: { r: 66, g: 133, b: 244 },
-      hsv: { h: 221, s: 0.73, v: 0.96 },
-      oldHue: 221,
-      source: "hex",
-    });
+    setColor(form.eventColour || "#4285f4");
   }, []);
 
   // Keep color picker and form in sync
   useEffect(() => {
-    if (form.eventColour !== color.hex) {
-      setColor({ ...color, hex: form.eventColour });
+    if (form.eventColour !== color) {
+      setColor(form.eventColour);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.eventColour]);
@@ -239,6 +254,7 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
         : null,
       eventColour: data.eventColour,
       skipWeekends: !!data.skipWeekends,
+      attendees: data.attendees,
     };
     console.log("EventForm outgoing payload:", fullData);
     onSave(fullData);
@@ -380,11 +396,11 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                       <Tooltip title="Pick event color" arrow>
                         <Box
                           sx={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: "50%",
-                            background: `linear-gradient(135deg, #4285f4 0%, #9c27b0 100%) padding-box, ${field.value} border-box`,
-                            border: "3px solid transparent",
+                            width: 60,
+                            height: 36,
+                            borderRadius: "8px",
+                            background: field.value,
+                            border: "2.5px solid #e3eafc",
                             boxShadow: "0 4px 18px rgba(76, 110, 245, 0.18)",
                             cursor: "pointer",
                             display: "flex",
@@ -395,17 +411,6 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                             "&:hover": {
                               boxShadow: "0 8px 28px rgba(156, 39, 176, 0.22)",
                               transform: "scale(1.08)",
-                            },
-                            "::after": {
-                              content: '""',
-                              position: "absolute",
-                              top: 4,
-                              left: 4,
-                              right: 4,
-                              bottom: 4,
-                              borderRadius: "50%",
-                              background: field.value,
-                              boxShadow: "0 1px 6px rgba(0,0,0,0.10)",
                             },
                           }}
                           onClick={(e) => setAnchorEl(e.currentTarget)}
@@ -429,18 +434,31 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                           },
                         }}
                       >
-                        <Box sx={{ p: 0.5 }}>
-                          <ColorPicker
-                            width={220}
-                            height={150}
+                        <Box sx={{ p: 0.5, minWidth: 220 }}>
+                          <HexColorPicker
                             color={color}
                             onChange={(col) => {
                               setColor(col);
-                              field.onChange(col.hex);
+                              field.onChange(col);
                             }}
-                            hideHSV
-                            hideRGB
-                            dark
+                            style={{
+                              width: "100%",
+                              borderRadius: "12px",
+                              boxShadow: "0 2px 12px #4285f455",
+                              transition: "box-shadow 0.3s cubic-bezier(.4,2,.6,1)",
+                              animation: "colorful-pop 0.5s cubic-bezier(.4,2,.6,1)",
+                            }}
+                          />
+                          <TextField
+                            value={color}
+                            onChange={e => {
+                              setColor(e.target.value);
+                              field.onChange(e.target.value);
+                            }}
+                            label="Hex Color"
+                            variant="outlined"
+                            size="small"
+                            sx={{ mt: 2 }}
                           />
                         </Box>
                       </Popover>
@@ -958,6 +976,125 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                 </Card>
               )}
 
+              
+              {/* Attendees Field */}
+              <Controller
+                name="attendees"
+                control={control}
+                defaultValue={[]}
+                render={({ field }) => (
+                  <Accordion sx={{ mb: 2, borderRadius: 2.5, background: '#fafbff', boxShadow: 'none', border: '1.5px solid #e0e0e0' }}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ borderRadius: 2.5 }}>
+                      <Typography
+                        sx={{
+                          fontWeight: 600,
+                          fontFamily: 'Poppins, Roboto, Arial, sans-serif',
+                          color: 'text.primary',
+                          fontSize: { xs: 14, sm: 16 },
+                        }}
+                      >
+                        Attendees
+                      </Typography>
+                    </AccordionSummary>
+                    <AccordionDetails>
+                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start" mb={1} mt={2}>
+                        <TextField
+                          label="Name"
+                          value={attendeeName}
+                          onChange={e => setAttendeeName(e.target.value)}
+                          size="small"
+                          fullWidth
+                          error={Boolean(attendeeNameTouched && attendeeName.length < 2)}
+                          helperText={attendeeNameTouched && attendeeName.length < 2 ? "Name too short" : ""}
+                          onBlur={() => setAttendeeNameTouched(true)}
+                          sx={{ mb: { xs: 1, sm: 0 } }}
+                        />
+                        <TextField
+                          label="Email"
+                          value={attendeeEmail}
+                          onChange={e => setAttendeeEmail(e.target.value)}
+                          size="small"
+                          fullWidth
+                          type="email"
+                          error={Boolean(attendeeEmailTouched && !/^[^@]+@[^@]+\.[^@]+$/.test(attendeeEmail))}
+                          helperText={attendeeEmailTouched && !/^[^@]+@[^@]+\.[^@]+$/.test(attendeeEmail) ? "Invalid email" : ""}
+                          onBlur={() => setAttendeeEmailTouched(true)}
+                        />
+                        <Button
+                          variant="contained"
+                          size="medium"
+                          color="primary"
+                          sx={{ minWidth: 44, minHeight: 44, borderRadius: "50%" }}
+                          onClick={() => {
+                            setAttendeeNameTouched(true);
+                            setAttendeeEmailTouched(true);
+                            if (
+                              attendeeName.length >= 2 &&
+                              /^[^@]+@[^@]+\.[^@]+$/.test(attendeeEmail)
+                            ) {
+                              field.onChange([
+                                ...field.value,
+                                { name: attendeeName, email: attendeeEmail },
+                              ]);
+                              setAttendeeName("");
+                              setAttendeeEmail("");
+                              setAttendeeNameTouched(false);
+                              setAttendeeEmailTouched(false);
+                            }
+                          }}
+                          disabled={
+                            !attendeeName ||
+                            attendeeName.length < 2 ||
+                            !attendeeEmail ||
+                            !/^[^@]+@[^@]+\.[^@]+$/.test(attendeeEmail)
+                          }
+                        >
+                          <PersonAddAlt1Icon />
+                        </Button>
+                      </Stack>
+                      <Stack direction="row" spacing={1} flexWrap="wrap">
+                        {field.value.map((att, idx) => (
+                          <Chip
+                            key={idx}
+                            avatar={
+                              <Avatar sx={{ bgcolor: "#1976d2", color: "#fff" }}>
+                                {att.name
+                                  ? att.name
+                                      .split(' ')
+                                      .map(n => n[0])
+                                      .join('')
+                                      .toUpperCase()
+                                  : "?"}
+                              </Avatar>
+                            }
+                            label={
+                              <Box>
+                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                  {att.name}
+                                </Typography>
+                                <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                                  {att.email}
+                                </Typography>
+                              </Box>
+                            }
+                            onDelete={() => {
+                              const newList = field.value.filter((_, i) => i !== idx);
+                              field.onChange(newList);
+                            }}
+                            sx={{ mb: 1, px: 1.5, py: 0.5, background: "#e3f2fd", borderRadius: 2, boxShadow: "0 1px 4px #4285f422", transition: "all 0.2s cubic-bezier(.4,2,.6,1)", "& .MuiAvatar-root": { width: 28, height: 28, fontSize: 16 } }}
+                          />
+                        ))}
+                      </Stack>
+                      {errors.attendees && (
+                        <Typography color="error" variant="caption" sx={{ ml: 1 }}>
+                          {errors.attendees.message}
+                        </Typography>
+                      )}
+                    </AccordionDetails>
+                  </Accordion>
+                )}
+              />
+
               {/* Preview Card based on selected event color */}
               <Card
                 elevation={5}
@@ -980,6 +1117,7 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                   This is how your event will look using the selected color.
                 </Typography>
               </Card>
+
 
               {/* Action buttons */}
               <Box display="flex" justifyContent="space-between">
