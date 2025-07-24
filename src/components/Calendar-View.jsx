@@ -10,6 +10,7 @@ import rrulePlugin from "@fullcalendar/rrule";
 import { startOfMonth, endOfMonth } from "date-fns";
 import axiosService from "../services/axiosService";
 import Slide from "@mui/material/Slide";
+import EventForm from "../components/EventForm"; // Assuming you have an EventForm component for creating/editing events
 
 import {
   Box,
@@ -52,7 +53,12 @@ const CalendarView = () => {
   const [selectedDate, setSelectedDate] = useState(null);
   const [popoverData, setPopoverData] = useState(null);
   const [menuAnchorEls, setMenuAnchorEls] = useState({});
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, eventId: null, title: "", recurrence: null });
+  const [deleteDialog, setDeleteDialog] = useState({
+    open: false,
+    eventId: null,
+    title: "",
+    recurrence: null,
+  });
   const [confirmTitle, setConfirmTitle] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [deleteOption, setDeleteOption] = useState("this");
@@ -153,10 +159,14 @@ const CalendarView = () => {
       anchorEl: clickInfo.jsEvent.currentTarget,
       event: clickInfo.event,
     });
+  
+    // 🆕 Fix: Set selectedDate based on clicked event
+    setSelectedDate(new Date(clickInfo.event.start));
   };
 
   const handlePopoverClose = () => setPopoverData(null);
 
+  
   const handleMenuOpen = (event, eventId) => {
     event.stopPropagation();
     setMenuAnchorEls((prev) => ({ ...prev, [eventId]: event.currentTarget }));
@@ -166,15 +176,50 @@ const CalendarView = () => {
     setMenuAnchorEls((prev) => ({ ...prev, [eventId]: null }));
   };
 
-  const handleDeleteClick = (eventId, title, recurrence) => {
-    setDeleteDialog({ open: true, eventId, title, recurrence });
-    setConfirmTitle("");
-    setDeleteOption("this");
-  };
+  const handleDeleteClick = (eventId, title, recurrence, instanceStart) => {
+  setDeleteDialog({ open: true, eventId, title, recurrence });
+  setSelectedDate(new Date(instanceStart)); // ✅ Fix: this is what was missing
+  setConfirmTitle("");
+  setDeleteOption("this");
+};
 
-  const handleConfirmDelete = () => {
-    console.log("Deleting", deleteOption, "for event ID:", deleteDialog.eventId);
+  const handleConfirmDelete = async () => {
+    const { eventId, recurrence } = deleteDialog;
+    console.log("🗑️ Deleting event:", eventId, "Recurrence:", recurrence, "Option:", deleteOption);
+  
+    try {
+      let response;
+  
+      if (!recurrence) {
+        // 🟢 Delete non-recurring event
+        response = await axiosService.delete(`/auth/calendar-events/delete/${eventId}`);
+        console.log("✅ Deleted one-time event:", response.data.message);
+      } else {
+        if (!selectedDate) {
+          alert("Error: Could not determine the occurrence date. Please try again.");
+          return;
+        }
+  
+        const payload = {
+          eventId,
+          deleteOption,
+          occurrenceDate: selectedDate.toISOString(),
+        };
+  
+        response = await axiosService.post("/auth/calendar-events/delete-recurring", payload);
+        console.log(`✅ Deleted "${deleteOption}" →`, response.data.message);
+      }
+  
+      setSnackbarOpen(true);
+      fetchEvents(); // Refresh calendar
+    } catch (error) {
+      console.error("❌ Failed to delete event:", error);
+      const errorMsg = error.response?.data?.message || "Failed to delete event.";
+      alert(errorMsg);
+    }
+  
     setDeleteDialog({ open: false, eventId: null, title: "", recurrence: null });
+    setConfirmTitle("");
   };
 
   const renderEventContent = (eventInfo) => {
@@ -197,7 +242,9 @@ const CalendarView = () => {
           overflow: "hidden",
         }}
       >
-        <Typography noWrap sx={{ flexGrow: 1 }}>{eventInfo.event.title}</Typography>
+        <Typography noWrap sx={{ flexGrow: 1 }}>
+          {eventInfo.event.title}
+        </Typography>
         <IconButton
           size="small"
           onClick={(e) => handleMenuOpen(e, eventInfo.event.id)}
@@ -210,13 +257,21 @@ const CalendarView = () => {
           open={Boolean(menuAnchorEls[eventInfo.event.id])}
           onClose={() => handleMenuClose(eventInfo.event.id)}
         >
-          <MenuItem onClick={() => alert("Edit Event ID: " + eventInfo.event.id)}>Edit</MenuItem>
           <MenuItem
-            onClick={() => handleDeleteClick(
-              eventInfo.event.id,
-              eventInfo.event.title,
-              eventInfo.event.extendedProps.recurrenceRule
-            )}
+            onClick={() => alert("Edit Event ID: " + eventInfo.event.id)}
+          >
+            Edit
+          </MenuItem>
+          <MenuItem
+            onClick={() =>
+              handleDeleteClick(
+                eventInfo.event.id,
+                eventInfo.event.title,
+                eventInfo.event.extendedProps.recurrenceRule,
+                eventInfo.event.start 
+
+              )
+            }
           >
             Delete
           </MenuItem>
@@ -228,14 +283,22 @@ const CalendarView = () => {
   return (
     <>
       {/* Calendar & FAB */}
-      <Box sx={{ p: 3, minHeight: "calc(100vh - 64px)", background: "#f7f7f9" }}>
+      <Box
+        sx={{ p: 3, minHeight: "calc(100vh - 64px)", background: "#f7f7f9" }}
+      >
         <Card elevation={8} sx={{ borderRadius: 4, p: 3 }}>
           <CardContent>
             <Typography variant="h4" gutterBottom fontWeight={600}>
               📅 Calendar
             </Typography>
             <FullCalendar
-              plugins={[dayGridPlugin, timeGridPlugin, listPlugin, interactionPlugin, rrulePlugin]}
+              plugins={[
+                dayGridPlugin,
+                timeGridPlugin,
+                listPlugin,
+                interactionPlugin,
+                rrulePlugin,
+              ]}
               initialView="dayGridMonth"
               headerToolbar={headerToolbar}
               customButtons={{
@@ -276,29 +339,60 @@ const CalendarView = () => {
         open={deleteDialog.open}
         TransitionComponent={Transition}
         keepMounted
-        onClose={() => setDeleteDialog({ open: false, eventId: null, title: "", recurrence: null })}
+        onClose={() =>
+          setDeleteDialog({
+            open: false,
+            eventId: null,
+            title: "",
+            recurrence: null,
+          })
+        }
         maxWidth="xs"
         fullWidth
-        PaperProps={{ sx: { borderRadius: 4, background: "#fff", boxShadow: 10 } }}
+        PaperProps={{
+          sx: { borderRadius: 4, background: "#fff", boxShadow: 10 },
+        }}
       >
-        <DialogTitle sx={{ backgroundColor: "#fff3e0", color: "#bf360c", fontWeight: 600, px: 3, py: 2 }}>
+        <DialogTitle
+          sx={{
+            backgroundColor: "#fff3e0",
+            color: "#bf360c",
+            fontWeight: 600,
+            px: 3,
+            py: 2,
+          }}
+        >
           ⚠️ Confirm Delete
         </DialogTitle>
 
         <DialogContent sx={{ px: 3, pt: 2, pb: 1 }}>
           <Typography variant="body1" gutterBottom>
-            Are you sure you want to delete the event <strong>{deleteDialog.title}</strong>?
+            Are you sure you want to delete the event{" "}
+            <strong>{deleteDialog.title}</strong>?
           </Typography>
 
+          {/* ✅ Only show this block if recurrenceRule is NOT null */}
           {deleteDialog.recurrence && (
             <RadioGroup
               value={deleteOption}
               onChange={(e) => setDeleteOption(e.target.value)}
               sx={{ mb: 2 }}
             >
-              <FormControlLabel value="this" control={<Radio />} label="Only this event" />
-              <FormControlLabel value="future" control={<Radio />} label="This and future events" />
-              <FormControlLabel value="all" control={<Radio />} label="Entire series" />
+              <FormControlLabel
+                value="this"
+                control={<Radio />}
+                label="Only this event"
+              />
+              <FormControlLabel
+                value="future"
+                control={<Radio />}
+                label="This and future events"
+              />
+              <FormControlLabel
+                value="all"
+                control={<Radio />}
+                label="Entire series"
+              />
             </RadioGroup>
           )}
 
@@ -329,7 +423,16 @@ const CalendarView = () => {
         </DialogContent>
 
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDeleteDialog({ open: false, eventId: null, title: "", recurrence: null })}>
+          <Button
+            onClick={() =>
+              setDeleteDialog({
+                open: false,
+                eventId: null,
+                title: "",
+                recurrence: null,
+              })
+            }
+          >
             Cancel
           </Button>
           <Button
@@ -341,6 +444,46 @@ const CalendarView = () => {
             Delete
           </Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Create/Edit Event Dialog */}
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        fullWidth
+        maxWidth="md"
+        scroll="body"
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: "white",
+              borderRadius: isMobile ? 0 : 2,
+              m: { xs: 0, sm: "4px 0", md: "6px 0" },
+              mx: "auto",
+              width: { xs: "100%", sm: 600, md: 800 },
+              overflow: "visible",
+            },
+          },
+        }}
+      >
+        <DialogContent
+          sx={{
+            p: 0,
+            overflow: "visible",
+            bgcolor: "white",
+            borderRadius: isMobile ? 0 : 2,
+            m: 1,
+          }}
+        >
+          <EventForm
+            initialDate={selectedDate}
+            onSave={handleSaveEvent}
+            onCancel={() => setDialogOpen(false)}
+            onNextRecurring={() => setDialogOpen(false)}
+            onOpenRecurrenceDialog={() => {}} // You can wire this if needed
+            minHeight={{ xs: 350, sm: 420, md: 500 }}
+          />
+        </DialogContent>
       </Dialog>
 
       <Snackbar
