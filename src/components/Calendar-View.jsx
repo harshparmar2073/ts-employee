@@ -10,7 +10,7 @@ import rrulePlugin from "@fullcalendar/rrule";
 import { startOfMonth, endOfMonth } from "date-fns";
 import axiosService from "../services/axiosService";
 import Slide from "@mui/material/Slide";
-import EventForm from "../components/EventForm"; // Assuming you have an EventForm component for creating/editing events
+import EventForm from "../components/EventForm";
 
 import {
   Box,
@@ -25,9 +25,6 @@ import {
   DialogActions,
   Button,
   Fab,
-  IconButton,
-  Menu,
-  MenuItem,
   TextField,
   Snackbar,
   Tooltip,
@@ -37,12 +34,17 @@ import {
 } from "@mui/material";
 
 import AddIcon from "@mui/icons-material/Add";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
+
+import { rrulestr } from "rrule";
+
+const parseRRuleString = (ruleStr) => {
+  return rrulestr(ruleStr, { forceset: false }).options;
+};
 
 const CalendarView = () => {
   const theme = useTheme();
@@ -51,8 +53,6 @@ const CalendarView = () => {
   const [events, setEvents] = useState([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
-  const [popoverData, setPopoverData] = useState(null);
-  const [menuAnchorEls, setMenuAnchorEls] = useState({});
   const [deleteDialog, setDeleteDialog] = useState({
     open: false,
     eventId: null,
@@ -62,6 +62,8 @@ const CalendarView = () => {
   const [confirmTitle, setConfirmTitle] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [deleteOption, setDeleteOption] = useState("this");
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [eventToView, setEventToView] = useState(null);
 
   const headerToolbar = isMobile
     ? {
@@ -121,8 +123,6 @@ const CalendarView = () => {
         const calendarEvent = {
           id: event.id,
           title: event.title,
-          start: event.startDateTime,
-          end: event.endDateTime,
           extendedProps: {
             description: event.description,
             location: event.location,
@@ -133,7 +133,13 @@ const CalendarView = () => {
         };
 
         if (event.recurrenceRule) {
-          calendarEvent.rrule = event.recurrenceRule;
+          calendarEvent.rrule = {
+            ...parseRRuleString(event.recurrenceRule),
+            dtstart: event.startDateTime,
+          };
+        } else {
+          calendarEvent.start = event.startDateTime;
+          calendarEvent.end = event.endDateTime;
         }
 
         if (event.eventColour) {
@@ -155,70 +161,59 @@ const CalendarView = () => {
   }, []);
 
   const handleEventClick = (clickInfo) => {
-    setPopoverData({
-      anchorEl: clickInfo.jsEvent.currentTarget,
-      event: clickInfo.event,
-    });
-  
-    // 🆕 Fix: Set selectedDate based on clicked event
+    setEventToView(clickInfo.event);
     setSelectedDate(new Date(clickInfo.event.start));
+    setViewDialogOpen(true);
   };
 
-  const handlePopoverClose = () => setPopoverData(null);
+  const handleDeleteClick = (event) => {
+    const eventId = event.id;
+    const title = event.title;
+    const recurrence = event.extendedProps?.recurrenceRule || null;
+    const instanceStart = event.start;
 
-  
-  const handleMenuOpen = (event, eventId) => {
-    event.stopPropagation();
-    setMenuAnchorEls((prev) => ({ ...prev, [eventId]: event.currentTarget }));
+    setDeleteDialog({ open: true, eventId, title, recurrence });
+    setSelectedDate(new Date(instanceStart));
+    setConfirmTitle("");
+    setDeleteOption("this");
   };
-
-  const handleMenuClose = (eventId) => {
-    setMenuAnchorEls((prev) => ({ ...prev, [eventId]: null }));
-  };
-
-  const handleDeleteClick = (eventId, title, recurrence, instanceStart) => {
-  setDeleteDialog({ open: true, eventId, title, recurrence });
-  setSelectedDate(new Date(instanceStart)); // ✅ Fix: this is what was missing
-  setConfirmTitle("");
-  setDeleteOption("this");
-};
 
   const handleConfirmDelete = async () => {
     const { eventId, recurrence } = deleteDialog;
-    console.log("🗑️ Deleting event:", eventId, "Recurrence:", recurrence, "Option:", deleteOption);
-  
     try {
       let response;
-  
       if (!recurrence) {
-        // 🟢 Delete non-recurring event
-        response = await axiosService.delete(`/auth/calendar-events/delete/${eventId}`);
-        console.log("✅ Deleted one-time event:", response.data.message);
+        response = await axiosService.delete(
+          `/auth/calendar-events/delete/${eventId}`
+        );
       } else {
         if (!selectedDate) {
-          alert("Error: Could not determine the occurrence date. Please try again.");
+          alert("Error: Could not determine the occurrence date.");
           return;
         }
-  
         const payload = {
           eventId,
           deleteOption,
           occurrenceDate: selectedDate.toISOString(),
         };
-  
-        response = await axiosService.post("/auth/calendar-events/delete-recurring", payload);
-        console.log(`✅ Deleted "${deleteOption}" →`, response.data.message);
+        response = await axiosService.post(
+          "/auth/calendar-events/delete-recurring",
+          payload
+        );
       }
-  
       setSnackbarOpen(true);
-      fetchEvents(); // Refresh calendar
+      fetchEvents();
     } catch (error) {
-      console.error("❌ Failed to delete event:", error);
-      const errorMsg = error.response?.data?.message || "Failed to delete event.";
+      const errorMsg =
+        error.response?.data?.message || "Failed to delete event.";
       alert(errorMsg);
     }
-  
-    setDeleteDialog({ open: false, eventId: null, title: "", recurrence: null });
+    setDeleteDialog({
+      open: false,
+      eventId: null,
+      title: "",
+      recurrence: null,
+    });
     setConfirmTitle("");
   };
 
@@ -233,7 +228,6 @@ const CalendarView = () => {
           width: "100%",
           height: "100%",
           display: "flex",
-          justifyContent: "space-between",
           alignItems: "center",
           fontFamily: "'Poppins', 'Roboto', sans-serif",
           fontSize: "0.85rem",
@@ -242,47 +236,13 @@ const CalendarView = () => {
           overflow: "hidden",
         }}
       >
-        <Typography noWrap sx={{ flexGrow: 1 }}>
-          {eventInfo.event.title}
-        </Typography>
-        <IconButton
-          size="small"
-          onClick={(e) => handleMenuOpen(e, eventInfo.event.id)}
-          sx={{ color: "#fff", ml: 1 }}
-        >
-          <MoreVertIcon fontSize="small" />
-        </IconButton>
-        <Menu
-          anchorEl={menuAnchorEls[eventInfo.event.id]}
-          open={Boolean(menuAnchorEls[eventInfo.event.id])}
-          onClose={() => handleMenuClose(eventInfo.event.id)}
-        >
-          <MenuItem
-            onClick={() => alert("Edit Event ID: " + eventInfo.event.id)}
-          >
-            Edit
-          </MenuItem>
-          <MenuItem
-            onClick={() =>
-              handleDeleteClick(
-                eventInfo.event.id,
-                eventInfo.event.title,
-                eventInfo.event.extendedProps.recurrenceRule,
-                eventInfo.event.start 
-
-              )
-            }
-          >
-            Delete
-          </MenuItem>
-        </Menu>
+        <Typography noWrap>{eventInfo.event.title}</Typography>
       </Box>
     );
   };
 
   return (
     <>
-      {/* Calendar & FAB */}
       <Box
         sx={{ p: 3, minHeight: "calc(100vh - 64px)", background: "#f7f7f9" }}
       >
@@ -300,6 +260,9 @@ const CalendarView = () => {
                 rrulePlugin,
               ]}
               initialView="dayGridMonth"
+              slotDuration="00:15:00" // ⬅️ Set 15-minute slot duration
+              slotLabelInterval="01:00" // ⬅️ Label every hour (optional)
+              allDaySlot={false} // ⬅️ Optional: hide the all-day slot row
               headerToolbar={headerToolbar}
               customButtons={{
                 createButton: {
@@ -334,7 +297,52 @@ const CalendarView = () => {
         </Fab>
       </Box>
 
-      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={viewDialogOpen}
+        onClose={() => setViewDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>📌 Event Details</DialogTitle>
+        <DialogContent>
+          <Typography variant="h6">{eventToView?.title}</Typography>
+          <Typography>
+            Description: {eventToView?.extendedProps?.description || "—"}
+          </Typography>
+          <Typography>
+            Location: {eventToView?.extendedProps?.location || "—"}
+          </Typography>
+          <Typography>
+            Time: {new Date(eventToView?.start).toLocaleString()} -{" "}
+            {new Date(eventToView?.end).toLocaleString()}
+          </Typography>
+          <Typography>
+            Recurrence: {eventToView?.extendedProps?.recurrenceRule || "None"}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setViewDialogOpen(false);
+              handleDeleteClick(eventToView);
+            }}
+            color="error"
+          >
+            Delete
+          </Button>
+          <Button
+            onClick={() => {
+              setViewDialogOpen(false);
+              setDialogOpen(true);
+              setSelectedDate(new Date(eventToView.start));
+            }}
+            variant="contained"
+          >
+            Edit
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Dialog
         open={deleteDialog.open}
         TransitionComponent={Transition}
@@ -364,14 +372,11 @@ const CalendarView = () => {
         >
           ⚠️ Confirm Delete
         </DialogTitle>
-
         <DialogContent sx={{ px: 3, pt: 2, pb: 1 }}>
           <Typography variant="body1" gutterBottom>
             Are you sure you want to delete the event{" "}
             <strong>{deleteDialog.title}</strong>?
           </Typography>
-
-          {/* ✅ Only show this block if recurrenceRule is NOT null */}
           {deleteDialog.recurrence && (
             <RadioGroup
               value={deleteOption}
@@ -395,11 +400,9 @@ const CalendarView = () => {
               />
             </RadioGroup>
           )}
-
           <Typography variant="body2" color="text.secondary" mb={2}>
             Please type the event title to confirm:
           </Typography>
-
           <Box display="flex" alignItems="center" gap={1}>
             <TextField
               label="Confirm title"
@@ -409,19 +412,17 @@ const CalendarView = () => {
               size="small"
             />
             <Tooltip title="Copy title">
-              <IconButton
+              <Button
                 onClick={() => {
                   navigator.clipboard.writeText(deleteDialog.title);
                   setSnackbarOpen(true);
                 }}
-                edge="end"
               >
                 <ContentCopyIcon />
-              </IconButton>
+              </Button>
             </Tooltip>
           </Box>
         </DialogContent>
-
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
             onClick={() =>
@@ -446,7 +447,6 @@ const CalendarView = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Create/Edit Event Dialog */}
       <Dialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
@@ -479,8 +479,8 @@ const CalendarView = () => {
             initialDate={selectedDate}
             onSave={handleSaveEvent}
             onCancel={() => setDialogOpen(false)}
-            onNextRecurring={() => setDialogOpen(false)}
-            onOpenRecurrenceDialog={() => {}} // You can wire this if needed
+            // onNextRecurring={() => setDialogOpen(false)}
+            // onOpenRecurrenceDialog={() => {}}
             minHeight={{ xs: 350, sm: 420, md: 500 }}
           />
         </DialogContent>
@@ -488,7 +488,7 @@ const CalendarView = () => {
 
       <Snackbar
         open={snackbarOpen}
-        autoHideDuration={3000}
+        autoHideDuration={2000}
         onClose={() => setSnackbarOpen(false)}
         message="Copied to clipboard"
       />
