@@ -184,7 +184,6 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
   const buildRRule = (data, dtstart) => {
     const options = {
       freq: RRule[data.recurrence?.toUpperCase()],
-      dtstart,
       interval: data.interval || 1, // Use interval from form data
     };
     if (data.recurrenceEnd) options.until = data.recurrenceEnd; // recurrenceEnd is already a Date object
@@ -204,6 +203,7 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
       options.bymonthday = data.dayOfMonth;
     }
     return new RRule(options).toString();
+
   };
 
   const handleSave = (data) => {
