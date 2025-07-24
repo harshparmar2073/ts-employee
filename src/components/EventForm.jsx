@@ -64,15 +64,7 @@ const eventSchema = yup.object({
   interval: yup.number().min(1, "Interval must be at least 1").nullable(),
   eventColour: yup.string().required("Event color is required"),
   skipWeekends: yup.boolean().nullable(),
-  attendees: yup
-    .array()
-    .of(
-      yup.object({
-        name: yup.string().required("Name is required"),
-        email: yup.string().email("Invalid email").required("Email is required"),
-      })
-    )
-    .min(1, "At least one attendee is required"),
+  
 });
 
 // Time parser
