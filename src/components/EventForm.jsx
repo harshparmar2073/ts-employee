@@ -58,13 +58,22 @@ const eventSchema = yup.object({
   recurrence: yup.string().nullable(),
   recurrenceEnd: yup.date().nullable(), // End date is now always optional
   weekdays: yup.array().nullable(),
-  dayOfMonth: yup.number().nullable(),
-  monthOfYear: yup.number().nullable(),
+  dayOfMonth: yup.mixed().transform((value) => {
+    if (Array.isArray(value)) return null;
+    if (value === '' || value === undefined || value === null) return null;
+    const num = Number(value);
+    return isNaN(num) ? null : num;
+  }).nullable(),
+  monthOfYear: yup.mixed().transform((value) => {
+    if (Array.isArray(value)) return null;
+    if (value === '' || value === undefined || value === null) return null;
+    const num = Number(value);
+    return isNaN(num) ? null : num;
+  }).nullable(),
   // New interval field for recurrence frequency
   interval: yup.number().min(1, "Interval must be at least 1").nullable(),
   eventColour: yup.string().required("Event color is required"),
   skipWeekends: yup.boolean().nullable(),
-  
 });
 
 // Helper to parse RRULE string to recurrence type
@@ -378,14 +387,43 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
 
   useEffect(() => {
     const subscription = watch((value, { name, type }) => {
+      console.log("Watch triggered:", name, value);
       // When recurrence is changed, reset interval and specific recurrence options
       if (name === "recurrence") {
+        console.log("Recurrence changed to:", value.recurrence);
+        console.log("Current form values before reset:", value);
         setValue("interval", 1);
-        setValue("weekdays", []);
-        setValue("dayOfMonth", null);
-        setValue("monthOfYear", null);
-        setValue("recurrenceEnd", null); // Clear recurrenceEnd when recurrence type changes
-        setValue("skipWeekends", false); // Reset skipWeekends as well
+        // Only reset fields that are not applicable to the new recurrence type
+        if (value.recurrence === "daily") {
+          setValue("weekdays", []);
+          setValue("dayOfMonth", null);
+          setValue("monthOfYear", null);
+        } else if (value.recurrence === "weekly") {
+          setValue("dayOfMonth", null);
+          setValue("monthOfYear", null);
+          setValue("skipWeekends", false);
+        } else if (value.recurrence === "monthly") {
+          setValue("weekdays", []);
+          setValue("dayOfMonth", null);
+          setValue("monthOfYear", null);
+          setValue("skipWeekends", false);
+        } else if (value.recurrence === "yearly") {
+          setValue("weekdays", []);
+          setValue("dayOfMonth", null);
+          setValue("skipWeekends", false);
+        } else {
+          // If recurrence is empty or "none", reset all recurrence-related fields
+          setValue("weekdays", []);
+          setValue("dayOfMonth", null);
+          setValue("monthOfYear", null);
+          setValue("recurrenceEnd", null);
+          setValue("skipWeekends", false);
+        }
+        
+        // Force a small delay to ensure the values are properly set
+        setTimeout(() => {
+          console.log("Form values after reset:", watch());
+        }, 100);
       }
       if (name === "startDate" && value.startDate) {
         setValue("endDate", value.startDate);
@@ -395,6 +433,8 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
   }, [watch, setValue]);
 
   const buildRRule = (data, dtstart) => {
+    console.log("buildRRule called with data:", data);
+    
     const options = {
       freq: RRule[data.recurrence?.toUpperCase()],
       interval: data.interval || 1, // Use interval from form data
@@ -405,54 +445,94 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
       options.byweekday = [RRule.MO, RRule.TU, RRule.WE, RRule.TH, RRule.FR];
     }
 
-    if (data.recurrence === "weekly" && data.weekdays.length) {
+    if (data.recurrence === "weekly" && data.weekdays && data.weekdays.length > 0) {
+      console.log("Adding weekly weekdays:", data.weekdays);
       options.byweekday = data.weekdays.map((day) => RRule[day]);
+    } else if (data.recurrence === "weekly") {
+      // For weekly without weekdays, use the current day of week
+      const currentDay = new Date().getDay();
+      const weekdayMap = [RRule.SU, RRule.MO, RRule.TU, RRule.WE, RRule.TH, RRule.FR, RRule.SA];
+      options.byweekday = [weekdayMap[currentDay]];
+      console.log("Using current day of week for weekly recurrence:", weekdayMap[currentDay]);
     }
-    if (data.recurrence === "monthly" && data.dayOfMonth) {
+    
+    if (data.recurrence === "monthly" && data.dayOfMonth && data.dayOfMonth > 0) {
+      console.log("Adding monthly dayOfMonth:", data.dayOfMonth);
       options.bymonthday = data.dayOfMonth;
+    } else if (data.recurrence === "monthly") {
+      // For monthly without dayOfMonth, use the current day of month
+      options.bymonthday = new Date().getDate();
+      console.log("Using current day of month for monthly recurrence:", new Date().getDate());
     }
-    if (data.recurrence === "yearly" && data.dayOfMonth && data.monthOfYear) {
+    
+    if (data.recurrence === "yearly" && data.dayOfMonth && data.dayOfMonth > 0 && data.monthOfYear && data.monthOfYear > 0) {
+      console.log("Adding yearly monthOfYear:", data.monthOfYear, "dayOfMonth:", data.dayOfMonth);
       options.bymonth = data.monthOfYear;
       options.bymonthday = data.dayOfMonth;
+    } else if (data.recurrence === "yearly") {
+      // For yearly without monthOfYear/dayOfMonth, use the current month and day
+      const now = new Date();
+      options.bymonth = now.getMonth() + 1;
+      options.bymonthday = now.getDate();
+      console.log("Using current month and day for yearly recurrence:", now.getMonth() + 1, now.getDate());
     }
-    return new RRule(options).toString();
+    
+    console.log("Final RRule options:", options);
+    const rrule = new RRule(options).toString();
+    console.log("Generated RRule string:", rrule);
+    return rrule;
 
   };
 
   const handleSave = (data) => {
+    console.log("handleSave called with data:", data);
+    
+    // Clean up the data to ensure proper types
+    const cleanedData = {
+      ...data,
+      dayOfMonth: data.dayOfMonth && !Array.isArray(data.dayOfMonth) ? Number(data.dayOfMonth) : null,
+      monthOfYear: data.monthOfYear && !Array.isArray(data.monthOfYear) ? Number(data.monthOfYear) : null,
+      interval: data.interval ? Number(data.interval) : 1,
+      weekdays: Array.isArray(data.weekdays) ? data.weekdays : [],
+    };
+    
+    console.log("Cleaned data:", cleanedData);
+    
     const startDate = parseInTimeZone(
-      data.startDate,
-      data.startTime,
-      data.timezone,
-      data.allDay,
+      cleanedData.startDate,
+      cleanedData.startTime,
+      cleanedData.timezone,
+      cleanedData.allDay,
       false
     );
     const endDate = parseInTimeZone(
-      data.endDate,
-      data.endTime,
-      data.timezone,
-      data.allDay,
+      cleanedData.endDate,
+      cleanedData.endTime,
+      cleanedData.timezone,
+      cleanedData.allDay,
       true
     );
 
     let rrule = null;
-    if (data.recurrence && data.recurrence !== "") {
+    if (cleanedData.recurrence && cleanedData.recurrence !== "") {
       // Only build RRule if recurrence is selected
-      rrule = buildRRule(data, startDate);
+      console.log("Building RRule for recurrence:", cleanedData.recurrence);
+      rrule = buildRRule(cleanedData, startDate);
+      console.log("Generated RRule:", rrule);
     }
 
     const fullData = {
-      ...data,
+      ...cleanedData,
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
       recurrenceRule: rrule,
       // Ensure recurrenceEnd is ISO string if it exists
-      recurrenceEnd: data.recurrenceEnd
-        ? data.recurrenceEnd.toISOString()
+      recurrenceEnd: cleanedData.recurrenceEnd
+        ? cleanedData.recurrenceEnd.toISOString()
         : null,
-      eventColour: data.eventColour,
-      skipWeekends: !!data.skipWeekends,
-      attendees: data.attendees,
+      eventColour: cleanedData.eventColour,
+      skipWeekends: !!cleanedData.skipWeekends,
+      attendees: cleanedData.attendees,
     };
     console.log("EventForm outgoing payload:", fullData);
     onSave(fullData);
@@ -463,9 +543,11 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
       <Card elevation={3}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            New Event
+            {initialEvent ? "Edit Event" : "New Event"}
           </Typography>
-          <form onSubmit={handleSubmit(handleSave)}>
+          <form onSubmit={handleSubmit(handleSave, (errors) => {
+            console.log("Form validation errors:", errors);
+          })}>
             <Stack spacing={2}>
               <Controller
                 name="title"
