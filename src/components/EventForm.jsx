@@ -523,6 +523,7 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
 
     const fullData = {
       ...cleanedData,
+      id: initialEvent?.id || null, // ✅ Add this line
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
       recurrenceRule: rrule,

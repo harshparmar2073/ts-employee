@@ -114,30 +114,36 @@ const CalendarView = () => {
   };
 
   const handleSaveEvent = async (eventData) => {
-    const payload = {
-      originalEventId: null,
-      title: eventData.title,
-      startDateTime: eventData.startDate,
-      endDateTime: eventData.endDate,
-      location: eventData.location || "",
-      meetingUrl: eventData.meetingUrl || "",
-      description: eventData.description || "",
-      eventStatus: "Active",
-      eventColour: eventData.eventColour,
-      timezone: eventData.timezone,
-      reference: eventData.reference || "",
-      recurrenceRule: eventData.recurrenceRule || null,
-      attendees: eventData.attendees || [],
-    };
-
-    try {
-      await axiosService.post("/auth/calendar-events/create", payload);
-      fetchEvents();
-    } catch (error) {
-      console.error("❌ Error creating event via API:", error);
+    if (eventToEdit) {
+      // Editing an existing event
+      await handleUpdateEvent({ ...eventData, id: eventToEdit.id });
+    } else {
+      // Creating a new event
+      const payload = {
+        originalEventId: null,
+        title: eventData.title,
+        startDateTime: eventData.startDate,
+        endDateTime: eventData.endDate,
+        location: eventData.location || "",
+        meetingUrl: eventData.meetingUrl || "",
+        description: eventData.description || "",
+        eventStatus: "Active",
+        eventColour: eventData.eventColour,
+        timezone: eventData.timezone,
+        reference: eventData.reference || "",
+        recurrenceRule: eventData.recurrenceRule || null,
+        attendees: eventData.attendees || [],
+      };
+  
+      try {
+        await axiosService.post("/auth/calendar-events/create", payload);
+        fetchEvents();
+      } catch (error) {
+        console.error("❌ Error creating event via API:", error);
+      }
+  
+      setDialogOpen(false);
     }
-
-    setDialogOpen(false);
   };
 
   const fetchEvents = async () => {
@@ -250,6 +256,32 @@ const CalendarView = () => {
       recurrence: null,
     });
     setConfirmTitle("");
+  };
+
+  const handleUpdateEvent = async (eventData) => {
+    const payload = {
+      title: eventData.title,
+      startDateTime: eventData.startDate,
+      endDateTime: eventData.endDate,
+      location: eventData.location || "",
+      meetingUrl: eventData.meetingUrl || "",
+      description: eventData.description || "",
+      eventStatus: "Active",
+      eventColour: eventData.eventColour,
+      timezone: eventData.timezone,
+      reference: eventData.reference || "",
+      recurrenceRule: eventData.recurrenceRule || null,
+      attendees: eventData.attendees || [],
+    };
+  
+    try {
+      await axiosService.put(`/auth/calendar-events/update/${eventData.id}`, payload);
+      fetchEvents(); // Refresh the calendar
+    } catch (error) {
+      console.error("❌ Error updating event via API:", error);
+    }
+  
+    setDialogOpen(false);
   };
 
   const renderEventContent = (eventInfo) => {
