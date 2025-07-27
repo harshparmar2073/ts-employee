@@ -58,14 +58,45 @@ const eventSchema = yup.object({
   recurrence: yup.string().nullable(),
   recurrenceEnd: yup.date().nullable(), // End date is now always optional
   weekdays: yup.array().nullable(),
-  dayOfMonth: yup.number().nullable(),
-  monthOfYear: yup.number().nullable(),
+  dayOfMonth: yup.mixed().transform((value) => {
+    if (Array.isArray(value)) return null;
+    if (value === '' || value === undefined || value === null) return null;
+    const num = Number(value);
+    return isNaN(num) ? null : num;
+  }).nullable(),
+  monthOfYear: yup.mixed().transform((value) => {
+    if (Array.isArray(value)) return null;
+    if (value === '' || value === undefined || value === null) return null;
+    const num = Number(value);
+    return isNaN(num) ? null : num;
+  }).nullable(),
   // New interval field for recurrence frequency
   interval: yup.number().min(1, "Interval must be at least 1").nullable(),
   eventColour: yup.string().required("Event color is required"),
   skipWeekends: yup.boolean().nullable(),
-  
 });
+
+// Helper to parse RRULE string to recurrence type
+function getRecurrenceTypeFromRRule(rruleStr) {
+  if (!rruleStr) return "";
+  try {
+    const rule = RRule.fromString(rruleStr);
+    switch (rule.options.freq) {
+      case RRule.DAILY:
+        return "daily";
+      case RRule.WEEKLY:
+        return "weekly";
+      case RRule.MONTHLY:
+        return "monthly";
+      case RRule.YEARLY:
+        return "yearly";
+      default:
+        return "custom";
+    }
+  } catch {
+    return "custom";
+  }
+}
 
 // Time parser
 function parseInTimeZone(
@@ -95,7 +126,7 @@ function parseInTimeZone(
 }
 
 // Component
-const EventForm = ({ initialDate, onSave, onCancel }) => {
+const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
   const [timezones, setTimezones] = useState([]);
   const weekdays = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
   const weekdayLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -124,28 +155,181 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
     watch,
     setValue,
     formState: { errors },
+    reset,
   } = useForm({
     resolver: yupResolver(eventSchema),
-    defaultValues: {
-      title: "",
-      startDate: initialDate || new Date(),
-      endDate: initialDate || new Date(),
-      startTime: defaultTime,
-      endTime: defaultEndTime,
-      description: "",
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      allDay: false,
-      recurrence: "",
-      recurrenceEnd: null, // Changed to null for DatePicker
-      weekdays: [],
-      dayOfMonth: null,
-      monthOfYear: null,
-      interval: 1, // Default interval
-      eventColour: "#4285f4", // Default color
-      skipWeekends: false, // For daily recurrence
-      attendees: [],
-    },
+    defaultValues: initialEvent
+      ? (() => {
+          const rruleStr = initialEvent.extendedProps?.recurrenceRule;
+          let recurrence = "";
+          let interval = 1;
+          let recurrenceEnd = null;
+          let weekdays = [];
+          let dayOfMonth = null;
+          let monthOfYear = null;
+          let skipWeekends = false;
+          if (rruleStr) {
+            try {
+              const rule = RRule.fromString(rruleStr);
+              const weekdayMap = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+              switch (rule.options.freq) {
+                case RRule.DAILY:
+                  recurrence = "daily";
+                  break;
+                case RRule.WEEKLY:
+                  recurrence = "weekly";
+                  break;
+                case RRule.MONTHLY:
+                  recurrence = "monthly";
+                  break;
+                case RRule.YEARLY:
+                  recurrence = "yearly";
+                  break;
+                default:
+                  recurrence = "custom";
+              }
+              interval = rule.options.interval || 1;
+              if (rule.options.until) recurrenceEnd = rule.options.until;
+              if (rule.options.byweekday) {
+                weekdays = Array.isArray(rule.options.byweekday)
+                  ? rule.options.byweekday.map((d) => {
+                      if (typeof d === 'string') return d.slice(0,2).toUpperCase();
+                      if (typeof d === 'number') return weekdayMap[d];
+                      if (typeof d === 'object' && d.weekday !== undefined) return weekdayMap[d.weekday];
+                      return '';
+                    })
+                  : [];
+                weekdays = weekdays.filter(Boolean); // Remove empty
+                // If all weekdays are MO-FR, set skipWeekends
+                if (
+                  recurrence === "daily" &&
+                  weekdays.length === 5 &&
+                  ["MO","TU","WE","TH","FR"].every((d) => weekdays.includes(d))
+                ) {
+                  skipWeekends = true;
+                }
+              }
+              if (rule.options.bymonthday) dayOfMonth = rule.options.bymonthday;
+              if (rule.options.bymonth) monthOfYear = rule.options.bymonth;
+            } catch {}
+          }
+          return {
+            title: initialEvent.title || "",
+            description: initialEvent.extendedProps?.description || "",
+            startDate: initialEvent.start ? new Date(initialEvent.start) : (initialDate || new Date()),
+            endDate: initialEvent.end ? new Date(initialEvent.end) : (initialDate || new Date()),
+            startTime: initialEvent.start ? `${new Date(initialEvent.start).getHours().toString().padStart(2, '0')}:${new Date(initialEvent.start).getMinutes().toString().padStart(2, '0')}` : defaultTime,
+            endTime: initialEvent.end ? `${new Date(initialEvent.end).getHours().toString().padStart(2, '0')}:${new Date(initialEvent.end).getMinutes().toString().padStart(2, '0')}` : defaultEndTime,
+            timezone: initialEvent.extendedProps?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+            allDay: initialEvent.allDay || false,
+            recurrence,
+            recurrenceEnd,
+            weekdays,
+            dayOfMonth,
+            monthOfYear,
+            interval,
+            eventColour: initialEvent.backgroundColor || "#4285f4",
+            skipWeekends,
+            attendees: initialEvent.extendedProps?.attendees || [],
+          };
+        })()
+      : {
+        title: "",
+        startDate: initialDate || new Date(),
+        endDate: initialDate || new Date(),
+        startTime: defaultTime,
+        endTime: defaultEndTime,
+        description: "",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        allDay: false,
+        recurrence: "",
+        recurrenceEnd: null,
+        weekdays: [],
+        dayOfMonth: null,
+        monthOfYear: null,
+        interval: 1,
+        eventColour: "#4285f4",
+        skipWeekends: false,
+        attendees: [],
+      },
   });
+
+  // When initialEvent changes, reset the form to ensure all fields (including weekdays) are in sync
+  useEffect(() => {
+    if (initialEvent) {
+      const rruleStr = initialEvent.extendedProps?.recurrenceRule;
+      let recurrence = "";
+      let interval = 1;
+      let recurrenceEnd = null;
+      let weekdays = [];
+      let dayOfMonth = null;
+      let monthOfYear = null;
+      let skipWeekends = false;
+      if (rruleStr) {
+        try {
+          const rule = RRule.fromString(rruleStr);
+          const weekdayMap = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+          switch (rule.options.freq) {
+            case RRule.DAILY:
+              recurrence = "daily";
+              break;
+            case RRule.WEEKLY:
+              recurrence = "weekly";
+              break;
+            case RRule.MONTHLY:
+              recurrence = "monthly";
+              break;
+            case RRule.YEARLY:
+              recurrence = "yearly";
+              break;
+            default:
+              recurrence = "custom";
+          }
+          interval = rule.options.interval || 1;
+          if (rule.options.until) recurrenceEnd = rule.options.until;
+          if (rule.options.byweekday) {
+            weekdays = Array.isArray(rule.options.byweekday)
+              ? rule.options.byweekday.map((d) => {
+                  if (typeof d === 'string') return d.slice(0,2).toUpperCase();
+                  if (typeof d === 'number') return weekdayMap[d];
+                  if (typeof d === 'object' && d.weekday !== undefined) return weekdayMap[d.weekday];
+                  return '';
+                })
+              : [];
+            weekdays = weekdays.filter(Boolean);
+            if (
+              recurrence === "daily" &&
+              weekdays.length === 5 &&
+              ["MO","TU","WE","TH","FR"].every((d) => weekdays.includes(d))
+            ) {
+              skipWeekends = true;
+            }
+          }
+          if (rule.options.bymonthday) dayOfMonth = rule.options.bymonthday;
+          if (rule.options.bymonth) monthOfYear = rule.options.bymonth;
+        } catch {}
+      }
+      reset({
+        title: initialEvent.title || "",
+        description: initialEvent.extendedProps?.description || "",
+        startDate: initialEvent.start ? new Date(initialEvent.start) : (initialDate || new Date()),
+        endDate: initialEvent.end ? new Date(initialEvent.end) : (initialDate || new Date()),
+        startTime: initialEvent.start ? `${new Date(initialEvent.start).getHours().toString().padStart(2, '0')}:${new Date(initialEvent.start).getMinutes().toString().padStart(2, '0')}` : defaultTime,
+        endTime: initialEvent.end ? `${new Date(initialEvent.end).getHours().toString().padStart(2, '0')}:${new Date(initialEvent.end).getMinutes().toString().padStart(2, '0')}` : defaultEndTime,
+        timezone: initialEvent.extendedProps?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        allDay: initialEvent.allDay || false,
+        recurrence,
+        recurrenceEnd,
+        weekdays,
+        dayOfMonth,
+        monthOfYear,
+        interval,
+        eventColour: initialEvent.backgroundColor || "#4285f4",
+        skipWeekends,
+        attendees: initialEvent.extendedProps?.attendees || [],
+      });
+    }
+  }, [initialEvent]);
 
   const form = watch();
   const [color, setColor] = useState(form.eventColour || "#4285f4");
@@ -161,6 +345,36 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
   useEffect(() => {
     setTimezones(getIanaTimezones());
     setColor(form.eventColour || "#4285f4");
+    // If editing, update recurrence fields from RRULE
+    if (initialEvent?.extendedProps?.recurrenceRule) {
+      try {
+        const rule = RRule.fromString(initialEvent.extendedProps.recurrenceRule);
+        const weekdayMap = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+        if (rule.options.byweekday) {
+          const weekdays = Array.isArray(rule.options.byweekday)
+            ? rule.options.byweekday.map((d) => {
+                if (typeof d === 'string') return d.slice(0,2).toUpperCase();
+                if (typeof d === 'number') return weekdayMap[d];
+                if (typeof d === 'object' && d.weekday !== undefined) return weekdayMap[d.weekday];
+                return '';
+              })
+            : [];
+          setValue('weekdays', weekdays.filter(Boolean));
+          // If all weekdays are MO-FR, set skipWeekends
+          if (
+            rule.options.freq === RRule.DAILY &&
+            weekdays.length === 5 &&
+            ["MO","TU","WE","TH","FR"].every((d) => weekdays.includes(d))
+          ) {
+            setValue('skipWeekends', true);
+          }
+        }
+        if (rule.options.until) setValue('recurrenceEnd', rule.options.until);
+        if (rule.options.interval) setValue('interval', rule.options.interval);
+        if (rule.options.bymonthday) setValue('dayOfMonth', rule.options.bymonthday);
+        if (rule.options.bymonth) setValue('monthOfYear', rule.options.bymonth);
+      } catch {}
+    }
   }, []);
 
   // Keep color picker and form in sync
@@ -173,13 +387,43 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
 
   useEffect(() => {
     const subscription = watch((value, { name, type }) => {
+      console.log("Watch triggered:", name, value);
       // When recurrence is changed, reset interval and specific recurrence options
       if (name === "recurrence") {
+        console.log("Recurrence changed to:", value.recurrence);
+        console.log("Current form values before reset:", value);
         setValue("interval", 1);
-        setValue("weekdays", []);
-        setValue("dayOfMonth", null);
-        setValue("monthOfYear", null);
-        setValue("recurrenceEnd", null); // Clear recurrenceEnd when recurrence type changes
+        // Only reset fields that are not applicable to the new recurrence type
+        if (value.recurrence === "daily") {
+          setValue("weekdays", []);
+          setValue("dayOfMonth", null);
+          setValue("monthOfYear", null);
+        } else if (value.recurrence === "weekly") {
+          setValue("dayOfMonth", null);
+          setValue("monthOfYear", null);
+          setValue("skipWeekends", false);
+        } else if (value.recurrence === "monthly") {
+          setValue("weekdays", []);
+          setValue("dayOfMonth", null);
+          setValue("monthOfYear", null);
+          setValue("skipWeekends", false);
+        } else if (value.recurrence === "yearly") {
+          setValue("weekdays", []);
+          setValue("dayOfMonth", null);
+          setValue("skipWeekends", false);
+        } else {
+          // If recurrence is empty or "none", reset all recurrence-related fields
+          setValue("weekdays", []);
+          setValue("dayOfMonth", null);
+          setValue("monthOfYear", null);
+          setValue("recurrenceEnd", null);
+          setValue("skipWeekends", false);
+        }
+        
+        // Force a small delay to ensure the values are properly set
+        setTimeout(() => {
+          console.log("Form values after reset:", watch());
+        }, 100);
       }
       if (name === "startDate" && value.startDate) {
         setValue("endDate", value.startDate);
@@ -189,6 +433,8 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
   }, [watch, setValue]);
 
   const buildRRule = (data, dtstart) => {
+    console.log("buildRRule called with data:", data);
+    
     const options = {
       freq: RRule[data.recurrence?.toUpperCase()],
       interval: data.interval || 1, // Use interval from form data
@@ -199,54 +445,95 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
       options.byweekday = [RRule.MO, RRule.TU, RRule.WE, RRule.TH, RRule.FR];
     }
 
-    if (data.recurrence === "weekly" && data.weekdays.length) {
+    if (data.recurrence === "weekly" && data.weekdays && data.weekdays.length > 0) {
+      console.log("Adding weekly weekdays:", data.weekdays);
       options.byweekday = data.weekdays.map((day) => RRule[day]);
+    } else if (data.recurrence === "weekly") {
+      // For weekly without weekdays, use the current day of week
+      const currentDay = new Date().getDay();
+      const weekdayMap = [RRule.SU, RRule.MO, RRule.TU, RRule.WE, RRule.TH, RRule.FR, RRule.SA];
+      options.byweekday = [weekdayMap[currentDay]];
+      console.log("Using current day of week for weekly recurrence:", weekdayMap[currentDay]);
     }
-    if (data.recurrence === "monthly" && data.dayOfMonth) {
+    
+    if (data.recurrence === "monthly" && data.dayOfMonth && data.dayOfMonth > 0) {
+      console.log("Adding monthly dayOfMonth:", data.dayOfMonth);
       options.bymonthday = data.dayOfMonth;
+    } else if (data.recurrence === "monthly") {
+      // For monthly without dayOfMonth, use the current day of month
+      options.bymonthday = new Date().getDate();
+      console.log("Using current day of month for monthly recurrence:", new Date().getDate());
     }
-    if (data.recurrence === "yearly" && data.dayOfMonth && data.monthOfYear) {
+    
+    if (data.recurrence === "yearly" && data.dayOfMonth && data.dayOfMonth > 0 && data.monthOfYear && data.monthOfYear > 0) {
+      console.log("Adding yearly monthOfYear:", data.monthOfYear, "dayOfMonth:", data.dayOfMonth);
       options.bymonth = data.monthOfYear;
       options.bymonthday = data.dayOfMonth;
+    } else if (data.recurrence === "yearly") {
+      // For yearly without monthOfYear/dayOfMonth, use the current month and day
+      const now = new Date();
+      options.bymonth = now.getMonth() + 1;
+      options.bymonthday = now.getDate();
+      console.log("Using current month and day for yearly recurrence:", now.getMonth() + 1, now.getDate());
     }
-    return new RRule(options).toString();
+    
+    console.log("Final RRule options:", options);
+    const rrule = new RRule(options).toString();
+    console.log("Generated RRule string:", rrule);
+    return rrule;
 
   };
 
   const handleSave = (data) => {
+    console.log("handleSave called with data:", data);
+    
+    // Clean up the data to ensure proper types
+    const cleanedData = {
+      ...data,
+      dayOfMonth: data.dayOfMonth && !Array.isArray(data.dayOfMonth) ? Number(data.dayOfMonth) : null,
+      monthOfYear: data.monthOfYear && !Array.isArray(data.monthOfYear) ? Number(data.monthOfYear) : null,
+      interval: data.interval ? Number(data.interval) : 1,
+      weekdays: Array.isArray(data.weekdays) ? data.weekdays : [],
+    };
+    
+    console.log("Cleaned data:", cleanedData);
+    
     const startDate = parseInTimeZone(
-      data.startDate,
-      data.startTime,
-      data.timezone,
-      data.allDay,
+      cleanedData.startDate,
+      cleanedData.startTime,
+      cleanedData.timezone,
+      cleanedData.allDay,
       false
     );
     const endDate = parseInTimeZone(
-      data.endDate,
-      data.endTime,
-      data.timezone,
-      data.allDay,
+      cleanedData.endDate,
+      cleanedData.endTime,
+      cleanedData.timezone,
+      cleanedData.allDay,
       true
     );
 
     let rrule = null;
-    if (data.recurrence && data.recurrence !== "") {
+    if (cleanedData.recurrence && cleanedData.recurrence !== "") {
       // Only build RRule if recurrence is selected
-      rrule = buildRRule(data, startDate);
+      console.log("Building RRule for recurrence:", cleanedData.recurrence);
+      rrule = buildRRule(cleanedData, startDate);
+      console.log("Generated RRule:", rrule);
     }
 
     const fullData = {
-      ...data,
+      ...cleanedData,
+      id: initialEvent?.id || null, // ✅ Add this line
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
       recurrenceRule: rrule,
       // Ensure recurrenceEnd is ISO string if it exists
-      recurrenceEnd: data.recurrenceEnd
-        ? data.recurrenceEnd.toISOString()
+      recurrenceEnd: cleanedData.recurrenceEnd
+        ? cleanedData.recurrenceEnd.toISOString()
         : null,
-      eventColour: data.eventColour,
-      skipWeekends: !!data.skipWeekends,
-      attendees: data.attendees,
+      eventColour: cleanedData.eventColour,
+      skipWeekends: !!cleanedData.skipWeekends,
+      attendees: cleanedData.attendees,
     };
     console.log("EventForm outgoing payload:", fullData);
     onSave(fullData);
@@ -257,9 +544,11 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
       <Card elevation={3}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            New Event
+            {initialEvent ? "Edit Event" : "New Event"}
           </Typography>
-          <form onSubmit={handleSubmit(handleSave)}>
+          <form onSubmit={handleSubmit(handleSave, (errors) => {
+            console.log("Form validation errors:", errors);
+          })}>
             <Stack spacing={2}>
               <Controller
                 name="title"
@@ -728,29 +1017,27 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                           >
                             📅 Repeat On
                           </Typography>
-                          <Box
-                            sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}
-                          >
-                            {weekdays.map((day, index) => (
-                              <Controller
-                                key={day}
-                                name="weekdays"
-                                control={control}
-                                render={({ field }) => (
+                          {/* Debug print for weekdays */}
+                          {console.log('form.weekdays:', form.weekdays)}
+                          <Controller
+                            name="weekdays"
+                            control={control}
+                            render={({ field }) => (
+                              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+                                {weekdays.map((day, index) => (
                                   <Chip
+                                    key={day}
                                     label={weekdayLabels[index]}
                                     clickable
                                     onClick={() => {
-                                      const newDays = field.value.includes(day)
-                                        ? field.value.filter((d) => d !== day)
-                                        : [...field.value, day];
+                                      // Always use the code from the weekdays constant, never a number
+                                      const valueArr = Array.isArray(field.value) ? field.value : [];
+                                      const newDays = valueArr.includes(day)
+                                        ? valueArr.filter((d) => d !== day)
+                                        : [...valueArr, day];
                                       field.onChange(newDays);
                                     }}
-                                    variant={
-                                      field.value.includes(day)
-                                        ? "filled"
-                                        : "outlined"
-                                    }
+                                    variant={Array.isArray(field.value) && field.value.includes(day) ? "filled" : "outlined"}
                                     sx={{
                                       minWidth: "56px",
                                       height: "40px",
@@ -763,15 +1050,15 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                                         transform: "translateY(-2px)",
                                         boxShadow:
                                           "0 4px 12px rgba(0,0,0,0.15)",
-                                        bgcolor: field.value.includes(day)
+                                        bgcolor: Array.isArray(field.value) && field.value.includes(day)
                                           ? "#1565c0"
                                           : "#f5f5f5",
-                                        color: field.value.includes(day)
+                                        color: Array.isArray(field.value) && field.value.includes(day)
                                           ? "white"
                                           : "#1976d2",
                                         border: "1px solid #1976d2",
                                       },
-                                      ...(field.value.includes(day)
+                                      ...(Array.isArray(field.value) && field.value.includes(day)
                                         ? {
                                             bgcolor: "#1976d2",
                                             color: "white",
@@ -782,10 +1069,10 @@ const EventForm = ({ initialDate, onSave, onCancel }) => {
                                           }),
                                     }}
                                   />
-                                )}
-                              />
-                            ))}
-                          </Box>
+                                ))}
+                              </Box>
+                            )}
+                          />
                         </Box>
                       )}
 
