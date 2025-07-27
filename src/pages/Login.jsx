@@ -32,7 +32,6 @@ import {
   SmsOutlined,
   VerifiedUserOutlined,
 } from "@mui/icons-material";
-import GoogleIcon from "@mui/icons-material/Google"; // Import Google Icon
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -69,13 +68,13 @@ const Login = () => {
   });
 
   const handleShowPassword = () => setShowPassword(!showPassword);
-
+ 
   const handleInitialLogin = async () => {
     const { email, password } = getValues();
     try {
       const { data } = await authenticate(email, password, rememberMe);
       const payload = data.data;
-
+  
       if (
         payload.tokenType?.toLowerCase() === "express-bearer" &&
         payload.authorizationToken
@@ -84,12 +83,12 @@ const Login = () => {
         navigate("/dashboard");
         return;
       }
-
+  
       const mfaTypes = payload.supportedMfaTypes ?? [];
       if (mfaTypes.length === 0) {
         throw new Error("No MFA methods available.");
       }
-
+  
       setSupportedMfa(mfaTypes);
       setSelectedMfa(mfaTypes[0]);
       setStep(2);
@@ -119,7 +118,7 @@ const Login = () => {
       });
       return;
     }
-
+  
     try {
       const response = await authenticatePreMfa(email, password, selectedMfa);
       const data = response?.data?.data;
@@ -143,10 +142,6 @@ const Login = () => {
         "error"
       );
     }
-  };
-
-  const handleGoogleLogin = () => {
-    window.location.href = "https://api.antalyze.uk/oauth2/authorize/google";
   };
 
   return (
@@ -184,9 +179,9 @@ const Login = () => {
             <img src={logo} alt="logo" style={{ height: 200 }} />
           </Box>
 
-          <Typography
-            variant="h4"
-            align="center"
+          <Typography 
+            variant="h4" 
+            align="center" 
             gutterBottom
             sx={{
               fontFamily: theme.typography.fontFamily,
@@ -214,6 +209,7 @@ const Login = () => {
                   margin="normal"
                   error={!!errors.email}
                   helperText={errors.email?.message}
+                 
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -237,6 +233,7 @@ const Login = () => {
                   margin="normal"
                   error={!!errors.password}
                   helperText={errors.password?.message}
+                
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -257,7 +254,108 @@ const Login = () => {
 
             {step === 2 && (
               <>
-                {/* Existing MFA logic */}
+                <FormControl component="fieldset" sx={{ mt: 3, width: "100%" }}>
+                  <FormLabel component="legend">Select MFA Method</FormLabel>
+                  <RadioGroup
+                    value={selectedMfa}
+                    onChange={(e) => setSelectedMfa(e.target.value)}
+                    sx={{
+                      mt: 1,
+                      display: "flex",
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                      gap: 2,
+                    }}
+                  >
+                    {supportedMfa.includes("EMAIL") && (
+                      <FormControlLabel
+                        value="EMAIL"
+                        control={<Radio />}
+                        label={
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                            }}
+                          >
+                            <EmailOutlined fontSize="small" />
+                            <Typography>Email</Typography>
+                          </Box>
+                        }
+                      />
+                    )}
+                    {supportedMfa.includes("SMS") && (
+                      <FormControlLabel
+                        value="SMS"
+                        control={<Radio />}
+                        label={
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                            }}
+                          >
+                            <SmsOutlined fontSize="small" />
+                            <Typography>SMS</Typography>
+                          </Box>
+                        }
+                      />
+                    )}
+                    {supportedMfa.includes("TOTP") && (
+                      <FormControlLabel
+                        value="TOTP"
+                        control={<Radio />}
+                        label={
+                          <Box
+                            sx={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 1,
+                            }}
+                          >
+                            <VerifiedUserOutlined fontSize="small" />
+                            <Typography>Authenticator</Typography>
+                          </Box>
+                        }
+                      />
+                    )}
+                  </RadioGroup>
+                </FormControl>
+
+                <Box
+                  sx={{ display: "flex", alignItems: "center", mt: 3, gap: 2 }}
+                >
+                  <Typography 
+                    variant="body2"
+                    sx={{
+                      fontFamily: theme.typography.fontFamily,
+                      fontWeight: theme.typography.fontWeightRegular,
+                      color: theme.palette.text.primary,
+                    }}
+                  >
+                    Remember Me
+                  </Typography>
+                  <Switch
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                  />
+                  {rememberMe && (
+                    <Select
+                      size="small"
+                      value={rememberDuration}
+                      onChange={(e) => setRememberDuration(e.target.value)}
+                      sx={{ ml: 1, width: 100 }}
+                    >
+                      {[...Array(7)].map((_, i) => (
+                        <MenuItem key={i + 1} value={(i + 1).toString()}>{`${
+                          i + 1
+                        } day${i === 0 ? "" : "s"}`}</MenuItem>
+                      ))}
+                    </Select>
+                  )}
+                </Box>
               </>
             )}
 
@@ -266,7 +364,7 @@ const Login = () => {
               variant="contained"
               fullWidth
               endIcon={<ArrowForward />}
-              sx={{
+              sx={{ 
                 mt: 3,
                 ...theme.components.MuiButton.styleOverrides.root,
                 ...theme.components.MuiButton.styleOverrides.containedPrimary,
@@ -281,39 +379,49 @@ const Login = () => {
             </Button>
           </form>
 
-          <Typography
-            variant="body2"
-            align="center"
-            sx={{
-              mt: 3,
-              fontFamily: theme.typography.fontFamily,
-              fontWeight: theme.typography.fontWeightRegular,
-              color: theme.palette.text.primary,
-            }}
-          >
-            OR
-          </Typography>
+          <Box sx={{ textAlign: "right", mt: 2, width: "100%" }}>
+            <Link
+              component="button"
+              onClick={() => navigate("/reset-password")}
+            >
+              Reset Password
+            </Link>
+          </Box>
 
-          <Button
-            variant="outlined"
-            fullWidth
-            startIcon={<GoogleIcon />}
-            sx={{
-              mt: 2,
-              textTransform: "none",
-              borderColor: "#4285F4",
-              color: "#4285F4",
-              "&:hover": {
-                backgroundColor: "#f5f5f5",
-                borderColor: "#4285F4",
-              },
-            }}
-            onClick={handleGoogleLogin}
-          >
-            Sign in with Google
-          </Button>
+          <Box sx={{ textAlign: "center", mt: 3 }}>
+            <Typography 
+              variant="body2"
+              sx={{
+                fontFamily: theme.typography.fontFamily,
+                fontWeight: theme.typography.fontWeightRegular,
+                color: theme.palette.text.primary,
+              }}
+            >
+              Not a member?{" "}
+              <Link component="button" onClick={() => navigate("/signup")}>
+                Create Account
+              </Link>
+            </Typography>
+          </Box>
 
-          {/* Existing footer */}
+          <Box sx={{ textAlign: "center", mt: 4 }}>
+            <Typography 
+              variant="caption" 
+              display="block"
+              sx={{
+                fontFamily: theme.typography.fontFamily,
+                fontWeight: theme.typography.fontWeightRegular,
+                color: theme.palette.text.secondary,
+              }}
+            >
+              POWERED BY
+            </Typography>
+            <img
+              src={companyLogo}
+              alt="Twelve Springs Limited"
+              style={{ height: 32, marginTop: 4 }}
+            />
+          </Box>
         </Paper>
       </Fade>
     </Box>
