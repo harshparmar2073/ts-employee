@@ -161,11 +161,15 @@ const Login = () => {
   };
 
   async function getAuthTokenFromOAuthCode(code) {
-    const r = await axiosService.post("/oauth2/token", { code });
-    const token = r.data.data?.authorizationToken;
-    if (token) localStorage.setItem("authToken", token);
-    localStorage.setItem("authResponse", JSON.stringify(r.data));
-    navigate("/dashboard");
+    try {
+      const r = await axiosService.post("/oauth2/token", { code });
+      const token = r.data.data?.authorizationToken;
+      if (token) localStorage.setItem("authToken", token);
+      localStorage.setItem("authResponse", JSON.stringify(r.data));
+      navigate("/dashboard");
+    } catch (error) {
+      showToast("Error logging in. Please try again later.");
+    }
   }
 
   const loginGoogle = useGoogleLogin({
@@ -173,8 +177,10 @@ const Login = () => {
     scope: "email profile",
     state: generateOAuthState(),
     onSuccess: async codeResponse => {
-      if (!checkOAuthState(codeResponse.state))
-        return; // TODO: show error
+      if (!checkOAuthState(codeResponse.state)) {
+        showToast("Error logging in. Please try again later.");
+        return;
+      }
 
       getAuthTokenFromOAuthCode(codeResponse.code);
     },
