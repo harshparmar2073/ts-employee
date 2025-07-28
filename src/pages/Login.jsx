@@ -162,7 +162,10 @@ const Login = () => {
 
   async function getAuthTokenFromOAuthCode(code) {
     const r = await axiosService.post("/oauth2/token", { code });
-    console.log("TOKEN RESP", r.data);
+    const token = r.data.data?.authorizationToken;
+    if (token) localStorage.setItem("authToken", token);
+    localStorage.setItem("authResponse", JSON.stringify(r.data));
+    navigate("/dashboard");
   }
 
   const loginGoogle = useGoogleLogin({
