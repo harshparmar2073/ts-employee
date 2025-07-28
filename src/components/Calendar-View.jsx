@@ -7,10 +7,18 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import listPlugin from "@fullcalendar/list";
 import interactionPlugin from "@fullcalendar/interaction";
 import rrulePlugin from "@fullcalendar/rrule";
-import { startOfMonth, endOfMonth, format, parseISO, differenceInMinutes } from "date-fns";
+import {
+  startOfMonth,
+  endOfMonth,
+  format,
+  parseISO,
+  differenceInMinutes,
+} from "date-fns";
+
 import axiosService from "../services/axiosService";
 import Slide from "@mui/material/Slide";
 import EventForm from "../components/EventForm";
+
 
 import {
   Box,
@@ -33,21 +41,25 @@ import {
   FormControlLabel,
 } from "@mui/material";
 
-import AddIcon from "@mui/icons-material/Add";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import DescriptionIcon from '@mui/icons-material/Description';
-import PlaceIcon from '@mui/icons-material/Place';
-import AccessTimeIcon from '@mui/icons-material/AccessTime';
-import RepeatIcon from '@mui/icons-material/Repeat';
-import PeopleIcon from '@mui/icons-material/People';
-import LinkIcon from '@mui/icons-material/Link';
-import Avatar from '@mui/material/Avatar';
-import Chip from '@mui/material/Chip';
-import Divider from '@mui/material/Divider';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import TextFormatIcon from '@mui/icons-material/TextFormat';
-import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
-import LocalOfferIcon from '@mui/icons-material/LocalOffer';
+import {
+  Add as AddIcon,
+  ContentCopy as ContentCopyIcon,
+  Description as DescriptionIcon,
+  Place as PlaceIcon,
+  AccessTime as AccessTimeIcon,
+  Repeat as RepeatIcon,
+  People as PeopleIcon,
+  Link as LinkIcon,
+  DeleteOutline as DeleteOutlineIcon,
+  TextFormat as TextFormatIcon,
+  WorkspacePremium as WorkspacePremiumIcon,
+  LocalOffer as LocalOfferIcon,
+  Schedule as ScheduleIcon,
+  Public as PublicIcon,
+} from '@mui/icons-material';
+
+import { Avatar, Chip, Divider } from '@mui/material';
+
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -57,7 +69,8 @@ import { rrulestr } from "rrule";
 
 // TODO: timezone handling
 const parseRRuleString = (ruleStr, dtstart) => {
-  return rrulestr(ruleStr, { forceset: false, dtstart: new Date(dtstart) }).options;
+  return rrulestr(ruleStr, { forceset: false, dtstart: new Date(dtstart) })
+    .options;
 };
 
 function formatDuration(startISO, endISO) {
@@ -67,8 +80,8 @@ function formatDuration(startISO, endISO) {
   let totalMinutes = differenceInMinutes(end, start);
   if (totalMinutes < 0) totalMinutes = 0; // Handle negative durations
 
-  const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
-  const minutes = String(totalMinutes % 60).padStart(2, '0');
+  const hours = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
+  const minutes = String(totalMinutes % 60).padStart(2, "0");
 
   return `${hours}:${minutes}`;
 }
@@ -134,14 +147,14 @@ const CalendarView = () => {
         recurrenceRule: eventData.recurrenceRule || null,
         attendees: eventData.attendees || [],
       };
-  
+
       try {
         await axiosService.post("/auth/calendar-events/create", payload);
         fetchEvents();
       } catch (error) {
         console.error("❌ Error creating event via API:", error);
       }
-  
+
       setDialogOpen(false);
     }
   };
@@ -158,6 +171,15 @@ const CalendarView = () => {
       console.log(" API /load response:", response.data);
 
       const fetchedEvents = response.data.map((event) => {
+
+        const minutes = differenceInMinutes(
+          parseISO(event.endDateTime),
+          parseISO(event.startDateTime)
+        );
+        console.log(
+          `Event ${event.id} duration: ${minutes} minutes`
+        );
+
         const calendarEvent = {
           id: event.id,
           title: event.title,
@@ -171,16 +193,24 @@ const CalendarView = () => {
           },
         };
 
+        
+
         if (event.recurrenceRule) {
           calendarEvent.rrule = {
             ...parseRRuleString(event.recurrenceRule, event.startDateTime),
             dtstart: event.startDateTime,
           };
-          calendarEvent.duration = formatDuration(event.startDateTime, event.endDateTime);
-          calendarEvent.exdate = event.exceptionDates
+          calendarEvent.duration = formatDuration(
+            event.startDateTime,
+            event.endDateTime
+          );
+          calendarEvent.exdate = event.exceptionDates;
+          calendarEvent.extendedProps.durationText = `${minutes} min`; // <-- Add this
         } else {
           calendarEvent.start = event.startDateTime;
           calendarEvent.end = event.endDateTime;
+
+          calendarEvent.extendedProps.durationText = `${minutes} min`; // <-- Add this
         }
 
         if (event.eventColour) {
@@ -273,37 +303,118 @@ const CalendarView = () => {
       recurrenceRule: eventData.recurrenceRule || null,
       attendees: eventData.attendees || [],
     };
-  
+
     try {
-      await axiosService.put(`/auth/calendar-events/update/${eventData.id}`, payload);
+      await axiosService.put(
+        `/auth/calendar-events/update/${eventData.id}`,
+        payload
+      );
       fetchEvents(); // Refresh the calendar
     } catch (error) {
       console.error("❌ Error updating event via API:", error);
     }
-  
+
     setDialogOpen(false);
   };
 
+
+  
+ 
+  
   const renderEventContent = (eventInfo) => {
+    const { title, start, end, extendedProps } = eventInfo.event;
+  
+    const formattedStart = new Date(start).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  
+    const formattedEnd = new Date(end).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  
     return (
       <Box
         sx={{
-          p: 1.2,
-          backgroundColor: eventInfo.event.backgroundColor,
+          p: 1,
+          backgroundColor: eventInfo.event.backgroundColor || "#1976d2",
           color: "#fff",
           borderRadius: 2,
           width: "100%",
           height: "100%",
           display: "flex",
-          alignItems: "center",
-          fontFamily: theme.typography.fontFamily, // Use theme font
-          fontSize: "0.85rem",
-          fontWeight: 500,
-          boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+          flexDirection: "column",
+          justifyContent: "center",
           overflow: "hidden",
+          fontFamily: theme.typography.fontFamily,
+          boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
         }}
       >
-        <Typography noWrap sx={{ fontFamily: theme.typography.fontFamily }}>{eventInfo.event.title}</Typography>
+        {/* Title */}
+        <Typography
+          noWrap
+          sx={{
+            fontWeight: 700,
+            fontSize: "0.95rem",
+            color: "#fff",
+            lineHeight: 1.3,
+          }}
+        >
+          {title}
+        </Typography>
+  
+        {/* Time Range */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mt: 0.3 }}>
+          <ScheduleIcon sx={{ fontSize: 16, opacity: 0.9 }} />
+          <Typography
+            sx={{
+              fontSize: '0.85rem',
+              fontWeight: 500,
+              opacity: 0.9,
+              color: '#fff',
+            }}
+          >
+            {formattedStart} – {formattedEnd}
+          </Typography>
+        </Box>
+  
+        {/* Duration */}
+        {extendedProps.durationText && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mt: 0.2 }}>
+            <AccessTimeIcon sx={{ fontSize: 16, opacity: 0.8 }} />
+            <Typography
+              sx={{
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                opacity: 0.85,
+                color: '#fff',
+              }}
+            >
+              {extendedProps.durationText}
+            </Typography>
+          </Box>
+        )}
+  
+        {/* Timezone */}
+        {extendedProps.timezone && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mt: 0.2 }}>
+            <PublicIcon sx={{ fontSize: 16, opacity: 0.85 }} />
+            <Typography
+              sx={{
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                opacity: 0.85,
+                color: '#fff',
+                textOverflow: 'ellipsis',
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {extendedProps.timezone}
+            </Typography>
+          </Box>
+        )}
       </Box>
     );
   };
@@ -373,31 +484,42 @@ const CalendarView = () => {
           sx: {
             borderRadius: 5,
             boxShadow: 20,
-            background: '#f8fafc',
+            background: "#f8fafc",
             p: 0,
             width: 700,
-            maxWidth: '90vw',
-            overflow: 'visible',
+            maxWidth: "90vw",
+            overflow: "visible",
           },
         }}
       >
         <DialogTitle
           sx={{
-            backgroundColor: '#e3f0ff',
-            color: '#1976d2',
+            backgroundColor: "#e3f0ff",
+            color: "#1976d2",
             fontWeight: 700,
             px: 4,
             py: 1.2,
             borderTopLeftRadius: 20,
             borderTopRightRadius: 20,
             minHeight: 48,
-            display: 'flex',
-            alignItems: 'center',
+            display: "flex",
+            alignItems: "center",
             gap: 1,
           }}
         >
-          <span role="img" aria-label="edit">📝</span>
-          <Typography variant="overline" sx={{ fontWeight: 700, fontSize: '1.1rem', letterSpacing: 2, color: '#1976d2', opacity: 0.85 }}>
+          <span role="img" aria-label="edit">
+            📝
+          </span>
+          <Typography
+            variant="overline"
+            sx={{
+              fontWeight: 700,
+              fontSize: "1.1rem",
+              letterSpacing: 2,
+              color: "#1976d2",
+              opacity: 0.85,
+            }}
+          >
             Edit Event
           </Typography>
         </DialogTitle>
@@ -406,79 +528,127 @@ const CalendarView = () => {
             px: 6,
             pt: 3,
             pb: 2,
-            bgcolor: 'background.paper',
+            bgcolor: "background.paper",
             minHeight: 350,
-            display: 'flex',
-            flexDirection: 'column',
+            display: "flex",
+            flexDirection: "column",
             gap: 0,
             borderBottomLeftRadius: 20,
             borderBottomRightRadius: 20,
-            boxShadow: '0 2px 16px 0 rgba(0,0,0,0.04)',
+            boxShadow: "0 2px 16px 0 rgba(0,0,0,0.04)",
           }}
         >
           {/* Title as first field */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1.5 }}>
-            <LocalOfferIcon sx={{ fontSize: 28,  }} /> {/* Yellow accent */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1.5 }}>
+            <LocalOfferIcon sx={{ fontSize: 28 }} /> {/* Yellow accent */}
             <Box>
-              <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 500, letterSpacing: 1}}>
+              <Typography
+                variant="overline"
+                color="text.secondary"
+                sx={{ fontWeight: 500, letterSpacing: 1 }}
+              >
                 Title
               </Typography>
-              <Typography fontWeight={600} color="primary.main" sx={{ mt: 0.2,  fontSize: '1.16rem' }}>
-                {eventToView?.title || 'Event Title'}
+              <Typography
+                fontWeight={600}
+                color="primary.main"
+                sx={{ mt: 0.2, fontSize: "1.16rem" }}
+              >
+                {eventToView?.title || "Event Title"}
               </Typography>
             </Box>
           </Box>
           <Divider sx={{ my: 1.5 }} />
           {/* Description */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
             <DescriptionIcon color="primary" />
             <Box>
-              <Typography variant="overline" color="text.secondary">Description</Typography>
-              <Typography fontWeight={500} color="text.primary" sx={{ mt: 0.2 }}>
-                {eventToView?.extendedProps?.description || <span style={{ color: '#aaa' }}>No description</span>}
+              <Typography variant="overline" color="text.secondary">
+                Description
+              </Typography>
+              <Typography
+                fontWeight={500}
+                color="text.primary"
+                sx={{ mt: 0.2 }}
+              >
+                {eventToView?.extendedProps?.description || (
+                  <span style={{ color: "#aaa" }}>No description</span>
+                )}
               </Typography>
             </Box>
           </Box>
           <Divider sx={{ my: 1.5 }} />
           {/* Location */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
             <PlaceIcon color="primary" />
             <Box>
-              <Typography variant="overline" color="text.secondary">Location</Typography>
-              <Typography fontWeight={500} color="text.primary" sx={{ mt: 0.2 }}>
-                {eventToView?.extendedProps?.location || <span style={{ color: '#aaa' }}>No location</span>}
+              <Typography variant="overline" color="text.secondary">
+                Location
+              </Typography>
+              <Typography
+                fontWeight={500}
+                color="text.primary"
+                sx={{ mt: 0.2 }}
+              >
+                {eventToView?.extendedProps?.location || (
+                  <span style={{ color: "#aaa" }}>No location</span>
+                )}
               </Typography>
             </Box>
           </Box>
           <Divider sx={{ my: 1.5 }} />
           {/* Time */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
             <AccessTimeIcon color="primary" />
             <Box>
-              <Typography variant="overline" color="text.secondary">Time</Typography>
-              <Typography fontWeight={500} color="text.primary" sx={{ mt: 0.2 }}>
-                {eventToView?.start ? new Date(eventToView?.start).toLocaleString() : ''} - {eventToView?.end ? new Date(eventToView?.end).toLocaleString() : ''}
+              <Typography variant="overline" color="text.secondary">
+                Time
+              </Typography>
+              <Typography
+                fontWeight={500}
+                color="text.primary"
+                sx={{ mt: 0.2 }}
+              >
+                {eventToView?.start
+                  ? new Date(eventToView?.start).toLocaleString()
+                  : ""}{" "}
+                -{" "}
+                {eventToView?.end
+                  ? new Date(eventToView?.end).toLocaleString()
+                  : ""}
               </Typography>
             </Box>
           </Box>
           <Divider sx={{ my: 1.5 }} />
           {/* Recurrence */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
             <RepeatIcon color="primary" />
             <Box>
-              <Typography variant="overline" color="text.secondary">Recurrence</Typography>
-              <Typography fontWeight={500} color={eventToView?.extendedProps?.recurrenceRule ? 'primary.main' : '#aaa'} sx={{ mt: 0.2 }}>
-                {eventToView?.extendedProps?.recurrenceRule || 'No recurrence'}
+              <Typography variant="overline" color="text.secondary">
+                Recurrence
+              </Typography>
+              <Typography
+                fontWeight={500}
+                color={
+                  eventToView?.extendedProps?.recurrenceRule
+                    ? "primary.main"
+                    : "#aaa"
+                }
+                sx={{ mt: 0.2 }}
+              >
+                {eventToView?.extendedProps?.recurrenceRule || "No recurrence"}
               </Typography>
             </Box>
           </Box>
           <Divider sx={{ my: 1.5 }} />
           {/* Meeting Link */}
           {eventToView?.extendedProps?.meetingUrl && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
               <LinkIcon color="primary" />
               <Box>
-                <Typography variant="overline" color="text.secondary">Meeting</Typography>
+                <Typography variant="overline" color="text.secondary">
+                  Meeting
+                </Typography>
                 <Button
                   variant="contained"
                   color="primary"
@@ -494,37 +664,75 @@ const CalendarView = () => {
               </Box>
             </Box>
           )}
-          {eventToView?.extendedProps?.meetingUrl && <Divider sx={{ my: 1.5 }} />}
+          {eventToView?.extendedProps?.meetingUrl && (
+            <Divider sx={{ my: 1.5 }} />
+          )}
           {/* Attendees */}
-          {eventToView?.extendedProps?.attendees && Array.isArray(eventToView.extendedProps.attendees) && eventToView.extendedProps.attendees.length > 0 && (
-            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 2 }}>
-              <PeopleIcon color="primary" sx={{ mt: 0.5 }} />
-              <Box sx={{ width: '100%' }}>
-                <Typography variant="overline" color="text.secondary">Attendees</Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mt: 0.5 }}>
-                  {eventToView.extendedProps.attendees.map((att, idx) => (
-                    <Chip
-                      key={idx}
-                      avatar={<Avatar sx={{ bgcolor: 'primary.main', color: '#fff', width: 28, height: 28, fontSize: '1rem' }}>{att.name?.[0] || '?'}</Avatar>}
-                      label={att.name}
-                      variant="outlined"
-                      sx={{ fontWeight: 500, fontSize: '1rem', px: 1.5, borderRadius: 2, bgcolor: '#e3f0ff' }}
-                      title={att.email}
-                    />
-                  ))}
+          {eventToView?.extendedProps?.attendees &&
+            Array.isArray(eventToView.extendedProps.attendees) &&
+            eventToView.extendedProps.attendees.length > 0 && (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 2,
+                  mb: 2,
+                }}
+              >
+                <PeopleIcon color="primary" sx={{ mt: 0.5 }} />
+                <Box sx={{ width: "100%" }}>
+                  <Typography variant="overline" color="text.secondary">
+                    Attendees
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 1.5,
+                      mt: 0.5,
+                    }}
+                  >
+                    {eventToView.extendedProps.attendees.map((att, idx) => (
+                      <Chip
+                        key={idx}
+                        avatar={
+                          <Avatar
+                            sx={{
+                              bgcolor: "primary.main",
+                              color: "#fff",
+                              width: 28,
+                              height: 28,
+                              fontSize: "1rem",
+                            }}
+                          >
+                            {att.name?.[0] || "?"}
+                          </Avatar>
+                        }
+                        label={att.name}
+                        variant="outlined"
+                        sx={{
+                          fontWeight: 500,
+                          fontSize: "1rem",
+                          px: 1.5,
+                          borderRadius: 2,
+                          bgcolor: "#e3f0ff",
+                        }}
+                        title={att.email}
+                      />
+                    ))}
+                  </Box>
                 </Box>
               </Box>
-            </Box>
-          )}
+            )}
         </DialogContent>
         <DialogActions
           sx={{
             px: 6,
             pb: 4,
             pt: 3,
-            display: 'flex',
-            justifyContent: 'space-between',
-            background: 'background.default',
+            display: "flex",
+            justifyContent: "space-between",
+            background: "background.default",
             borderBottomLeftRadius: 20,
             borderBottomRightRadius: 20,
           }}
@@ -542,13 +750,13 @@ const CalendarView = () => {
               borderRadius: 2,
               px: 4,
               py: 1,
-              fontSize: '1rem',
-              '&:hover': {
-                backgroundColor: '#ffebee', // light red background
-                color: 'error.main',
-                borderColor: 'error.main',
-                '& .MuiSvgIcon-root': {
-                  color: 'error.main',
+              fontSize: "1rem",
+              "&:hover": {
+                backgroundColor: "#ffebee", // light red background
+                color: "error.main",
+                borderColor: "error.main",
+                "& .MuiSvgIcon-root": {
+                  color: "error.main",
                 },
               },
             }}
@@ -569,7 +777,7 @@ const CalendarView = () => {
               borderRadius: 2,
               px: 4,
               py: 1,
-              fontSize: '1rem',
+              fontSize: "1rem",
             }}
           >
             Edit
