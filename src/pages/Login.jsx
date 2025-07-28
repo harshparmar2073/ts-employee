@@ -38,6 +38,8 @@ import * as yup from "yup";
 import logo from "../assets/logo2.png";
 import companyLogo from "../assets/12springslogo.png";
 import { authenticate, authenticatePreMfa } from "../services/authService";
+import { useGoogleLogin } from '@react-oauth/google';
+import axiosService from "../services/axiosService";
 
 const validationSchema = yup.object({
   email: yup
@@ -46,6 +48,20 @@ const validationSchema = yup.object({
     .required("Email is required"),
   password: yup.string().required("Password is required"),
 });
+
+// generate oauth state, also storing it in session storage
+function generateOAuthState(length = 32) {
+  const array = new Uint8Array(length);
+  window.crypto.getRandomValues(array);
+  const state = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+  sessionStorage.setItem("oauth_state", state);
+  return state;
+}
+
+// compare given state with session storage value
+function checkOAuthState(state) {
+  return state === sessionStorage.getItem("oauth_state");
+}
 
 const Login = () => {
   const navigate = useNavigate();
@@ -143,6 +159,23 @@ const Login = () => {
       );
     }
   };
+
+  async function getAuthTokenFromOAuthCode(code) {
+    const r = await axiosService.post("/oauth2/token", { code });
+    console.log("TOKEN RESP", r.data);
+  }
+
+  const loginGoogle = useGoogleLogin({
+    flow: 'auth-code',
+    scope: "email profile",
+    state: generateOAuthState(),
+    onSuccess: async codeResponse => {
+      if (!checkOAuthState(codeResponse.state))
+        return; // TODO: show error
+
+      getAuthTokenFromOAuthCode(codeResponse.code);
+    },
+  });
 
   return (
     <Box
@@ -404,24 +437,26 @@ const Login = () => {
             </Typography>
           </Box>
 
-          <Box sx={{ textAlign: "center", mt: 4 }}>
-            <Typography 
-              variant="caption" 
-              display="block"
-              sx={{
-                fontFamily: theme.typography.fontFamily,
-                fontWeight: theme.typography.fontWeightRegular,
-                color: theme.palette.text.secondary,
-              }}
-            >
-              POWERED BY
-            </Typography>
-            <img
-              src={companyLogo}
-              alt="Twelve Springs Limited"
-              style={{ height: 32, marginTop: 4 }}
-            />
-          </Box>
+          <Button
+            variant="outlined"
+            fullWidth
+            startIcon={<GoogleIcon />}
+            sx={{
+              mt: 2,
+              textTransform: "none",
+              borderColor: "#4285F4",
+              color: "#4285F4",
+              "&:hover": {
+                backgroundColor: "#f5f5f5",
+                borderColor: "#4285F4",
+              },
+            }}
+            onClick={() => loginGoogle()}
+          >
+            Sign in with Google
+          </Button>
+
+          {/* Existing footer */}
         </Paper>
       </Fade>
     </Box>
