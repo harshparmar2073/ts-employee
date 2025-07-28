@@ -168,7 +168,7 @@ const Login = () => {
       localStorage.setItem("authResponse", JSON.stringify(r.data));
       navigate("/dashboard");
     } catch (error) {
-      showToast("Error logging in. Please try again later.");
+      showToast("Error logging in. Please try again later.", "error");
     }
   }
 
@@ -178,7 +178,7 @@ const Login = () => {
     state: generateOAuthState(),
     onSuccess: async codeResponse => {
       if (!checkOAuthState(codeResponse.state)) {
-        showToast("Error logging in. Please try again later.");
+        showToast("Error logging in. Please try again later.", "error");
         return;
       }
 
