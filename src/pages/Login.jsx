@@ -430,21 +430,18 @@ const Login = () => {
             </Link>
           </Box>
 
-          <Box sx={{ textAlign: "center", mt: 3 }}>
-            <Typography 
-              variant="body2"
-              sx={{
-                fontFamily: theme.typography.fontFamily,
-                fontWeight: theme.typography.fontWeightRegular,
-                color: theme.palette.text.primary,
-              }}
-            >
-              Not a member?{" "}
-              <Link component="button" onClick={() => navigate("/signup")}>
-                Create Account
-              </Link>
-            </Typography>
-          </Box>
+          <Typography
+            variant="body2"
+            align="center"
+            sx={{
+              mt: 1,
+              fontFamily: theme.typography.fontFamily,
+              fontWeight: theme.typography.fontWeightRegular,
+              color: theme.palette.text.primary,
+            }}
+          >
+            OR
+          </Typography>
 
           <Button
             variant="outlined"
@@ -462,8 +459,44 @@ const Login = () => {
             }}
             onClick={() => loginGoogle()}
           >
-            Sign in with Google
+            Continue with Google
           </Button>
+
+
+          <Box sx={{ textAlign: "center", mt: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                fontFamily: theme.typography.fontFamily,
+                fontWeight: theme.typography.fontWeightRegular,
+                color: theme.palette.text.primary,
+              }}
+            >
+              Not a member?{" "}
+              <Link component="button" onClick={() => navigate("/signup")}>
+                Create Account
+              </Link>
+            </Typography>
+          </Box>
+
+          <Box sx={{ textAlign: "center", mt: 4 }}>
+            <Typography
+              variant="caption"
+              display="block"
+              sx={{
+                fontFamily: theme.typography.fontFamily,
+                fontWeight: theme.typography.fontWeightRegular,
+                color: theme.palette.text.secondary,
+              }}
+            >
+              POWERED BY
+            </Typography>
+            <img
+              src={companyLogo}
+              alt="12 Springs"
+              style={{ height: 32, marginTop: 4 }}
+            />
+          </Box>
 
           {/* Existing footer */}
         </Paper>
