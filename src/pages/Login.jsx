@@ -40,6 +40,7 @@ import companyLogo from "../assets/12springslogo.png";
 import { authenticate, authenticatePreMfa } from "../services/authService";
 import { useGoogleLogin } from '@react-oauth/google';
 import axiosService from "../services/axiosService";
+import { SIGNUP_TYPE_OAUTH } from "../const";
 
 const validationSchema = yup.object({
   email: yup
@@ -49,18 +50,19 @@ const validationSchema = yup.object({
   password: yup.string().required("Password is required"),
 });
 
-// generate oauth state, also storing it in session storage
+// generate oauth state
 function generateOAuthState(length = 32) {
   const array = new Uint8Array(length);
   window.crypto.getRandomValues(array);
   const state = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-  sessionStorage.setItem("oauth_state", state);
   return state;
 }
 
-// compare given state with session storage value
+const oauthState = generateOAuthState();
+
+// compare given oauth state with stored value
 function checkOAuthState(state) {
-  return state === sessionStorage.getItem("oauth_state");
+  return state === oauthState;
 }
 
 const Login = () => {
@@ -163,11 +165,22 @@ const Login = () => {
   async function getAuthTokenFromOAuthCode(code) {
     try {
       const r = await axiosService.post("/oauth2/token", { code });
-      const token = r.data.data?.authorizationToken;
-      if (token) localStorage.setItem("authToken", token);
-      localStorage.setItem("authResponse", JSON.stringify(r.data));
-      navigate("/dashboard");
+      const data = r.data.data;
+
+      if (data.type === "LOGIN") {
+        const loginDetails = data.loginDetails;
+        const token = loginDetails.authorizationToken;
+        if (token) localStorage.setItem("authToken", token);
+        localStorage.setItem("authResponse", JSON.stringify(loginDetails));
+        navigate("/dashboard");
+      } else if (data.type === "SIGNUP") {
+        const signupDetails = data.signupDetails;
+        const json = JSON.stringify(signupDetails);
+        sessionStorage.setItem("oauthSignupDetails", json);
+        navigate("/signup?signupType="+SIGNUP_TYPE_OAUTH);
+      }
     } catch (error) {
+      console.log(error);
       showToast("Error logging in. Please try again later.", "error");
     }
   }
@@ -175,9 +188,10 @@ const Login = () => {
   const loginGoogle = useGoogleLogin({
     flow: 'auth-code',
     scope: "email profile",
-    state: generateOAuthState(),
+    state: oauthState,
     onSuccess: async codeResponse => {
       if (!checkOAuthState(codeResponse.state)) {
+        console.log("OAuth state check failed");
         showToast("Error logging in. Please try again later.", "error");
         return;
       }
@@ -294,6 +308,15 @@ const Login = () => {
               )}
             />
 
+          <Box sx={{ textAlign: "right", width: "100%" }}>
+            <Link
+              component="button"
+              onClick={() => navigate("/reset-password")}
+            >
+              Reset Password
+            </Link>
+          </Box>
+
             {step === 2 && (
               <>
                 <FormControl component="fieldset" sx={{ mt: 3, width: "100%" }}>
@@ -369,7 +392,7 @@ const Login = () => {
                 <Box
                   sx={{ display: "flex", alignItems: "center", mt: 3, gap: 2 }}
                 >
-                  <Typography 
+                  <Typography
                     variant="body2"
                     sx={{
                       fontFamily: theme.typography.fontFamily,
@@ -391,9 +414,8 @@ const Login = () => {
                       sx={{ ml: 1, width: 100 }}
                     >
                       {[...Array(7)].map((_, i) => (
-                        <MenuItem key={i + 1} value={(i + 1).toString()}>{`${
-                          i + 1
-                        } day${i === 0 ? "" : "s"}`}</MenuItem>
+                        <MenuItem key={i + 1} value={(i + 1).toString()}>{`${i + 1
+                          } day${i === 0 ? "" : "s"}`}</MenuItem>
                       ))}
                     </Select>
                   )}
@@ -421,20 +443,11 @@ const Login = () => {
             </Button>
           </form>
 
-          <Box sx={{ textAlign: "right", mt: 2, width: "100%" }}>
-            <Link
-              component="button"
-              onClick={() => navigate("/reset-password")}
-            >
-              Reset Password
-            </Link>
-          </Box>
-
           <Typography
             variant="body2"
             align="center"
             sx={{
-              mt: 1,
+              mt: 2,
               fontFamily: theme.typography.fontFamily,
               fontWeight: theme.typography.fontWeightRegular,
               color: theme.palette.text.primary,

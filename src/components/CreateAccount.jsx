@@ -35,74 +35,80 @@ import {
   Visibility,
   VisibilityOff,
 } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import logo from "../assets/logo2.png";
 import companyLogo from "../assets/12springslogo.png";
 import FlagsSelect from "react-flags-select";
+import { SIGNUP_TYPE_OAUTH } from "../const";
 
-// Enhanced validation schema
-const validationSchema = yup.object({
-  accountName: yup
-    .string()
-    .required("Account name is required")
-    .min(2, "Account name must be at least 2 characters"),
+function getValidationSchema({ signupType }) {
+  return yup.object({
+    accountName: yup
+      .string()
+      .required("Account name is required")
+      .min(2, "Account name must be at least 2 characters"),
 
-  invitationCode: yup
-    .string()
-    .required("Invitation code is required")
-    .min(6, "Invitation code must be at least 6 characters"),
+    invitationCode: yup
+      .string()
+      .required("Invitation code is required")
+      .min(6, "Invitation code must be at least 6 characters"),
 
-  firstName: yup
-    .string()
-    .required("First name is required")
-    .min(2, "First name must be at least 2 characters")
-    .matches(/^[a-zA-Z\s]+$/, "First name can only contain letters and spaces"),
-  lastName: yup
-    .string()
-    .required("Last name is required")
-    .min(2, "Last name must be at least 2 characters")
-    .matches(/^[a-zA-Z\s]+$/, "Last name can only contain letters and spaces"),
-  email: yup
-    .string()
-    .required("Email is required")
-    .email("Please enter a valid email address"),
-  password: yup
-    .string()
-    .required("Password is required")
-    .min(8, "Password must be at least 8 characters")
-    .matches(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
-    ),
-  confirmPassword: yup
-    .string()
-    .required("Please confirm your password")
-    .oneOf([yup.ref("password")], "Passwords must match"),
-  timezone: yup.string().required("Please select a timezone"),
-  showAddress: yup.boolean(),
-  addressLine1: yup.string().when("showAddress", {
-    is: true,
-    then: (schema) => schema.required("Address line 1 is required"),
-    otherwise: (schema) => schema.notRequired(),
-  }),
-  city: yup.string().when("showAddress", {
-    is: true,
-    then: (schema) => schema.required("City is required"),
-    otherwise: (schema) => schema.notRequired(),
-  }),
-  postcode: yup.string().when("showAddress", {
-    is: true,
-    then: (schema) => schema.required("Postcode is required"),
-    otherwise: (schema) => schema.notRequired(),
-  }),
-  country: yup.string().when("showAddress", {
-    is: true,
-    then: (schema) => schema.required("Country is required"),
-    otherwise: (schema) => schema.notRequired(),
-  }),
-});
+    firstName: yup
+      .string()
+      .required("First name is required")
+      .min(2, "First name must be at least 2 characters")
+      .matches(/^[a-zA-Z\s]+$/, "First name can only contain letters and spaces"),
+    lastName: yup
+      .string()
+      .required("Last name is required")
+      .min(2, "Last name must be at least 2 characters")
+      .matches(/^[a-zA-Z\s]+$/, "Last name can only contain letters and spaces"),
+    email: yup
+      .string()
+      .required("Email is required")
+      .email("Please enter a valid email address"),
+    password: signupType !== SIGNUP_TYPE_OAUTH && yup.string()
+      .required("Password is required")
+      .min(8, "Password must be at least 8 characters")
+      .matches(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
+      ),
+    confirmPassword: signupType !== SIGNUP_TYPE_OAUTH && yup.string()
+      .required("Please confirm your password")
+      .oneOf([yup.ref("password")], "Passwords must match"),
+    timezone: yup.string().required("Please select a timezone"),
+    showAddress: yup.boolean(),
+    addressLine1: yup.string().when("showAddress", {
+      is: true,
+      then: (schema) => schema.required("Address line 1 is required"),
+      otherwise: (schema) => schema.notRequired(),
+    }),
+    city: yup.string().when("showAddress", {
+      is: true,
+      then: (schema) => schema.required("City is required"),
+      otherwise: (schema) => schema.notRequired(),
+    }),
+    postcode: yup.string().when("showAddress", {
+      is: true,
+      then: (schema) => schema.required("Postcode is required"),
+      otherwise: (schema) => schema.notRequired(),
+    }),
+    country: yup.string().when("showAddress", {
+      is: true,
+      then: (schema) => schema.required("Country is required"),
+      otherwise: (schema) => schema.notRequired(),
+    }),
+  });
+}
 
 const Signup = () => {
+  const [params] = useSearchParams();
+  const signupType = params.get("signupType");
+
+  console.log(params);
+  const [oauthSignupDetails, setOAuthSignupDetails] = useState(null);
+
   const theme = useTheme();
   const navigate = useNavigate();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -123,7 +129,9 @@ const Signup = () => {
     getValues,
     setValue,
   } = useForm({
-    resolver: yupResolver(validationSchema),
+    resolver: yupResolver(getValidationSchema({
+      signupType: signupType
+    })),
     mode: "onChange",
     defaultValues: {
       invitationCode: "",
@@ -163,7 +171,10 @@ const Signup = () => {
     setValue("timezone", browserTz);
   }, [setValue]);
 
-  const handleBack = () => navigate("/");
+  const handleBack = () => {
+    sessionStorage.removeItem("oauthSignupDetails");
+    navigate("/")
+  };
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
@@ -179,10 +190,14 @@ const Signup = () => {
         firstName: data.firstName,
         lastName: data.lastName,
         accountStatus: "active", // Default status
+        // for signupType = oauth
+        signupToken: oauthSignupDetails?.signupToken,
         auth: {
           authName: `${data.firstName} ${data.lastName}`,
-          authUserName: data.email,
-          authPassword: data.password,
+          authUserName: signupType === SIGNUP_TYPE_OAUTH
+          ? oauthSignupDetails.email
+          : data.email,
+          authPassword: signupType !== SIGNUP_TYPE_OAUTH && data.password,
           authStatus: "active", // Default status
           timeZone: timezoneValue,
         },
@@ -202,7 +217,12 @@ const Signup = () => {
       }
 
       // Make API call
-      const response = await axiosService.post("/account/signup", payload);
+      let response;
+      if (signupType === SIGNUP_TYPE_OAUTH) {
+        response = await axiosService.post("/oauth2/signup", payload);
+      } else {
+        response = await axiosService.post("/account/signup", payload);
+      }
 
       if (response.status === 200 || response.status === 201) {
         showToast(
@@ -237,6 +257,26 @@ const Signup = () => {
       setIsSubmitting(false);
     }
   };
+
+  // load oauth signup details from session storage
+  useEffect(() => {
+    if (signupType === SIGNUP_TYPE_OAUTH) {
+      const signupDetailsJSON = sessionStorage.getItem("oauthSignupDetails");
+      if (!signupDetailsJSON)
+        return;
+      try {
+        const signupDetails = JSON.parse(signupDetailsJSON);
+        setOAuthSignupDetails(signupDetails);
+        reset({
+          firstName: signupDetails.firstName,
+          lastName: signupDetails.lastName,
+          email: signupDetails.email
+        }, { keepDefaultValues: true });
+      } catch (error) {
+        console.log("Error parsing oauth signup details json", error);
+      }
+    }
+  }, [signupType]);
 
   return (
     <Box
@@ -481,6 +521,7 @@ const Signup = () => {
               <Controller
                 name="email"
                 control={control}
+                disabled={signupType === SIGNUP_TYPE_OAUTH}
                 render={({ field }) => (
                   <TextField
                     {...field}
@@ -494,93 +535,97 @@ const Signup = () => {
                 )}
               />
 
-              <Controller
-                name="password"
-                control={control}
-                render={({ field }) => (
-                  <Box sx={{ mb: 1.5 }}>
-                    <TextField
-                      {...field}
-                      fullWidth
-                      placeholder="Password"
-                      type={showPassword ? "text" : "password"}
-                      error={!!errors.password}
-                      helperText={errors.password?.message}
-                      InputProps={{
-                        endAdornment: (
-                          <IconButton
-                            onClick={() => setShowPassword(!showPassword)}
-                            edge="end"
-                            sx={{
-                              color: theme.palette.secondary.main,
-                              "&:hover": {
-                                color: theme.palette.primary.main,
-                              },
-                            }}
-                          >
-                            {showPassword ? <VisibilityOff /> : <Visibility />}
-                          </IconButton>
-                        ),
-                      }}
-                    />
-                    {/* Password Strength Bar */}
-                    {currentPassword && (
-                      <Box sx={{ mt: 1 }}>
-                        <PasswordStrengthBar
-                          password={currentPassword}
-                          minLength={8}
-                          scoreWords={[
-                            "Very Weak",
-                            "Weak",
-                            "Fair",
-                            "Good",
-                            "Strong",
-                          ]}
-                          shortScoreWord="Too Short"
+              {signupType !== SIGNUP_TYPE_OAUTH && (
+                <>
+                  <Controller
+                    name="password"
+                    control={control}
+                    render={({ field }) => (
+                      <Box sx={{ mb: 1.5 }}>
+                        <TextField
+                          {...field}
+                          fullWidth
+                          placeholder="Password"
+                          type={showPassword ? "text" : "password"}
+                          error={!!errors.password}
+                          helperText={errors.password?.message}
+                          InputProps={{
+                            endAdornment: (
+                              <IconButton
+                                onClick={() => setShowPassword(!showPassword)}
+                                edge="end"
+                                sx={{
+                                  color: theme.palette.secondary.main,
+                                  "&:hover": {
+                                    color: theme.palette.primary.main,
+                                  },
+                                }}
+                              >
+                                {showPassword ? <VisibilityOff /> : <Visibility />}
+                              </IconButton>
+                            ),
+                          }}
                         />
+                        {/* Password Strength Bar */}
+                        {currentPassword && (
+                          <Box sx={{ mt: 1 }}>
+                            <PasswordStrengthBar
+                              password={currentPassword}
+                              minLength={8}
+                              scoreWords={[
+                                "Very Weak",
+                                "Weak",
+                                "Fair",
+                                "Good",
+                                "Strong",
+                              ]}
+                              shortScoreWord="Too Short"
+                            />
+                          </Box>
+                        )}
                       </Box>
                     )}
-                  </Box>
-                )}
-              />
-
-              <Controller
-                name="confirmPassword"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    placeholder="Confirm Password"
-                    type={showConfirmPassword ? "text" : "password"}
-                    error={!!errors.confirmPassword}
-                    helperText={errors.confirmPassword?.message}
-                    InputProps={{
-                      endAdornment: (
-                        <IconButton
-                          onClick={() =>
-                            setShowConfirmPassword(!showConfirmPassword)
-                          }
-                          edge="end"
-                          sx={{
-                            color: theme.palette.secondary.main,
-                            "&:hover": {
-                              color: theme.palette.primary.main,
-                            },
-                          }}
-                        >
-                          {showConfirmPassword ? (
-                            <VisibilityOff />
-                          ) : (
-                            <Visibility />
-                          )}
-                        </IconButton>
-                      ),
-                    }}
-                    sx={{ mb: 1.5 }}
                   />
-                )}
-              />
+
+                  <Controller
+                    name="confirmPassword"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        placeholder="Confirm Password"
+                        type={showConfirmPassword ? "text" : "password"}
+                        error={!!errors.confirmPassword}
+                        helperText={errors.confirmPassword?.message}
+                        InputProps={{
+                          endAdornment: (
+                            <IconButton
+                              onClick={() =>
+                                setShowConfirmPassword(!showConfirmPassword)
+                              }
+                              edge="end"
+                              sx={{
+                                color: theme.palette.secondary.main,
+                                "&:hover": {
+                                  color: theme.palette.primary.main,
+                                },
+                              }}
+                            >
+                              {showConfirmPassword ? (
+                                <VisibilityOff />
+                              ) : (
+                                <Visibility />
+                              )}
+                            </IconButton>
+                          ),
+                        }}
+                        sx={{ mb: 1.5 }}
+                      />
+                    )}
+                  />
+                </>
+              )}
 
               <Controller
                 name="timezone"
