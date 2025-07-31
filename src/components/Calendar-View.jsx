@@ -174,7 +174,7 @@ const CalendarView = () => {
       };
 
       try {
-        await axiosService.post("/auth/calendar-events/create", payload);
+        await axiosService.post("/calendar-events/create", payload);
         fetchEvents();
       } catch (error) {
         console.error("❌ Error creating event via API:", error);
@@ -189,7 +189,7 @@ const CalendarView = () => {
     const to = endOfMonth(new Date()).toISOString();
 
     try {
-      const response = await axiosService.get("/auth/calendar-events/load", {
+      const response = await axiosService.get("/calendar-events/load", {
         params: { from, to },
       });
 
@@ -288,7 +288,7 @@ const CalendarView = () => {
       let response;
       if (!recurrence) {
         response = await axiosService.delete(
-          `/auth/calendar-events/delete/${eventId}`
+          `/calendar-events/delete/${eventId}`
         );
       } else {
         if (!selectedDate) {
@@ -301,7 +301,7 @@ const CalendarView = () => {
           occurrenceDate: selectedDate.toISOString(),
         };
         response = await axiosService.post(
-          "/auth/calendar-events/delete-recurring",
+          "/calendar-events/delete-recurring",
           payload
         );
       }
@@ -339,7 +339,7 @@ const CalendarView = () => {
 
     try {
       await axiosService.put(
-        `/auth/calendar-events/update/${eventData.id}`,
+        `/calendar-events/update/${eventData.id}`,
         payload
       );
       fetchEvents();
@@ -493,11 +493,18 @@ const CalendarView = () => {
     }
   }, []);
 
-  const handleCalendarUpdate = useCallback((updatedCalendar) => {
-    console.log('Updating calendar:', updatedCalendar);
-    setCreatedCalendars(prev => 
-      prev.map(cal => cal.id === updatedCalendar.id ? updatedCalendar : cal)
-    );
+  const handleCalendarUpdate = useCallback(async (updatedCalendar) => {
+    try {
+      const response = await axiosService.put(`/calendar/${updatedCalendar.id}`, updatedCalendar);
+      console.log("✅ Calendar updated:", response.data);
+  
+      // Update state with latest server data
+      setCreatedCalendars(prev =>
+        prev.map(cal => cal.id === updatedCalendar.id ? response.data.data : cal)
+      );
+    } catch (error) {
+      console.error("❌ Failed to update calendar:", error);
+    }
   }, []);
 
   return (
