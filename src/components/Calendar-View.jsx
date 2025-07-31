@@ -12,6 +12,7 @@ import {
 import axiosService from "../services/axiosService";
 import Slide from "@mui/material/Slide";
 import EventForm from "../components/EventForm";
+import { useToast } from "../context/ToastContext";
 
 // Import new components
 import CalendarSidebar from "./CalendarSidebar";
@@ -42,6 +43,8 @@ import {
   Chip as MuiChip,
   Avatar,
   Fab,
+  CircularProgress,
+  Backdrop,
 } from "@mui/material";
 
 import {
@@ -131,14 +134,17 @@ const CalendarView = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   const [selectedCalendar, setSelectedCalendar] = useState("My Personal Calendar");
+  const [selectedCalendarId, setSelectedCalendarId] = useState(null);
   const [calendarType, setCalendarType] = useState("Private");
   
   // Calendar management state
   const [createdCalendars, setCreatedCalendars] = useState([]);
 
+  // Loading state
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
 
-
-
+  // Toast notifications
+  const { showToast } = useToast();
 
   // ============================================================================
   // EVENT HANDLERS
@@ -159,6 +165,7 @@ const CalendarView = () => {
     } else {
       const payload = {
         originalEventId: null,
+        calendarId: selectedCalendarId,
         title: eventData.title,
         startDateTime: eventData.startDate,
         endDateTime: eventData.endDate,
@@ -188,12 +195,27 @@ const CalendarView = () => {
     const from = startOfMonth(new Date()).toISOString();
     const to = endOfMonth(new Date()).toISOString();
 
-    try {
-      const response = await axiosService.get("/calendar-events/load", {
-        params: { from, to },
-      });
+    // Don't fetch if no calendar is selected
+    if (!selectedCalendarId) {
+      console.log("No calendar selected, skipping event fetch");
+      setEvents([]);
+      return;
+    }
 
-      console.log(" API /load response:", response.data);
+    console.log("📅 Fetching events for calendar ID:", selectedCalendarId);
+    setIsLoadingEvents(true);
+
+    try {
+        const response = await axiosService.get("/calendar-events/load", {
+          params: { 
+            from, 
+            to,
+            calendarId: selectedCalendarId 
+          },
+        });
+
+        console.log("📅 API /load response:", response.data);
+        console.log("📅 Request params:", { from, to, calendarId: selectedCalendarId });
 
       const fetchedEvents = response.data.map((event) => {
         const minutes = differenceInMinutes(
@@ -243,6 +265,8 @@ const CalendarView = () => {
       setEvents(fetchedEvents);
     } catch (error) {
       console.error("❌ Failed to fetch events via /load:", error);
+    } finally {
+      setIsLoadingEvents(false);
     }
   };
 
@@ -251,6 +275,16 @@ const CalendarView = () => {
       const response = await axiosService.get("/calendar/getList/");
       console.log("📅 Calendars loaded:", response.data);
       setCreatedCalendars(response.data); // Or `response.data.data` if using `ApiResponse`
+      
+      // Set default calendar if available
+      if (response.data && response.data.length > 0) {
+        const defaultCalendar = response.data.find(cal => cal.isDefault) || response.data[0];
+        if (defaultCalendar) {
+          console.log("🎯 Setting default calendar:", defaultCalendar.name, "ID:", defaultCalendar.id);
+          setSelectedCalendar(defaultCalendar.name);
+          setSelectedCalendarId(defaultCalendar.id);
+        }
+      }
     } catch (error) {
       console.error("❌ Failed to load calendars:", error);
     }
@@ -261,8 +295,10 @@ const CalendarView = () => {
   }, []);
 
   useEffect(() => {
-    fetchEvents();
-  }, []);
+    if (selectedCalendarId) {
+      fetchEvents();
+    }
+  }, [selectedCalendarId]);
 
   const handleEventClick = (clickInfo) => {
     setEventToView(clickInfo.event);
@@ -323,6 +359,7 @@ const CalendarView = () => {
 
   const handleUpdateEvent = async (eventData) => {
     const payload = {
+      calendarId: selectedCalendarId,
       title: eventData.title,
       startDateTime: eventData.startDate,
       endDateTime: eventData.endDate,
@@ -462,8 +499,10 @@ const CalendarView = () => {
   };
 
   // Calendar management handlers
-  const handleCalendarSelect = (calendarName) => {
+  const handleCalendarSelect = (calendarName, calendarId) => {
+    console.log("🎯 Calendar selected:", calendarName, "ID:", calendarId);
     setSelectedCalendar(calendarName);
+    setSelectedCalendarId(calendarId);
   };
 
   const handleCalendarSettings = useCallback((calendar, action) => {
@@ -471,15 +510,25 @@ const CalendarView = () => {
     // This will be handled by CalendarSidebar now
   }, []);
 
-  const handleCalendarDelete = useCallback((calendar) => {
+  const handleCalendarDelete = useCallback(async (calendar) => {
     console.log('Deleting calendar:', calendar);
     
-    setCreatedCalendars(prev => prev.filter(cal => cal.id !== calendar.id));
+    try {
+      // Call API to delete calendar from server
+      setCreatedCalendars(prev => prev.filter(cal => cal.id !== calendar.id));
     
     if (selectedCalendar === calendar.name) {
       setSelectedCalendar("My Personal Calendar");
     }
-  }, [selectedCalendar]);
+      
+      // Show success notification
+      showToast(`Calendar "${calendar.name}" has been deleted successfully`, 'success');
+    } catch (error) {
+      console.error("❌ Failed to delete calendar:", error);
+      // Show error notification
+      showToast(`Failed to delete calendar "${calendar.name}". Please try again.`, 'error');
+    }
+  }, [selectedCalendar, showToast]);
 
   const handleCalendarCreate = useCallback(async (newCalendar) => {
     try {
@@ -488,10 +537,15 @@ const CalendarView = () => {
   
       // Add the returned calendar to the state
       setCreatedCalendars((prev) => [...prev, response.data.data]);
+      
+      // Show success notification
+      showToast(`Calendar "${newCalendar.name}" has been created successfully`, 'success');
     } catch (error) {
       console.error("❌ Failed to create calendar:", error);
+      // Show error notification
+      showToast(`Failed to create calendar "${newCalendar.name}". Please try again.`, 'error');
     }
-  }, []);
+  }, [showToast]);
 
   const handleCalendarUpdate = useCallback(async (updatedCalendar) => {
     try {
@@ -502,10 +556,15 @@ const CalendarView = () => {
       setCreatedCalendars(prev =>
         prev.map(cal => cal.id === updatedCalendar.id ? response.data.data : cal)
       );
+      
+      // Show success notification
+      showToast(`Calendar "${updatedCalendar.name}" has been updated successfully`, 'success');
     } catch (error) {
       console.error("❌ Failed to update calendar:", error);
+      // Show error notification
+      showToast(`Failed to update calendar "${updatedCalendar.name}". Please try again.`, 'error');
     }
-  }, []);
+  }, [showToast]);
 
   return (
     <Box sx={{ 
@@ -563,6 +622,7 @@ const CalendarView = () => {
           overflow: 'hidden',
           width: '100%',
           maxWidth: '100%',
+          position: 'relative',
         }}
       >
         {/* Main calendar content */}
@@ -574,6 +634,61 @@ const CalendarView = () => {
           sidebarCollapsed={sidebarCollapsed}
           onAddEvent={handleAddEvent}
         />
+
+        {/* Loading overlay - Calendar area only */}
+        {isLoadingEvents && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1000,
+              borderRadius: 1,
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 1.5,
+                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                borderRadius: 2,
+                padding: 3,
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+                minWidth: 200,
+              }}
+            >
+              <CircularProgress
+                size={40}
+                thickness={3}
+                sx={{
+                  color: '#6f42c1',
+                  '& .MuiCircularProgress-circle': {
+                    strokeLinecap: 'round',
+                  },
+                }}
+              />
+              <Typography
+                variant="body1"
+                sx={{
+                  color: '#333',
+                  fontWeight: 500,
+                  textAlign: 'center',
+                  fontSize: '0.9rem',
+                }}
+              >
+                Loading events...
+              </Typography>
+            </Box>
+          </Box>
+        )}
 
     <Fab
           color="primary"

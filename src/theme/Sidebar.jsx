@@ -50,7 +50,7 @@ const SidebarItems = [
       {text:'Employee',icon:<PersonIcon/>},
       { text: 'CRM', icon: <People /> },
       { text: 'Vendors', icon: <Business /> },
-      { text: 'Customers', icon: <PersonAdd /> },
+      { text: 'Users', icon: <PersonAdd /> },
       { text: 'Token Sessions', icon: <Lock /> },
     ],
   },
@@ -115,6 +115,8 @@ export default function Sidebar({
         navigate('/dashboard/member-table');
       } else if (item.text === 'Employee') {
         navigate('/dashboard/employee-contract-form');
+      } else if (item.text === 'Users') {
+        navigate('/dashboard/user');
       }
     }
   };

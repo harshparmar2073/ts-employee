@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -13,11 +13,6 @@ import {
   CardContent,
   InputBase,
   Button,
-  Menu,
-  MenuItem,
-  ListItemIcon,
-  ListItemText,
-  Divider,
   Chip,
   Dialog,
   DialogContent,
@@ -27,36 +22,19 @@ import {
   FormControl,
   Select,
   MenuItem as SelectMenuItem,
-  Switch,
-  Avatar,
-  FormControlLabel,
   Tooltip,
   Popover,
+  Menu,
+  MenuItem,
 } from "@mui/material";
 import {
   Search as SearchIcon,
   CalendarMonth as CalendarMonthIcon,
-  Settings as SettingsIcon,
-  Add as AddIcon,
   MoreVert as MoreVertIcon,
-  Visibility as VisibilityIcon,
-  ExpandMore as ExpandMoreIcon,
-  Notifications as NotificationsIcon,
-  Share as ShareIcon,
-  IntegrationInstructions as IntegrationIcon,
-  Delete as DeleteIcon,
-  AutoAwesome as AutoAcceptIcon,
-  Security as SecurityIcon,
-  People as PeopleIcon,
-  Schedule as ScheduleIcon,
-  AllInclusive as AllDayIcon,
-  ContentCopy as ContentCopyIcon,
+  Add as AddIcon,
+  PushPin as PushPinIcon,
 } from "@mui/icons-material";
 import { HexColorPicker } from "react-colorful";
-
-// ============================================================================
-// CALENDAR CONSTANTS & UTILITIES
-// ============================================================================
 
 // Calendar form validation schema
 const calendarSchema = yup.object({
@@ -71,298 +49,29 @@ const calendarSchema = yup.object({
   color: yup.string().required("Calendar color is required"),
 });
 
-// Calendar color palette with better organization
-const CALENDAR_COLORS = [
-  // Primary Colors
-  "#4285f4", // Google Blue
-  "#ea4335", // Google Red
-  "#fbbc04", // Google Yellow
-  "#34a853", // Google Green
 
-  // Extended Palette
-  "#ff6b6b", // Coral
-  "#4ecdc4", // Teal
-  "#45b7d1", // Light Blue
-  "#96ceb4", // Mint
-  "#feca57", // Orange
-  "#ff9ff3", // Pink
-  "#54a0ff", // Sky Blue
-  "#5f27cd", // Purple
-  "#00d2d3", // Cyan
-  "#ff9f43", // Orange
-  "#10ac84", // Emerald
-  "#ff4757", // Red Orange
-  "#2ed573", // Lime
-  "#1e90ff", // Dodger Blue
-  "#ff6348", // Tomato
-  "#ffa502", // Orange
-];
 
 const CALENDAR_TYPES = [
   { value: "private", label: "Private" },
-  { value: "shared", label: "Shared" },
-  { value: "public", label: "Public" },
+  { value: "company", label: "Company" },
 ];
 
-// Get timezones utility
-
-// ============================================================================
-// CALENDAR DETAILS DIALOG SECTIONS
-// ============================================================================
-
-const CalendarSettingsSection = ({ calendar }) => (
-  <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-    <Typography variant="h6" sx={{ fontWeight: 600, color: "#333", mb: 2 }}>
-      Calendar Settings
-    </Typography>
-
-    <Box>
-      <Typography
-        variant="body2"
-        sx={{ mb: 1, fontWeight: 500, color: "#666" }}
-      >
-        Calendar Name
-      </Typography>
-      <TextField
-        fullWidth
-        value={calendar?.name || ""}
-        size="small"
-        sx={{ mb: 2 }}
-      />
-    </Box>
-
-    <Box>
-      <Typography
-        variant="body2"
-        sx={{ mb: 1, fontWeight: 500, color: "#666" }}
-      >
-        Description
-      </Typography>
-      <TextField
-        fullWidth
-        multiline
-        rows={3}
-        value={calendar?.description || ""}
-        size="small"
-        sx={{ mb: 2 }}
-      />
-    </Box>
-
-    <Box>
-      <Typography
-        variant="body2"
-        sx={{ mb: 1, fontWeight: 500, color: "#666" }}
-      >
-        Timezone
-      </Typography>
-      <TextField
-        fullWidth
-        value={calendar?.timezone || "Asia/Calcutta"}
-        size="small"
-        disabled
-        sx={{ mb: 2 }}
-      />
-    </Box>
-  </Box>
-);
-
-const AutoAcceptSection = ({ calendar }) => (
-  <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-    <Typography variant="h6" sx={{ fontWeight: 600, color: "#333", mb: 2 }}>
-      Auto-accept invitations
-    </Typography>
-
-    <Box>
-      <FormControl fullWidth size="small">
-        <Select defaultValue="auto">
-          <SelectMenuItem value="auto">
-            Automatically add all invitations to this calendar
-          </SelectMenuItem>
-          <SelectMenuItem value="manual">
-            Manually accept invitations
-          </SelectMenuItem>
-          <SelectMenuItem value="none">Don't accept invitations</SelectMenuItem>
-        </Select>
-      </FormControl>
-      <Typography
-        variant="caption"
-        sx={{ color: "#666", mt: 1, display: "block" }}
-      >
-        Calendars for resources can auto-accept invitations.{" "}
-        <Typography
-          component="span"
-          sx={{ color: "#1976d2", cursor: "pointer" }}
-        >
-          Learn more about auto-accept invitations
-        </Typography>
-      </Typography>
-    </Box>
-  </Box>
-);
-
-const PermissionsSection = ({ calendar }) => (
-  <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-    <Typography variant="h6" sx={{ fontWeight: 600, color: "#333", mb: 2 }}>
-      Access permissions for events
-    </Typography>
-
-    <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-      <FormControlLabel control={<Switch />} label="Make available to public" />
-    </Box>
-
-    <Box sx={{ mb: 2 }}>
-      <FormControl fullWidth size="small" disabled>
-        <Select defaultValue="details">
-          <SelectMenuItem value="details">See all event details</SelectMenuItem>
-          <SelectMenuItem value="busy">See only free/busy</SelectMenuItem>
-        </Select>
-      </FormControl>
-    </Box>
-
-    <Button
-      variant="outlined"
-      sx={{ alignSelf: "flex-start", borderRadius: 2 }}
-    >
-      Get shareable link
-    </Button>
-
-    <Typography variant="caption" sx={{ color: "#666" }}>
-      <Typography component="span" sx={{ color: "#1976d2", cursor: "pointer" }}>
-        Learn more about sharing your calendar
-      </Typography>
-    </Typography>
-  </Box>
-);
-
-const SharedWithSection = ({ calendar }) => {
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [email, setEmail] = useState("");
-  const [permission, setPermission] = useState("view");
-
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-      <Typography variant="h6" sx={{ fontWeight: 600, color: "#333", mb: 2 }}>
-        Shared with
-      </Typography>
-
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          p: 2,
-          border: "1px solid #e0e0e0",
-          borderRadius: 2,
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <Avatar sx={{ width: 32, height: 32, bgcolor: "#6f42c1" }}>HP</Avatar>
-          <Box>
-            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-              Harsh_Parmar
-            </Typography>
-            <Typography variant="caption" sx={{ color: "#666" }}>
-              harshparmar2073@gmail.com
-            </Typography>
-          </Box>
-        </Box>
-        <FormControl size="small" sx={{ minWidth: 200 }}>
-          <Select defaultValue="manage">
-            <SelectMenuItem value="manage">
-              Make changes and manage sharing
-            </SelectMenuItem>
-            <SelectMenuItem value="edit">Make changes to events</SelectMenuItem>
-            <SelectMenuItem value="view">See all event details</SelectMenuItem>
-          </Select>
-        </FormControl>
-      </Box>
-
-      <Button
-        variant="outlined"
-        startIcon={<AddIcon />}
-        onClick={() => setShowAddForm(!showAddForm)}
-        sx={{ alignSelf: "flex-start", borderRadius: 2 }}
-      >
-        Add people and groups
-      </Button>
-
-      {/* Add People Form - Only show when button is clicked */}
-      {showAddForm && (
-        <Box
-          sx={{
-            p: 3,
-            border: "1px solid #e0e0e0",
-            borderRadius: 2,
-            background: "#fafbfc",
-            mt: 2,
-          }}
-        >
-          <Typography
-            variant="h6"
-            sx={{ fontWeight: 600, color: "#333", mb: 2 }}
-          >
-            Share with specific people
-          </Typography>
-
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <TextField
-              fullWidth
-              placeholder="Add email or name"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              size="small"
-              sx={{ mb: 2 }}
-            />
-
-            <Box>
-              <Typography
-                variant="body2"
-                sx={{ mb: 1, fontWeight: 500, color: "#666" }}
-              >
-                Permissions
-              </Typography>
-              <FormControl fullWidth size="small">
-                <Select
-                  value={permission}
-                  onChange={(e) => setPermission(e.target.value)}
-                >
-                  <SelectMenuItem value="busy">
-                    See only free/busy (hide details)
-                  </SelectMenuItem>
-                  <SelectMenuItem value="view">
-                    See all event details
-                  </SelectMenuItem>
-                  <SelectMenuItem value="edit">
-                    Make changes to events
-                  </SelectMenuItem>
-                  <SelectMenuItem value="manage">
-                    Make changes and manage sharing
-                  </SelectMenuItem>
-                </Select>
-              </FormControl>
-            </Box>
-          </Box>
-
-          <Box sx={{ display: "flex", gap: 2, mt: 3 }}>
-            <Button
-              variant="outlined"
-              onClick={() => setShowAddForm(false)}
-              sx={{ borderRadius: 2, textTransform: "none" }}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="contained"
-              disabled={!email.trim()}
-              sx={{ borderRadius: 2, textTransform: "none" }}
-            >
-              Send
-            </Button>
-          </Box>
-        </Box>
-      )}
-    </Box>
-  );
+// Dynamic time options generator
+const generateTimeOptions = (interval = 30) => {
+  const times = [];
+  for (let hour = 0; hour < 24; hour++) {
+    for (let minute = 0; minute < 60; minute += interval) {
+      const time = new Date();
+      time.setHours(hour, minute, 0, 0);
+      const timeString = time.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+      times.push(timeString);
+    }
+  }
+  return times;
 };
 
 const EventNotificationsSection = ({ calendar }) => {
@@ -377,56 +86,7 @@ const EventNotificationsSection = ({ calendar }) => {
     { id: 2, type: "email", quantity: 10, timeUnit: "minutes", time: "5:00pm" },
   ]);
 
-  const timeOptions = [
-    "12:00am",
-    "12:30am",
-    "1:00am",
-    "1:30am",
-    "2:00am",
-    "2:30am",
-    "3:00am",
-    "3:30am",
-    "4:00am",
-    "4:30am",
-    "5:00am",
-    "5:30am",
-    "6:00am",
-    "6:30am",
-    "7:00am",
-    "7:30am",
-    "8:00am",
-    "8:30am",
-    "9:00am",
-    "9:30am",
-    "10:00am",
-    "10:30am",
-    "11:00am",
-    "11:30am",
-    "12:00pm",
-    "12:30pm",
-    "1:00pm",
-    "1:30pm",
-    "2:00pm",
-    "2:30pm",
-    "3:00pm",
-    "3:30pm",
-    "4:00pm",
-    "4:30pm",
-    "5:00pm",
-    "5:30pm",
-    "6:00pm",
-    "6:30pm",
-    "7:00pm",
-    "7:30pm",
-    "8:00pm",
-    "8:30pm",
-    "9:00pm",
-    "9:30pm",
-    "10:00pm",
-    "10:30pm",
-    "11:00pm",
-    "11:30pm",
-  ];
+  const timeOptions = generateTimeOptions(30); // 30-minute intervals
 
   const addNotification = () => {
     const newNotification = {
@@ -566,56 +226,7 @@ const AllDayNotificationsSection = ({ calendar }) => {
     { id: 1, type: "email", quantity: 1, timeUnit: "days", time: "5:00pm" },
   ]);
 
-  const timeOptions = [
-    "12:00am",
-    "12:30am",
-    "1:00am",
-    "1:30am",
-    "2:00am",
-    "2:30am",
-    "3:00am",
-    "3:30am",
-    "4:00am",
-    "4:30am",
-    "5:00am",
-    "5:30am",
-    "6:00am",
-    "6:30am",
-    "7:00am",
-    "7:30am",
-    "8:00am",
-    "8:30am",
-    "9:00am",
-    "9:30am",
-    "10:00am",
-    "10:30am",
-    "11:00am",
-    "11:30am",
-    "12:00pm",
-    "12:30pm",
-    "1:00pm",
-    "1:30pm",
-    "2:00pm",
-    "2:30pm",
-    "3:00pm",
-    "3:30pm",
-    "4:00pm",
-    "4:30pm",
-    "5:00pm",
-    "5:30pm",
-    "6:00pm",
-    "6:30pm",
-    "7:00pm",
-    "7:30pm",
-    "8:00pm",
-    "8:30pm",
-    "9:00pm",
-    "9:30pm",
-    "10:00pm",
-    "10:30pm",
-    "11:00pm",
-    "11:30pm",
-  ];
+  const timeOptions = generateTimeOptions(30); // 30-minute intervals
 
   const addNotification = () => {
     const newNotification = {
@@ -839,121 +450,7 @@ const OtherNotificationsSection = ({ calendar }) => {
   );
 };
 
-const IntegrateSection = ({ calendar }) => (
-  <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-    <Typography variant="h6" sx={{ fontWeight: 600, color: "#333", mb: 2 }}>
-      Integrate calendar
-    </Typography>
 
-    <Box>
-      <Typography
-        variant="body2"
-        sx={{ mb: 1, fontWeight: 500, color: "#666" }}
-      >
-        Calendar ID
-      </Typography>
-      <TextField
-        fullWidth
-        value="da375dace53f478dad2da99675c2ff1990ee4f4f9885825a7fe0db7677dff369@group.calendar.google.com"
-        size="small"
-        sx={{ mb: 3 }}
-      />
-    </Box>
-
-    <Box>
-      <Typography
-        variant="body2"
-        sx={{ mb: 1, fontWeight: 500, color: "#666" }}
-      >
-        Public URL to this calendar
-      </Typography>
-      <TextField
-        fullWidth
-        value="https://calendar.google.com/calendar/embed?src=da375dace53f478dad2da99675c2ff1990"
-        size="small"
-        sx={{ mb: 1 }}
-      />
-      <Typography variant="caption" sx={{ color: "#666" }}>
-        Use this URL to access this calendar from a web browser.
-      </Typography>
-    </Box>
-
-    <Box>
-      <Typography
-        variant="body2"
-        sx={{ mb: 1, fontWeight: 500, color: "#666" }}
-      >
-        Embed code
-      </Typography>
-      <TextField
-        fullWidth
-        multiline
-        rows={3}
-        value='<iframe src="https://calendar.google.com/calendar/embed?src=da375dace53f478dad2da99675c2ff1990"></iframe>'
-        size="small"
-        sx={{ mb: 1 }}
-      />
-      <Typography
-        variant="caption"
-        sx={{ color: "#666", mb: 2, display: "block" }}
-      >
-        Use this code to embed this calendar in a web page.
-      </Typography>
-      <Button variant="outlined" size="small" sx={{ borderRadius: 2 }}>
-        Customize
-      </Button>
-    </Box>
-
-    <Box>
-      <Typography
-        variant="body2"
-        sx={{ mb: 1, fontWeight: 500, color: "#666" }}
-      >
-        Public address in iCal format
-      </Typography>
-      <TextField
-        fullWidth
-        value="https://calendar.google.com/calendar/ical/da375dace53f478dad2da99675c2ff1990ee4f4f98"
-        size="small"
-        sx={{ mb: 1 }}
-      />
-      <Typography variant="caption" sx={{ color: "#666" }}>
-        Use this address to access this calendar from other applications.
-      </Typography>
-      <Typography
-        variant="caption"
-        sx={{ color: "#dc3545", display: "block", mt: 1 }}
-      >
-        Warning: The address won't work unless this calendar is public.
-      </Typography>
-    </Box>
-
-    <Box>
-      <Typography
-        variant="body2"
-        sx={{ mb: 1, fontWeight: 500, color: "#666" }}
-      >
-        Secret address in iCal format
-      </Typography>
-      <Box sx={{ display: "flex", gap: 1 }}>
-        <TextField fullWidth value="••••••••••" size="small" />
-        <IconButton size="small">
-          <VisibilityIcon />
-        </IconButton>
-        <IconButton size="small">
-          <ContentCopyIcon />
-        </IconButton>
-      </Box>
-      <Typography
-        variant="caption"
-        sx={{ color: "#666", mt: 1, display: "block" }}
-      >
-        Use this address to access this calendar from other applications without
-        making it public.
-      </Typography>
-    </Box>
-  </Box>
-);
 
 const CalendarSidebar = ({
   sidebarCollapsed,
@@ -963,60 +460,24 @@ const CalendarSidebar = ({
   onCalendarTypeChange,
   createdCalendars,
   onCalendarSelect,
-  onCalendarSettings,
-  onCalendarDelete,
   onCalendarCreate,
   onCalendarUpdate,
+  onCalendarDelete,
 }) => {
-  // CSS animations for color picker
-  const colorPickerAnimations = {
-    "@keyframes shimmer": {
-      "0%": {
-        transform: "translateX(-100%)",
-      },
-      "100%": {
-        transform: "translateX(100%)",
-      },
-    },
-    "@keyframes colorful-pop": {
-      "0%": {
-        transform: "scale(0.95)",
-        opacity: 0.8,
-      },
-      "100%": {
-        transform: "scale(1)",
-        opacity: 1,
-      },
-    },
-  };
-  // Menu state
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [selectedCalendarForMenu, setSelectedCalendarForMenu] = useState(null);
+
 
   // Calendar management state
   const [calendarFormOpen, setCalendarFormOpen] = useState(false);
   const [selectedCalendarForDetails, setSelectedCalendarForDetails] =
     useState(null);
   const [activeSection, setActiveSection] = useState("basic");
-  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+
+  // Menu state for calendar options
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [selectedCalendarForMenu, setSelectedCalendarForMenu] = useState(null);
 
   // Color picker state
   const [colorPickerAnchorEl, setColorPickerAnchorEl] = useState(null);
-  const [selectedColor, setSelectedColor] = useState("#4285f4");
-
-  // Close color picker when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (colorPickerOpen && !event.target.closest(".color-picker-container")) {
-        setColorPickerOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [colorPickerOpen]);
 
   // React Hook Form setup for calendar form
   const {
@@ -1059,21 +520,8 @@ const CalendarSidebar = ({
     }
   }, [selectedCalendarForDetails, reset]);
 
-  // Menu handlers - optimized for performance and clarity
-  const handleMenuOpen = (event, calendar) => {
-    event.stopPropagation(); // Prevent event bubbling
-    setAnchorEl(event.currentTarget);
-    setSelectedCalendarForMenu(calendar);
-  };
 
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-    setSelectedCalendarForMenu(null);
-  };
-
-  const handleCalendarSettings = useCallback((calendar, action) => {
-    console.log("Calendar settings action:", action, "for calendar:", calendar);
-
+  const handleCalendarSettings = useCallback((calendar) => {
     // Open the same calendar form dialog but with existing data
     setSelectedCalendarForDetails(calendar);
 
@@ -1083,23 +531,54 @@ const CalendarSidebar = ({
     setCalendarFormOpen(true);
   }, []);
 
-  const handleMenuAction = useCallback(
-    (action) => {
-      if (selectedCalendarForMenu) {
-        // Call the internal handleCalendarSettings function
-        handleCalendarSettings(selectedCalendarForMenu, action);
-      }
-      handleMenuClose();
-    },
-    [selectedCalendarForMenu, handleCalendarSettings]
-  );
+  // Menu handlers
+  const handleMenuOpen = useCallback((event, calendar) => {
+    setMenuAnchorEl(event.currentTarget);
+    setSelectedCalendarForMenu(calendar);
+  }, []);
 
-  const handleDeleteCalendar = useCallback(() => {
-    if (selectedCalendarForMenu && onCalendarDelete) {
-      onCalendarDelete(selectedCalendarForMenu);
+  const handleMenuClose = useCallback(() => {
+    setMenuAnchorEl(null);
+    setSelectedCalendarForMenu(null);
+  }, []);
+
+  const handleMenuAction = useCallback((action) => {
+    if (!selectedCalendarForMenu) return;
+
+    switch (action) {
+      case "settings":
+        handleCalendarSettings(selectedCalendarForMenu);
+        break;
+      case "edit":
+        setSelectedCalendarForDetails(selectedCalendarForMenu);
+        setActiveSection("basic");
+        setCalendarFormOpen(true);
+        break;
+      case "notification":
+        setSelectedCalendarForDetails(selectedCalendarForMenu);
+        setActiveSection("notifications");
+        setCalendarFormOpen(true);
+        break;
+      case "remove":
+        // Handle calendar removal with confirmation
+        if (window.confirm(`Are you sure you want to remove "${selectedCalendarForMenu.name}"? This action cannot be undone.`)) {
+          if (onCalendarDelete) {
+            // Call the parent's calendar delete function
+            onCalendarDelete(selectedCalendarForMenu);
+            console.log("Calendar removed:", selectedCalendarForMenu.name);
+          } else {
+            console.log("onCalendarDelete prop not provided - cannot remove calendar");
+          }
+        }
+        break;
+      default:
+        break;
     }
+    
     handleMenuClose();
-  }, [selectedCalendarForMenu, onCalendarDelete]);
+  }, [selectedCalendarForMenu, handleCalendarSettings, onCalendarUpdate]);
+
+
 
   // Calendar management handlers
   const handleAddCalendar = () => {
@@ -1109,12 +588,11 @@ const CalendarSidebar = ({
   };
 
   const handleSaveCalendar = (formData) => {
-    console.log("Saving calendar:", formData);
-
     if (selectedCalendarForDetails) {
       // Update existing calendar
       const updatedCalendar = {
         ...selectedCalendarForDetails,
+        calendarId: selectedCalendarForDetails.id, // Include calendar ID for updates
         name: formData.name,
         description: formData.description,
         securityVisibility: formData.type, // Map to API field
@@ -1127,6 +605,7 @@ const CalendarSidebar = ({
     } else {
       // Create new calendar
       const newCalendar = {
+        calendarId: null, // Will be assigned by the backend for new calendars
         name: formData.name,
         description: formData.description,
         securityVisibility: formData.type, // Map to API field
@@ -1150,61 +629,6 @@ const CalendarSidebar = ({
     setActiveSection("basic"); // Reset to basic section
     reset();
   };
-
-  // Menu configuration - centralized and reusable
-  const menuItems = useMemo(
-    () => [
-      {
-        id: "settings",
-        label: "Calendar settings",
-        icon: SettingsIcon,
-        action: () => handleMenuAction("settings"),
-      },
-      {
-        id: "autoAccept",
-        label: "Auto-accept invitations",
-        icon: AutoAcceptIcon,
-        action: () => handleMenuAction("autoAccept"),
-      },
-      {
-        id: "permissions",
-        label: "Access permissions for events",
-        icon: SecurityIcon,
-        action: () => handleMenuAction("permissions"),
-      },
-      {
-        id: "shared",
-        label: "Shared with",
-        icon: PeopleIcon,
-        action: () => handleMenuAction("shared"),
-      },
-      {
-        id: "notifications",
-        label: "Event notifications",
-        icon: NotificationsIcon,
-        action: () => handleMenuAction("notifications"),
-      },
-      {
-        id: "allDayNotifications",
-        label: "All-day event notifications",
-        icon: AllDayIcon,
-        action: () => handleMenuAction("allDayNotifications"),
-      },
-      {
-        id: "otherNotifications",
-        label: "Other notifications",
-        icon: ScheduleIcon,
-        action: () => handleMenuAction("otherNotifications"),
-      },
-      {
-        id: "integrate",
-        label: "Integrate calendar",
-        icon: IntegrationIcon,
-        action: () => handleMenuAction("integrate"),
-      },
-    ],
-    [handleMenuAction]
-  );
 
   return (
     <Drawer
@@ -1286,7 +710,7 @@ const CalendarSidebar = ({
             display: sidebarCollapsed ? "none" : "flex",
           }}
         >
-          {["Private", "Shared", "Public"].map((type) => (
+          {["Private", "Company"].map((type) => (
             <Button
               key={type}
               variant={calendarType === type ? "contained" : "outlined"}
@@ -1311,287 +735,124 @@ const CalendarSidebar = ({
           ))}
         </Box>
 
+        {/* Simple Category Section */}
+        {!sidebarCollapsed && createdCalendars.length > 0 && (
+          <Box sx={{ mb: 3 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                fontWeight: 600,
+                color: "#495057",
+                mb: 2,
+                fontSize: "0.875rem",
+              }}
+            >
+              My {calendarType} calendars
+            </Typography>
+                         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+               {createdCalendars
+                 .filter((calendar) => {
+                   // Map calendar type to filter type - handle both API and form field names
+                   const typeMapping = {
+                     private: "Private",
+                     company: "Company",
+                   };
+                   // Use securityVisibility from API or type from form
+                   const calendarTypeValue = (
+                     calendar.securityVisibility || calendar.type || ""
+                   ).toLowerCase();
+                   const normalizedType = (calendarType || "").toLowerCase();
+                   return (
+                     typeMapping[calendarTypeValue]?.toLowerCase() === normalizedType
+                   );
+                 })
+                 .map((calendar) => (
+                                 <Box
+                   key={calendar.id}
+                   sx={{
+                     display: "flex",
+                     alignItems: "center",
+                     justifyContent: "space-between",
+                     py: 0.5,
+                     px: 1,
+                     cursor: "pointer",
+                     borderRadius: 1,
+                     "&:hover": {
+                       backgroundColor: "#f8f9fa",
+                     },
+                   }}
+                                       onClick={() => onCalendarSelect && onCalendarSelect(calendar.name, calendar.id)}
+                 >
+                   <Box
+                     sx={{
+                       display: "flex",
+                       alignItems: "center",
+                       gap: 1.5,
+                     }}
+                   >
+                     <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          backgroundColor: calendar.colour || calendar.color || "#4285f4",
+                         //  border: selectedCalendar === calendar.name ? "1px solid #6f42c1" : "none",
+                        }}
+                      />
+                     <Box
+                       sx={{
+                         display: "flex",
+                         alignItems: "center",
+                         gap: 0.5,
+                       }}
+                     >
+                       <Typography
+                         variant="body2"
+                         sx={{
+                           color: selectedCalendar === calendar.name ? "#6f42c1" : "#495057",
+                           fontSize: "0.875rem",
+                           fontWeight: selectedCalendar === calendar.name ? 600 : 400,
+                         }}
+                       >
+                         {calendar.name}
+                       </Typography>
+                       {calendar.isDefault && (
+                         <PushPinIcon
+                           sx={{
+                             fontSize: 16,
+                             color: "#6f42c1",
+                             marginLeft: 1,
+                           }}
+                         />
+                       )}
+                     </Box>
+                   </Box>
+                   <IconButton
+                     size="small"
+                     onClick={(event) => handleMenuOpen(event, calendar)}
+                     sx={{
+                       opacity: 0.6,
+                       transition: "all 0.2s ease",
+                       "&:hover": {
+                         opacity: 1,
+                         backgroundColor: "rgba(111, 66, 193, 0.1)",
+                         transform: "scale(1.1)",
+                       },
+                     }}
+                   >
+                     <MoreVertIcon
+                       sx={{ fontSize: 16, color: "#6c757d" }}
+                     />
+                   </IconButton>
+                 </Box>
+              ))}
+            </Box>
+          </Box>
+        )}
+
         {/* Calendar List */}
         <List sx={{ p: 0 }}>
-          {/* Created Calendars Section */}
-          {createdCalendars.filter((calendar) => {
-            // Map calendar type to filter type - handle both API and form field names
-            const typeMapping = {
-              private: "Private",
-              shared: "Shared",
-              public: "Public",
-            };
-            // Use securityVisibility from API or type from form
-            const calendarTypeValue = (
-              calendar.securityVisibility ||
-              calendar.type ||
-              ""
-            ).toLowerCase();
-            const normalizedType = (calendarType || "").toLowerCase();
 
-            return (
-              typeMapping[calendarTypeValue]?.toLowerCase() === normalizedType
-            );
-          }).length > 0 && (
-            <Box sx={{ mb: 3 }}>
-              {/* Section Header */}
-              {!sidebarCollapsed && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: "#6c757d",
-                      fontWeight: 600,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.5px",
-                      fontSize: "0.7rem",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                      "&::before": {
-                        content: '""',
-                        width: 8,
-                        height: 8,
-                        borderRadius: "50%",
-                        background: "linear-gradient(135deg, #6f42c1, #4285f4)",
-                        display: "inline-block",
-                      },
-                    }}
-                  >
-                    Your {calendarType} Calendars
-                  </Typography>
-                </Box>
-              )}
-
-              {/* Enhanced Calendar Container */}
-              <Box
-                sx={{
-                  background:
-                    "linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%)",
-                  borderRadius: 2.5,
-                  p: 1.5,
-                  position: "relative",
-                  border: "1px solid #e9ecef",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                  "&::before": {
-                    content: '""',
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: 2,
-                    background:
-                      "linear-gradient(90deg, #6f42c1, #4285f4, #6f42c1)",
-                    borderRadius: "2.5px 2.5px 0 0",
-                  },
-                  "&::after": {
-                    content: '""',
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    background:
-                      "radial-gradient(circle at 20% 80%, rgba(111, 66, 193, 0.03) 0%, transparent 50%)",
-                    borderRadius: 2.5,
-                    pointerEvents: "none",
-                  },
-                }}
-              >
-                {createdCalendars
-                  .filter((calendar) => {
-                    const typeMapping = {
-                      private: "Private",
-                      shared: "Shared",
-                      public: "Public",
-                    };
-                    const calendarTypeValue = (calendar.securityVisibility || calendar.type || '').toLowerCase();
-                    const normalizedType = (calendarType || '').toLowerCase();
-                  
-                    return typeMapping[calendarTypeValue]?.toLowerCase() === normalizedType;
-                  })
-                  .map((calendar, index) => (
-                    <ListItem
-                      key={calendar.id}
-                      sx={{
-                        p: 0,
-                        mb: 1,
-                        "&:last-child": { mb: 0 },
-                        animation: "fadeInUp 0.3s ease forwards",
-                        animationDelay: `${index * 0.1}s`,
-                        opacity: 0,
-                        "@keyframes fadeInUp": {
-                          "0%": {
-                            opacity: 0,
-                            transform: "translateY(10px)",
-                          },
-                          "100%": {
-                            opacity: 1,
-                            transform: "translateY(0)",
-                          },
-                        },
-                      }}
-                    >
-                      <Card
-                        sx={{
-                          width: "100%",
-                          background:
-                            selectedCalendar === calendar.name
-                              ? "linear-gradient(135deg, #f0f4ff 0%, #e8f0ff 100%)"
-                              : "linear-gradient(135deg, #ffffff 0%, #fafbfc 100%)",
-                          border:
-                            selectedCalendar === calendar.name
-                              ? "2px solid #6f42c1"
-                              : "1px solid #e9ecef",
-                          borderRadius: 2,
-                          boxShadow:
-                            selectedCalendar === calendar.name
-                              ? "0 4px 12px rgba(111, 66, 193, 0.15)"
-                              : "0 2px 8px rgba(0,0,0,0.08)",
-                          cursor: "pointer",
-                          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                          position: "relative",
-                          overflow: "hidden",
-                          "&::before": {
-                            content: '""',
-                            position: "absolute",
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            height: 2,
-                            background: `linear-gradient(90deg, ${
-                              calendar.colour || calendar.color || "#4285f4"
-                            }, ${
-                              calendar.colour || calendar.color || "#4285f4"
-                            }80)`,
-                            opacity:
-                              selectedCalendar === calendar.name ? 1 : 0.7,
-                            transition: "opacity 0.3s ease",
-                          },
-                          "&:hover": {
-                            boxShadow: "0 8px 25px rgba(0,0,0,0.12)",
-                            transform: "translateY(-2px)",
-                            borderColor: "#6f42c1",
-                            "&::before": {
-                              opacity: 1,
-                            },
-                          },
-                        }}
-                        onClick={() =>
-                          onCalendarSelect && onCalendarSelect(calendar.name)
-                        }
-                      >
-                        <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                            }}
-                          >
-                            <Box
-                              sx={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 1,
-                              }}
-                            >
-                              <Box
-                                sx={{
-                                  width: 12,
-                                  height: 12,
-                                  borderRadius: "50%",
-                                  background: `linear-gradient(135deg, ${
-                                    calendar.colour ||
-                                    calendar.color ||
-                                    "#4285f4"
-                                  }, ${
-                                    calendar.colour ||
-                                    calendar.color ||
-                                    "#4285f4"
-                                  }cc)`,
-                                  mr: 1,
-                                  boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-                                  position: "relative",
-                                  "&::after": {
-                                    content: '""',
-                                    position: "absolute",
-                                    top: "50%",
-                                    left: "50%",
-                                    transform: "translate(-50%, -50%)",
-                                    width: 5,
-                                    height: 5,
-                                    borderRadius: "50%",
-                                    background: "rgba(255,255,255,0.8)",
-                                  },
-                                }}
-                              />
-                              {!sidebarCollapsed && (
-                                <Box sx={{ flex: 1, minWidth: 0 }}>
-                                  <Typography
-                                    variant="body2"
-                                    sx={{
-                                      fontWeight: 600,
-                                      color:
-                                        selectedCalendar === calendar.name
-                                          ? "#6f42c1"
-                                          : "#495057",
-                                      overflow: "hidden",
-                                      textOverflow: "ellipsis",
-                                      whiteSpace: "nowrap",
-                                      fontSize: "0.8rem",
-                                      transition: "color 0.3s ease",
-                                    }}
-                                  >
-                                    {calendar.name}
-                                  </Typography>
-                                  {calendar.description && (
-                                    <Typography
-                                      variant="caption"
-                                      sx={{
-                                        color: "#6c757d",
-                                        fontSize: "0.7rem",
-                                        overflow: "hidden",
-                                        textOverflow: "ellipsis",
-                                        whiteSpace: "nowrap",
-                                        display: "block",
-                                        mt: 0.25,
-                                        fontWeight: 400,
-                                      }}
-                                    >
-                                      {calendar.description}
-                                    </Typography>
-                                  )}
-                                </Box>
-                              )}
-                            </Box>
-                            {!sidebarCollapsed && (
-                              <IconButton
-                                size="small"
-                                onClick={(e) => handleMenuOpen(e, calendar)}
-                                sx={{
-                                  opacity: 0.6,
-                                  transition: "all 0.2s ease",
-                                  "&:hover": {
-                                    opacity: 1,
-                                    backgroundColor: "rgba(111, 66, 193, 0.1)",
-                                    transform: "scale(1.1)",
-                                  },
-                                }}
-                              >
-                                <MoreVertIcon
-                                  sx={{ fontSize: 16, color: "#6c757d" }}
-                                />
-                              </IconButton>
-                            )}
-                          </Box>
-                        </CardContent>
-                      </Card>
-                    </ListItem>
-                  ))}
-              </Box>
-            </Box>
-          )}
 
           {/* Add Calendar Button */}
           <ListItem sx={{ p: 0, mb: 4 }}>
@@ -1625,81 +886,7 @@ const CalendarSidebar = ({
         </List>
       </Box>
 
-      {/* Calendar Settings Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-        PaperProps={{
-          sx: {
-            minWidth: 280,
-            borderRadius: 2,
-            boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-            border: "1px solid #e0e0e0",
-          },
-        }}
-        transformOrigin={{ horizontal: "right", vertical: "top" }}
-        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-      >
-        {/* Header */}
-        {selectedCalendarForMenu && (
-          <Box sx={{ p: 2, borderBottom: "1px solid #e0e0e0" }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-              <Box
-                sx={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: "50%",
-                  backgroundColor:
-                    selectedCalendarForMenu.colour ||
-                    selectedCalendarForMenu.color ||
-                    "#4285f4",
-                }}
-              />
-              <Typography
-                variant="body2"
-                sx={{ fontWeight: 600, color: "#333" }}
-              >
-                {selectedCalendarForMenu.name}
-              </Typography>
-              <VisibilityIcon
-                sx={{ fontSize: 16, color: "#6c757d", ml: "auto" }}
-              />
-            </Box>
-            <Typography variant="caption" sx={{ color: "#6c757d" }}>
-              {selectedCalendarForMenu.type === "default"
-                ? "Default Calendar"
-                : "Created Calendar"}
-            </Typography>
-          </Box>
-        )}
 
-        {/* Menu Items - Rendered from configuration */}
-        {menuItems.map((item, index) =>
-          [
-            <MenuItem key={item.id} onClick={item.action}>
-              <ListItemIcon>
-                <item.icon sx={{ fontSize: 18 }} />
-              </ListItemIcon>
-              <ListItemText primary={item.label} />
-            </MenuItem>,
-            // Add dividers after specific items
-            (index === 3 || index === 6) && (
-              <Divider key={`divider-${item.id}`} />
-            ),
-          ].filter(Boolean)
-        )}
-
-        {/* Delete option - only for created calendars */}
-        {selectedCalendarForMenu?.type !== "default" && (
-          <MenuItem onClick={handleDeleteCalendar} sx={{ color: "#dc3545" }}>
-            <ListItemIcon>
-              <DeleteIcon sx={{ fontSize: 18, color: "#dc3545" }} />
-            </ListItemIcon>
-            <ListItemText primary="Remove calendar" />
-          </MenuItem>
-        )}
-      </Menu>
 
       {/* Calendar Form Dialog */}
       <Dialog
@@ -1758,8 +945,6 @@ const CalendarSidebar = ({
               >
                 {[
                   { id: "basic", label: "Basic" },
-                  { id: "permissions", label: "Permissions" },
-                  { id: "shared", label: "Sharing" },
                   { id: "notifications", label: "Notifications" },
                 ].map((item) => (
                   <Box
@@ -1931,17 +1116,7 @@ const CalendarSidebar = ({
                                 transform: "scale(1.05)",
                                 borderColor: "#6f42c1",
                               },
-                              "&::before": {
-                                content: '""',
-                                position: "absolute",
-                                top: 0,
-                                left: 0,
-                                right: 0,
-                                bottom: 0,
-                                background:
-                                  "linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%)",
-                                animation: "shimmer 2s infinite",
-                              },
+
                             }}
                             onClick={(e) =>
                               setColorPickerAnchorEl(e.currentTarget)
@@ -2037,7 +1212,6 @@ const CalendarSidebar = ({
                             color={field.value}
                             onChange={(col) => {
                               field.onChange(col);
-                              setSelectedColor(col);
                             }}
                             sx={{
                               width: "100%",
@@ -2045,9 +1219,6 @@ const CalendarSidebar = ({
                               boxShadow: "0 2px 12px #4285f455",
                               transition:
                                 "box-shadow 0.3s cubic-bezier(.4,2,.6,1)",
-                              animation:
-                                "colorful-pop 0.5s cubic-bezier(.4,2,.6,1)",
-                              ...colorPickerAnimations,
                             }}
                           />
                         </Box>
@@ -2060,12 +1231,6 @@ const CalendarSidebar = ({
             {/* Settings Sections - Only show when editing existing calendar */}
             {selectedCalendarForDetails && activeSection !== "basic" && (
               <Box sx={{ maxHeight: "50vh", overflow: "auto" }}>
-                {activeSection === "permissions" && (
-                  <PermissionsSection calendar={selectedCalendarForDetails} />
-                )}
-                {activeSection === "shared" && (
-                  <SharedWithSection calendar={selectedCalendarForDetails} />
-                )}
                 {activeSection === "notifications" && (
                   <Box
                     sx={{ display: "flex", flexDirection: "column", gap: 4 }}
@@ -2148,6 +1313,47 @@ const CalendarSidebar = ({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Calendar Options Menu */}
+      <Menu
+        anchorEl={menuAnchorEl}
+        open={Boolean(menuAnchorEl)}
+        onClose={handleMenuClose}
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+            minWidth: 180,
+            mt: 1,
+          },
+        }}
+      >
+        <MenuItem onClick={() => handleMenuAction("edit")}>
+          Edit calendar
+        </MenuItem>
+        <MenuItem onClick={() => handleMenuAction("notification")}>
+          Notification
+        </MenuItem>
+        <MenuItem 
+          onClick={() => handleMenuAction("remove")}
+          sx={{
+            color: "#dc3545 !important",
+            fontWeight: 500,
+            "&:hover": {
+              backgroundColor: "#dc3545 !important",
+              color: "#fff !important",
+            },
+            borderTop: "1px solid #e0e0e0",
+            marginTop: "4px",
+            paddingTop: "12px",
+            "& .MuiTypography-root": {
+              color: "inherit",
+            },
+          }}
+        >
+          Remove calendar
+        </MenuItem>
+      </Menu>
     </Drawer>
   );
 };
