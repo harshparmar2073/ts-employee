@@ -4,3 +4,24 @@ html, body, #root {
     padding: 0;
     box-sizing: border-box;
   }
+
+/* Modern forced colors mode - replaces deprecated -ms-high-contrast */
+@media (forced-colors: active) {
+  /* Modern forced colors mode styles */
+  * {
+    forced-color-adjust: auto;
+  }
+  
+  /* Ensure proper contrast in forced colors mode */
+  .MuiButton-root {
+    forced-color-adjust: none;
+  }
+  
+  .MuiTextField-root {
+    forced-color-adjust: none;
+  }
+  
+  .MuiSelect-root {
+    forced-color-adjust: none;
+  }
+}

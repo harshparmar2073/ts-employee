@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 const axiosService = axios.create({
-  // baseURL: 'https://api.antalyze.uk/v1',
-    baseURL: 'http://localhost:8080/v1',
+  baseURL: 'https://api.antalyze.uk/v1',
+    // baseURL: 'http://localhost:8080/v1',
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
