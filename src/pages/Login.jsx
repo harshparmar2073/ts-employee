@@ -164,7 +164,7 @@ const Login = () => {
 
   async function getAuthTokenFromOAuthCode(code) {
     try {
-      const r = await axiosService.post("/oauth2/token", { code });
+      const r = await axiosService.post("/oauth2/login", { code });
       const data = r.data.data;
 
       if (data.type === "LOGIN") {

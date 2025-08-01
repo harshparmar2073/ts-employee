@@ -10,6 +10,12 @@ import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { enGB } from 'date-fns/locale';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import {
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query'
+
+const queryClient = new QueryClient();
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -17,12 +23,14 @@ createRoot(document.getElementById("root")).render(
       <ThemeProvider theme={theme}>
         <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
           <ToastProvider>
-            <BrowserRouter>
-              <App />
-            </BrowserRouter>
+            <QueryClientProvider client={queryClient}>
+              <BrowserRouter>
+                <App />
+              </BrowserRouter>
+            </QueryClientProvider>
           </ToastProvider>
         </LocalizationProvider>
       </ThemeProvider>
-    </GoogleOAuthProvider>;
+    </GoogleOAuthProvider>
   </StrictMode>
 );
