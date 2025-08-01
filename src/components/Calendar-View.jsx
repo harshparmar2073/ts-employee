@@ -123,9 +123,17 @@ const CalendarView = () => {
     title: "",
     recurrence: null,
   });
+  const [editDialog, setEditDialog] = useState({
+    open: false,
+    eventId: null,
+    title: "",
+    recurrence: null,
+  });
   const [confirmTitle, setConfirmTitle] = useState("");
+  const [confirmEditTitle, setConfirmEditTitle] = useState("");
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [deleteOption, setDeleteOption] = useState("this");
+  const [editOption, setEditOption] = useState("this");
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [eventToView, setEventToView] = useState(null);
   const [eventToEdit, setEventToEdit] = useState(null);
@@ -318,6 +326,18 @@ const CalendarView = () => {
     setDeleteOption("this");
   };
 
+  const handleEditClick = (event) => {
+    const eventId = event.id;
+    const title = event.title;
+    const recurrence = event.extendedProps?.recurrenceRule || null;
+    const instanceStart = event.start;
+
+    setEditDialog({ open: true, eventId, title, recurrence });
+    setSelectedDate(new Date(instanceStart));
+    setConfirmEditTitle("");
+    setEditOption("this");
+  };
+
   const handleConfirmDelete = async () => {
     const { eventId, recurrence } = deleteDialog;
     try {
@@ -357,6 +377,31 @@ const CalendarView = () => {
     setConfirmTitle("");
   };
 
+  const handleConfirmEdit = () => {
+    const { eventId, title, recurrence } = editDialog;
+    
+    // Check if the confirmation title matches
+    if (confirmEditTitle !== title) {
+      alert("Please enter the correct event title to confirm.");
+      return;
+    }
+
+    // Close the view dialog and edit dialog
+    setViewDialogOpen(false);
+    setEditDialog({
+      open: false,
+      eventId: null,
+      title: "",
+      recurrence: null,
+    });
+    setConfirmEditTitle("");
+
+    // Set the event to edit and open the edit form
+    setEventToEdit(eventToView);
+    setDialogOpen(true);
+    setSelectedDate(new Date(eventToView.start));
+  };
+
   const handleUpdateEvent = async (eventData) => {
     const payload = {
       calendarId: selectedCalendarId,
@@ -372,6 +417,8 @@ const CalendarView = () => {
       reference: eventData.reference || "",
       recurrenceRule: eventData.recurrenceRule || null,
       attendees: eventData.attendees || [],
+      editOption: editOption,
+      occurrenceDate: selectedDate.toISOString(),
     };
 
     try {
@@ -385,6 +432,16 @@ const CalendarView = () => {
     }
 
     setDialogOpen(false);
+    
+    // Reset edit dialog state
+    setEditDialog({
+      open: false,
+      eventId: null,
+      title: "",
+      recurrence: null,
+    });
+    setConfirmEditTitle("");
+    setEditOption("this");
   };
 
   const renderEventContent = (eventInfo) => {
@@ -997,9 +1054,7 @@ const CalendarView = () => {
             <Button
               onClick={() => {
                 setViewDialogOpen(false);
-                setEventToEdit(eventToView);
-                setDialogOpen(true);
-                setSelectedDate(new Date(eventToView.start));
+                handleEditClick(eventToView);
               }}
               variant="contained"
               color="primary"
@@ -1116,6 +1171,110 @@ const CalendarView = () => {
               disabled={confirmTitle !== deleteDialog.title}
             >
               Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog
+          open={editDialog.open}
+          TransitionComponent={Transition}
+          keepMounted
+          onClose={() =>
+            setEditDialog({
+              open: false,
+              eventId: null,
+              title: "",
+              recurrence: null,
+            })
+          }
+          maxWidth="xs"
+          fullWidth
+          PaperProps={{
+            sx: { borderRadius: 4, background: "#fff", boxShadow: 10 },
+          }}
+        >
+          <DialogTitle
+            sx={{
+              backgroundColor: "#e3f2fd",
+              color: "#1976d2",
+              fontWeight: 600,
+              px: 3,
+              py: 2,
+            }}
+          >
+            ✏️ Confirm Edit
+          </DialogTitle>
+          <DialogContent sx={{ px: 3, pt: 2, pb: 1 }}>
+            <Typography variant="body1" gutterBottom>
+              Are you sure you want to edit the event{" "}
+              <strong>{editDialog.title}</strong>?
+            </Typography>
+            {editDialog.recurrence && (
+              <RadioGroup
+                value={editOption}
+                onChange={(e) => setEditOption(e.target.value)}
+                sx={{ mb: 2 }}
+              >
+                <FormControlLabel
+                  value="this"
+                  control={<Radio />}
+                  label="Only this event"
+                />
+                <FormControlLabel
+                  value="future"
+                  control={<Radio />}
+                  label="This and future events"
+                />
+                <FormControlLabel
+                  value="all"
+                  control={<Radio />}
+                  label="Entire series"
+                />
+              </RadioGroup>
+            )}
+            <Typography variant="body2" color="text.secondary" mb={2}>
+              Please type the event title to confirm:
+            </Typography>
+            <Box display="flex" alignItems="center" gap={1}>
+              <TextField
+                label="Confirm title"
+                value={confirmEditTitle}
+                onChange={(e) => setConfirmEditTitle(e.target.value)}
+                fullWidth
+                size="small"
+              />
+              <Tooltip title="Copy title">
+                <Button
+                  onClick={() => {
+                    navigator.clipboard.writeText(editDialog.title);
+                    setSnackbarOpen(true);
+                  }}
+                >
+                  <ContentCopyIcon />
+                </Button>
+              </Tooltip>
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
+              onClick={() =>
+                setEditDialog({
+                  open: false,
+                  eventId: null,
+                  title: "",
+                  recurrence: null,
+                })
+              }
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleConfirmEdit}
+              disabled={confirmEditTitle !== editDialog.title}
+            >
+              Edit
             </Button>
           </DialogActions>
         </Dialog>
