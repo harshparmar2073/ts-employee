@@ -82,7 +82,6 @@ const TokenSessions = () => {
   const columns = [
     { field: "authName", headerName: "User", flex: 1 },
     { field: "accountName", headerName: "Acount Name", flex: 1 },
-    { field: "ipaddress", headerName: "IP Address", flex: 1 },
     {
       field: "createdDate",
       headerName: "Created On",
