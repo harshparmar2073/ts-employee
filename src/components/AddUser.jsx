@@ -3,6 +3,7 @@ import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { useToast } from "../context/ToastContext";
+import axiosService from "../services/axiosService";
 import {
   Box,
   Container,
@@ -25,8 +26,7 @@ import {
 import { ArrowBack, ArrowForward, Phone } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import theme from "../theme/theme";
-import PhoneInput from "react-phone-input-2";
-import "react-phone-input-2/lib/style.css";
+import ReactFlagsSelect from "react-flags-select";
 
 // Validation schema
 const validationSchema = yup.object({
@@ -45,10 +45,11 @@ const validationSchema = yup.object({
   phone: yup
     .string()
     .required("Phone number is required")
-    .test("phone-format", "Please enter a valid phone number", (value) => {
+    .test("phone-format", "Please enter exactly 10 digits", (value) => {
       if (!value) return false;
-      // Basic validation for international phone numbers
-      return /^\+[1-9]\d{1,14}$/.test(value);
+      // Remove all non-digit characters and check for exactly 10 digits
+      const digitsOnly = value.replace(/\D/g, '');
+      return digitsOnly.length === 10;
     }),
   street: yup
     .string()
@@ -87,7 +88,7 @@ const validationSchema = yup.object({
   password: yup
     .string()
     .required("Password is required")
-    .min(8, "Password must be at least 8 characters")
+    .min(8, "Password must be at least 6 characters")
     .max(50, "Password must not exceed 50 characters")
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, 
       "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"),
@@ -99,7 +100,25 @@ const AddUser = () => {
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("sm"));
   const { showToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [phoneValue, setPhoneValue] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState("US");
+
+  // Phone number formatting function
+  const formatPhoneNumber = (value) => {
+    // Remove all non-digit characters
+    const digitsOnly = value.replace(/\D/g, '');
+    // Limit to 10 digits
+    const limitedDigits = digitsOnly.slice(0, 10);
+    
+    // Format as (XXX) XXX-XXXX
+    if (limitedDigits.length >= 6) {
+      return `(${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3, 6)}-${limitedDigits.slice(6)}`;
+    } else if (limitedDigits.length >= 3) {
+      return `(${limitedDigits.slice(0, 3)}) ${limitedDigits.slice(3)}`;
+    } else if (limitedDigits.length > 0) {
+      return `(${limitedDigits}`;
+    }
+    return limitedDigits;
+  };
 
 
 
@@ -139,12 +158,32 @@ const AddUser = () => {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      // Simulate API call - replace with actual API call
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      // Prepare the payload for the API
+      const payload = {
+        authName: `${data.firstName} ${data.lastName}`,
+        authUserName: data.email,
+        authPassword: data.password,
+        authStatus: "auth-active",
+        timeZone: "Asia/Calcutta",
+        address: {
+          street: data.street,
+          city: data.city,
+          state: data.state,
+          country: data.country,
+          postcode: data.postcode,
+        },
+        // Additional fields for reference
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phone: data.phone,
+        email: data.email,
+        password: data.password,
+      };
+
+      // Make API call to create user
+      const response = await axiosService.post('/user/create', payload);
       
-      // Here you would typically make an API call like:
-      // const response = await axiosService.post('/user/create', data);
-      
+      console.log('User created successfully:', response.data);
       showToast("User added successfully!", "success");
       navigate(-1);
     } catch (error) {
@@ -164,22 +203,61 @@ const AddUser = () => {
         width: '100%',
         position: 'relative',
         minHeight: '100vh',
-        px: { xs: 2, sm: 4, md: 6, lg: 8 },
-        py: { xs: 2, sm: 4, md: 6, lg: 8 },
+        px: { xs: 1, sm: 2, md: 4, lg: 6 },
+        py: { xs: 1, sm: 2, md: 4, lg: 6 },
+                backgroundColor: '#f5f5f5',
+        '& .flag-select-button-small': {
+          height: '100%',
+          border: 'none',
+          borderRadius: '0',
+          backgroundColor: 'transparent',
+          padding: '0 12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          cursor: 'pointer',
+          minWidth: 'auto',
+          marginRight: '0',
+          borderRight: '1px solid rgba(0, 0, 0, 0.12)',
+          '&:hover': {
+            backgroundColor: 'rgba(0,0,0,0.04)',
+          },
+        },
+        '& .flag-select-options-small': {
+          border: '1px solid rgba(0, 0, 0, 0.23)',
+          borderRadius: '8px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+          maxHeight: '250px',
+          backgroundColor: '#fff',
+          fontSize: '15px',
+          padding: '12px 0',
+          minWidth: '200px',
+        },
+        '& .flag-selected-label-small': {
+          fontSize: '14px',
+          fontWeight: 500,
+          color: theme.palette.text.primary,
+        },
+        '& .flag-secondary-label-small': {
+          fontSize: '13px',
+          color: theme.palette.text.primary,
+          fontWeight: 600,
+        },
       }}
     >
-      <Container maxWidth="lg" sx={{ px: { xs: 1, sm: 2, md: 4 } }}>
+      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2, md: 4 } }}>
         <Card
-          elevation={4}
+          elevation={8}
           sx={{
             mx: 'auto',
-            borderRadius: { xs: 2, sm: 3, md: 4 },
+            borderRadius: { xs: 3, sm: 4, md: 6 },
             position: 'relative',
             overflow: 'hidden',
             backgroundColor: theme.palette.background.paper,
-            p: { xs: 3, sm: 4, md: 6 },
-            maxWidth: { xs: '100%', sm: 800, md: 1000, lg: 1200 },
-            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+            p: { xs: 4, sm: 6, md: 8, lg: 10 },
+            maxWidth: { xs: '100%', sm: 900, md: 1100, lg: 1400 },
+            boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
+            minHeight: { xs: 'auto', sm: '600px' },
           }}
         >
           <CardContent sx={{ p: 0 }}>
@@ -187,20 +265,20 @@ const AddUser = () => {
 
             <form onSubmit={handleSubmit(onSubmit, handleFormError)}>
               {/* Customer Information Section */}
-              <Typography sx={{ fontWeight: theme.typography.fontWeightBold, fontFamily: theme.typography.fontFamily, color: theme.palette.text.primary, mb: 2, fontSize: { xs: 18, sm: 20, md: 22 } }}>
+              <Typography sx={{ fontWeight: theme.typography.fontWeightBold, fontFamily: theme.typography.fontFamily, color: theme.palette.text.primary, mb: 3, fontSize: { xs: 20, sm: 24, md: 28 } }}>
                 Customer Information
               </Typography>
-              <Divider sx={{ mb: 3, borderColor: theme.palette.divider }} />
+              <Divider sx={{ mb: 4, borderColor: theme.palette.divider }} />
               
               <Box
                 sx={{
                   display: "flex",
                   flexWrap: "wrap",
-                  gap: 2,
-                  mb: 2,
+                  gap: { xs: 2, sm: 3 },
+                  mb: 3,
                 }}
               >
-                <Box sx={{ flex: "1 1 48%" }}>
+                <Box sx={{ flex: "1 1 48%", minWidth: { xs: '100%', sm: '300px' } }}>
                   <Controller
                     name="firstName"
                     control={control}
@@ -215,7 +293,7 @@ const AddUser = () => {
                     )}
                   />
                 </Box>
-                <Box sx={{ flex: "1 1 48%" }}>
+                <Box sx={{ flex: "1 1 48%", minWidth: { xs: '100%', sm: '300px' } }}>
                   <Controller
                     name="lastName"
                     control={control}
@@ -232,91 +310,68 @@ const AddUser = () => {
                 </Box>
               </Box>
               
-              <Controller
-                name="phone"
-                control={control}
-                render={({ field }) => (
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" sx={{ mb: 1, color: theme.palette.text.secondary, fontSize: '14px' }}>
-                      Phone Number
-                    </Typography>
-                    <Box
-                      sx={{
-                        '& .react-tel-input': {
-                          fontFamily: theme.typography.fontFamily,
-                        },
-                        '& .form-control': {
-                          width: '100%',
-                          height: '56px',
-                          fontSize: '16px',
-                          border: errors.phone ? '1px solid #d32f2f' : '1px solid #ccc',
-                          borderRadius: '8px',
-                          padding: '8px 12px 8px 50px',
-                          fontFamily: theme.typography.fontFamily,
-                          '&:focus': {
-                            borderColor: errors.phone ? '#d32f2f' : theme.palette.primary.main,
-                            boxShadow: errors.phone ? '0 0 0 2px rgba(211, 47, 47, 0.2)' : `0 0 0 2px ${theme.palette.primary.main}20`,
-                            outline: 'none',
-                          },
-                        },
-                        '& .flag-dropdown': {
-                          backgroundColor: 'transparent',
-                          border: 'none',
-                        },
-                        '& .selected-flag': {
-                          backgroundColor: 'transparent',
-                          borderRadius: '8px 0 0 8px',
-                          '&:hover': {
-                            backgroundColor: 'rgba(0,0,0,0.04)',
-                          },
-                        },
-                        '& .country-list': {
-                          border: '1px solid #ccc',
-                          borderRadius: '8px',
-                          boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-                          maxHeight: '200px',
-                        },
-                        '& .country': {
-                          padding: '8px 12px',
-                          '&:hover': {
-                            backgroundColor: 'rgba(0,0,0,0.04)',
-                          },
-                        },
-                        '& .dial-code': {
-                          color: theme.palette.text.secondary,
-                        },
-                      }}
-                    >
-                      <PhoneInput
-                        country="us"
-                        value={field.value}
-                        onChange={(phone, country) => {
-                          field.onChange(phone);
-                          setPhoneValue(phone);
-                        }}
-                        placeholder="Enter phone number"
-                        enableSearch={true}
-                        searchPlaceholder="Search country..."
+                                <Controller
+                    name="phone"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        label="Phone Number"
+                        placeholder="(555) 123-4567"
+                        error={!!errors.phone}
+                        helperText={errors.phone?.message}
+                        sx={{ mb: 3 }}
                         inputProps={{
-                          required: true,
-                          autoFocus: false,
+                          maxLength: 14, // (XXX) XXX-XXXX = 14 characters
+                        }}
+                        onChange={(e) => {
+                          const formatted = formatPhoneNumber(e.target.value);
+                          field.onChange(formatted);
+                        }}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <ReactFlagsSelect
+                                  selected={selectedCountry}
+                                  onSelect={(countryCode) => setSelectedCountry(countryCode)}
+                                  searchable={true}
+                                  searchPlaceholder="Search..."
+                                  customLabels={{
+                                    US: { primary: "US", secondary: "+1" },
+                                    GB: { primary: "GB", secondary: "+44" },
+                                    CA: { primary: "CA", secondary: "+1" },
+                                    AU: { primary: "AU", secondary: "+61" },
+                                    IN: { primary: "IN", secondary: "+91" },
+                                    DE: { primary: "DE", secondary: "+49" },
+                                    FR: { primary: "FR", secondary: "+33" },
+                                    JP: { primary: "JP", secondary: "+81" },
+                                    BR: { primary: "BR", secondary: "+55" },
+                                    CN: { primary: "CN", secondary: "+86" },
+                                  }}
+                                  selectButtonClassName="flag-select-button-small"
+                                  optionsClassName="flag-select-options-small"
+                                  selectedSize={18}
+                                  showSelectedLabel={true}
+                                  showSecondarySelectedLabel={true}
+                                  selectedLabelClassName="flag-selected-label-small"
+                                  secondarySelectedLabelClassName="flag-secondary-label-small"
+                                />
+                                <Phone sx={{ color: 'action.active' }} />
+                              </Box>
+                            </InputAdornment>
+                          ),
                         }}
                       />
-                    </Box>
-                    {errors.phone && (
-                      <FormHelperText error sx={{ mt: 0.5 }}>
-                        {errors.phone.message}
-                      </FormHelperText>
                     )}
-                  </Box>
-                )}
-              />
+                  />
 
               {/* Address Information Section */}
-              <Typography sx={{ fontWeight: theme.typography.fontWeightBold, fontFamily: theme.typography.fontFamily, color: theme.palette.text.primary, mb: 2, fontSize: { xs: 18, sm: 20, md: 22 } }}>
+              <Typography sx={{ fontWeight: theme.typography.fontWeightBold, fontFamily: theme.typography.fontFamily, color: theme.palette.text.primary, mb: 3,mt: 3, fontSize: { xs: 20, sm: 24, md: 28 } }}>
                 Address Information
               </Typography>
-              <Divider sx={{ mb: 3, borderColor: theme.palette.divider }} />
+              <Divider sx={{ mb: 4, borderColor: theme.palette.divider }} />
               
               <Controller
                 name="street"
@@ -330,19 +385,19 @@ const AddUser = () => {
                     rows={3}
                     error={!!errors.street}
                     helperText={errors.street?.message}
-                    sx={{ mb: 2 }}
+                    sx={{ mb: 3 }}
                   />
                 )}
               />
               
-              <Box
-                sx={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 2,
-                  mb: 2,
-                }}
-              >
+               <Box
+                  sx={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: { xs: 2, sm: 3 },
+                    mb: 3,
+                  }}
+                >
                 <Box sx={{ flex: "1 1 48%" }}>
                   <Controller
                     name="city"
@@ -375,14 +430,14 @@ const AddUser = () => {
                 </Box>
               </Box>
               
-              <Box
-                sx={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 2,
-                  mb: 4,
-                }}
-              >
+                              <Box
+                  sx={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: { xs: 2, sm: 3 },
+                    mb: 4,
+                  }}
+                >
                 <Box sx={{ flex: "1 1 48%" }}>
                   <Controller
                     name="country"
@@ -416,10 +471,10 @@ const AddUser = () => {
               </Box>
 
               {/* Login Information Section */}
-              <Typography sx={{ fontWeight: theme.typography.fontWeightBold, fontFamily: theme.typography.fontFamily, color: theme.palette.text.primary, mb: 2, fontSize: { xs: 18, sm: 20, md: 22 } }}>
+              <Typography sx={{ fontWeight: theme.typography.fontWeightBold, fontFamily: theme.typography.fontFamily, color: theme.palette.text.primary, mb: 3, fontSize: { xs: 20, sm: 24, md: 28 } }}>
                 Login Information
               </Typography>
-              <Divider sx={{ mb: 3, borderColor: theme.palette.divider }} />
+              <Divider sx={{ mb: 4, borderColor: theme.palette.divider }} />
               
               <Controller
                 name="email"
@@ -432,7 +487,7 @@ const AddUser = () => {
                     type="email"
                     error={!!errors.email}
                     helperText={errors.email?.message}
-                    sx={{ mb: 2 }}
+                    sx={{ mb: 3 }}
                   />
                 )}
               />
@@ -448,7 +503,7 @@ const AddUser = () => {
                     type="password"
                     error={!!errors.password}
                     helperText={errors.password?.message}
-                    sx={{ mb: 4 }}
+                    sx={{ mb: 5 }}
                   />
                 )}
               />
@@ -467,15 +522,15 @@ const AddUser = () => {
                   variant="outlined"
                   startIcon={<ArrowBack />}
                   onClick={handleBack}
-                  size="small"
+                  size="medium"
                   sx={{
-                    fontSize: { xs: 12, sm: 14 },
-                    py: { xs: 0.75, sm: 1 },
-                    px: { xs: 2, sm: 3 },
-                    borderRadius: '25px',
+                    fontSize: { xs: 14, sm: 16 },
+                    py: { xs: 1, sm: 1.5 },
+                    px: { xs: 3, sm: 4 },
+                    borderRadius: '8px',
                     textTransform: 'none',
-                    minWidth: 'auto',
-                    height: 'auto',
+                    minWidth: '120px',
+                    height: '48px',
                   }}
                 >
                   Back
@@ -483,17 +538,17 @@ const AddUser = () => {
                 <Button
                   type="submit"
                   variant="contained"
-                  endIcon={isSubmitting ? <CircularProgress size={16} color="inherit" /> : <ArrowForward />}
-                  size="small"
+                  endIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <ArrowForward />}
+                  size="medium"
                   sx={{
-                    fontSize: { xs: 12, sm: 14 },
-                    py: { xs: 0.75, sm: 1 },
-                    px: { xs: 2, sm: 3 },
-                    borderRadius: '25px',
+                    fontSize: { xs: 14, sm: 16 },
+                    py: { xs: 1, sm: 1.5 },
+                    px: { xs: 3, sm: 4 },
+                    borderRadius: '8px',
                     textTransform: 'none',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                    minWidth: 'auto',
-                    height: 'auto',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    minWidth: '120px',
+                    height: '48px',
                   }}
                 >
                   {isSubmitting ? 'Saving...' : 'Save'}
