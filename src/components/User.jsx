@@ -90,7 +90,6 @@ export default function CustomerTable() {
   const [viewMode, setViewMode] = useState('list');
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   const handleViewModeChange = (event, newViewMode) => {
     if (newViewMode !== null) {
@@ -120,7 +119,6 @@ export default function CustomerTable() {
     const fetchUsers = async () => {
       try {
         setLoading(true);
-        setError(null);
         const response = await axiosService.get('/user/list-users');
         console.log('API Response:', response.data);
         
@@ -139,13 +137,11 @@ export default function CustomerTable() {
           showToast(`Successfully loaded ${transformedData.length} users`, 'success');
         } else {
           console.error('Unexpected API response structure:', response.data);
-          setError('Invalid data format received from server.');
           showToast('Invalid data format received from server', 'error');
           setCustomers(customerData);
         }
       } catch (error) {
         console.error('Error fetching users:', error);
-        setError('Failed to load users. Please try again.');
         showToast('Failed to load users. Using sample data instead.', 'warning');
         // Fallback to mock data if API fails
         setCustomers(customerData);
@@ -174,12 +170,7 @@ export default function CustomerTable() {
            alignItems: 'center', 
            mb: 3 
          }}>
-        {/* Error Alert */}
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
+
           <ToggleButtonGroup
             value={viewMode}
             exclusive
@@ -360,7 +351,11 @@ export default function CustomerTable() {
                           px: 3
                         }}
                       >
-                        {customer.address}
+                        {customer.address ? (
+                          typeof customer.address === 'string' 
+                            ? customer.address 
+                            : `${customer.address.street || ''}, ${customer.address.city || ''}, ${customer.address.state || ''}, ${customer.address.country || ''}`
+                        ) : 'No address'}
                       </TableCell>
                       <TableCell 
                         sx={{ 
@@ -500,7 +495,11 @@ export default function CustomerTable() {
                              WebkitBoxOrient: 'vertical'
                            }}
                          >
-                           {customer.address}
+                           {customer.address ? (
+                             typeof customer.address === 'string' 
+                               ? customer.address 
+                               : `${customer.address.street || ''}, ${customer.address.city || ''}, ${customer.address.state || ''}, ${customer.address.country || ''}`
+                           ) : 'No address'}
                          </Typography>
 
                          {/* Website */}
