@@ -145,6 +145,10 @@ const CalendarView = () => {
   const [selectedCalendarId, setSelectedCalendarId] = useState(null);
   const [calendarType, setCalendarType] = useState("Private");
   
+  // AI Voice Input state
+  const [aiVoiceInputVisible, setAiVoiceInputVisible] = useState(false);
+  const [aiVoiceInputValue, setAiVoiceInputValue] = useState("");
+  
   // Calendar management state
   const [createdCalendars, setCreatedCalendars] = useState([]);
 
@@ -159,12 +163,23 @@ const CalendarView = () => {
   // ============================================================================
 
   // Event management handlers
-  const handleCreate = (date) => {
+  const handleCreate = (date, options = {}) => {
     const localMidnight = new Date(date);
     localMidnight.setHours(0, 0, 0, 0);
     setSelectedDate(localMidnight);
     setEventToEdit(null);
-    setDialogOpen(true);
+    
+    if (options.isAI) {
+      // Handle AI event creation
+      console.log('AI Event Creation - Opening AI dialog');
+      // TODO: Open AI-specific dialog with voice input capabilities
+      // For now, just open the regular dialog but mark it as AI mode
+      setDialogOpen(true);
+      // You could set a state to indicate AI mode and show different UI
+    } else {
+      // Regular event creation
+      setDialogOpen(true);
+    }
   };
 
   const handleSaveEvent = async (eventData) => {
@@ -555,6 +570,28 @@ const CalendarView = () => {
     handleCreate(new Date());
   };
 
+  const handleAddAIEvent = () => {
+    // Toggle AI voice input field visibility
+    setAiVoiceInputVisible(!aiVoiceInputVisible);
+    if (!aiVoiceInputVisible) {
+      setAiVoiceInputValue(""); // Clear previous input when opening
+    }
+  };
+
+  const handleCreateFromAI = () => {
+    if (aiVoiceInputValue.trim()) {
+      // TODO: Parse AI input and create event
+      console.log('Creating event from AI input:', aiVoiceInputValue);
+      // For now, just open the regular event dialog with the AI input as title
+      setSelectedDate(new Date());
+      setEventToEdit(null);
+      setDialogOpen(true);
+      // You could set a state to indicate AI mode and pre-fill the form
+      setAiVoiceInputVisible(false);
+      setAiVoiceInputValue("");
+    }
+  };
+
   // Calendar management handlers
   const handleCalendarSelect = (calendarName, calendarId) => {
     console.log("🎯 Calendar selected:", calendarName, "ID:", calendarId);
@@ -690,6 +727,11 @@ const CalendarView = () => {
           renderEventContent={renderEventContent}
           sidebarCollapsed={sidebarCollapsed}
           onAddEvent={handleAddEvent}
+          onAddAIEvent={handleAddAIEvent}
+          aiVoiceInputVisible={aiVoiceInputVisible}
+          aiVoiceInputValue={aiVoiceInputValue}
+          onAiVoiceInputChange={setAiVoiceInputValue}
+          onCreateFromAI={handleCreateFromAI}
         />
 
         {/* Loading overlay - Calendar area only */}

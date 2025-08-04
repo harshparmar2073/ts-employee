@@ -12,8 +12,13 @@ import {
   useMediaQuery,
   useTheme,
   Button,
+  IconButton,
+  Tooltip,
+  TextField,
+  InputAdornment,
+  Collapse,
 } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import { Add as AddIcon, Headphones as HeadphonesIcon, Mic as MicIcon, SmartToy } from '@mui/icons-material';
 
 const CalendarMain = ({ 
   events, 
@@ -21,7 +26,12 @@ const CalendarMain = ({
   onDateClick, 
   renderEventContent,
   sidebarCollapsed,
-  onAddEvent
+  onAddEvent,
+  onAddAIEvent,
+  aiVoiceInputVisible,
+  aiVoiceInputValue,
+  onAiVoiceInputChange,
+  onCreateFromAI
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery("(max-width:600px)");
@@ -98,25 +108,134 @@ const CalendarMain = ({
             >
               📅 Calendar
             </Typography>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={onAddEvent}
-              sx={{
-                color: '#fff',
-                borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 600,
-                px: { xs: 2, sm: 3 },
-                py: { xs: 0.75, sm: 1 },
-                fontSize: { xs: '0.875rem', sm: '1rem' },
-                transition: 'all 0.3s ease',
-                minWidth: { xs: 'auto', sm: '120px' },
-              }}
-            >
-              Add Event
-            </Button>
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={onAddEvent}
+                sx={{
+                  color: '#fff',
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  px: { xs: 2, sm: 3 },
+                  py: { xs: 0.75, sm: 1 },
+                  fontSize: { xs: '0.875rem', sm: '1rem' },
+                  transition: 'all 0.3s ease',
+                  minWidth: { xs: 'auto', sm: '120px' },
+                }}
+              >
+                Add Event
+              </Button>
+              <Tooltip title="AI-powered Event Creation (Voice Input)">
+                <Button
+                  variant="contained"
+                  startIcon={<SmartToy/>}
+                  onClick={onAddAIEvent}
+                  sx={{
+                    color: '#fff',
+                    // backgroundColor: '#6c5ce7',
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    px: { xs: 2, sm: 3 },
+                    py: { xs: 0.75, sm: 1 },
+                    fontSize: { xs: '0.875rem', sm: '1rem' },
+                    transition: 'all 0.3s ease',
+                    minWidth: { xs: 'auto', sm: '140px' },
+                    // '&:hover': {
+                    //   backgroundColor: '#5f4dd0',
+                    //   transform: 'translateY(-1px)',
+                    //   boxShadow: '0 4px 8px rgba(108, 92, 231, 0.3)',
+                    // },
+                  }}
+                >
+                  AI Event
+                </Button>
+              </Tooltip>
+            </Box>
           </Box>
+          
+          {/* AI Voice Input Field */}
+          <Collapse in={aiVoiceInputVisible}>
+            <Box sx={{ 
+              p: { xs: 2, sm: 3 }, 
+              pt: 0,
+              pb: 2,
+              borderBottom: '1px solid #e9ecef',
+              backgroundColor: '#f8f9fa'
+            }}>
+              <TextField
+                fullWidth
+                placeholder="Speak or type your event details here..."
+                value={aiVoiceInputValue}
+                onChange={(e) => onAiVoiceInputChange(e.target.value)}
+                variant="outlined"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <IconButton
+                        size="small"
+                        sx={{ 
+                          color: '#6c5ce7',
+                          '&:hover': {
+                            backgroundColor: 'rgba(108, 92, 231, 0.1)',
+                          }
+                        }}
+                      >
+                        <MicIcon />
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <Button
+                        variant="contained"
+                        size="small"
+                        onClick={onCreateFromAI}
+                        disabled={!aiVoiceInputValue.trim()}
+                        sx={{
+                          // backgroundColor: '#6c5ce7',
+                          color: '#fff',
+                          borderRadius: 1.5,
+                          px: 2,
+                          py: 0.5,
+                          fontSize: '0.875rem',
+                          fontWeight: 600,
+                          textTransform: 'none',
+                          // '&:hover': {
+                          //   backgroundColor: '#5f4dd0',
+                          // },
+                          '&:disabled': {
+                            backgroundColor: '#ccc',
+                            color: '#666',
+                          }
+                        }}
+                      >
+                        Create Event
+                      </Button>
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 2,
+                    backgroundColor: '#fff',
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#6c5ce7',
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: '#6c5ce7',
+                    },
+                  },
+                  '& .MuiInputBase-input': {
+                    fontSize: '1rem',
+                    fontWeight: 500,
+                  },
+                }}
+              />
+            </Box>
+          </Collapse>
           
           {/* Calendar Container */}
           <Box sx={{ 
