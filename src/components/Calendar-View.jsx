@@ -64,7 +64,7 @@ import {
   Public as PublicIcon,
   ChevronRight as ChevronRightIcon,
   ChevronLeft as ChevronLeftIcon,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -72,9 +72,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 
 import { rrulestr } from "rrule";
 
-
-
-
+import LinkGoogleCalendarButton from "./LinkGoogleCalendarButton";
 
 // RRule parsing utility
 const parseRRuleString = (ruleStr, dtstart) => {
@@ -95,8 +93,6 @@ const formatDuration = (startISO, endISO) => {
 
   return `${hours}:${minutes}`;
 };
-
-
 
 // ============================================================================
 // MAIN COMPONENT
@@ -138,17 +134,19 @@ const CalendarView = () => {
   const [eventToView, setEventToView] = useState(null);
   const [eventToEdit, setEventToEdit] = useState(null);
 
-    // Layout state
+  // Layout state
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
-  const [selectedCalendar, setSelectedCalendar] = useState("My Personal Calendar");
+  const [selectedCalendar, setSelectedCalendar] = useState(
+    "My Personal Calendar"
+  );
   const [selectedCalendarId, setSelectedCalendarId] = useState(null);
   const [calendarType, setCalendarType] = useState("Private");
-  
+
   // AI Voice Input state
   const [aiVoiceInputVisible, setAiVoiceInputVisible] = useState(false);
   const [aiVoiceInputValue, setAiVoiceInputValue] = useState("");
-  
+
   // Calendar management state
   const [createdCalendars, setCreatedCalendars] = useState([]);
 
@@ -168,10 +166,10 @@ const CalendarView = () => {
     localMidnight.setHours(0, 0, 0, 0);
     setSelectedDate(localMidnight);
     setEventToEdit(null);
-    
+
     if (options.isAI) {
       // Handle AI event creation
-      console.log('AI Event Creation - Opening AI dialog');
+      console.log("AI Event Creation - Opening AI dialog");
       // TODO: Open AI-specific dialog with voice input capabilities
       // For now, just open the regular dialog but mark it as AI mode
       setDialogOpen(true);
@@ -229,16 +227,20 @@ const CalendarView = () => {
     setIsLoadingEvents(true);
 
     try {
-        const response = await axiosService.get("/calendar-events/load", {
-          params: { 
-            from, 
-            to,
-            calendarId: selectedCalendarId 
-          },
-        });
+      const response = await axiosService.get("/calendar-events/load", {
+        params: {
+          from,
+          to,
+          calendarId: selectedCalendarId,
+        },
+      });
 
-        console.log("📅 API /load response:", response.data);
-        console.log("📅 Request params:", { from, to, calendarId: selectedCalendarId });
+      console.log("📅 API /load response:", response.data);
+      console.log("📅 Request params:", {
+        from,
+        to,
+        calendarId: selectedCalendarId,
+      });
 
       const fetchedEvents = response.data.map((event) => {
         const minutes = differenceInMinutes(
@@ -298,12 +300,18 @@ const CalendarView = () => {
       const response = await axiosService.get("/calendar/getList/");
       console.log("📅 Calendars loaded:", response.data);
       setCreatedCalendars(response.data); // Or `response.data.data` if using `ApiResponse`
-      
+
       // Set default calendar if available
       if (response.data && response.data.length > 0) {
-        const defaultCalendar = response.data.find(cal => cal.isDefault) || response.data[0];
+        const defaultCalendar =
+          response.data.find((cal) => cal.isDefault) || response.data[0];
         if (defaultCalendar) {
-          console.log("🎯 Setting default calendar:", defaultCalendar.name, "ID:", defaultCalendar.id);
+          console.log(
+            "🎯 Setting default calendar:",
+            defaultCalendar.name,
+            "ID:",
+            defaultCalendar.id
+          );
           setSelectedCalendar(defaultCalendar.name);
           setSelectedCalendarId(defaultCalendar.id);
         }
@@ -312,7 +320,7 @@ const CalendarView = () => {
       console.error("❌ Failed to load calendars:", error);
     }
   };
-  
+
   useEffect(() => {
     fetchCalendars();
   }, []);
@@ -394,7 +402,7 @@ const CalendarView = () => {
 
   const handleConfirmEdit = () => {
     const { eventId, title, recurrence } = editDialog;
-    
+
     // Check if the confirmation title matches
     if (confirmEditTitle !== title) {
       alert("Please enter the correct event title to confirm.");
@@ -447,7 +455,7 @@ const CalendarView = () => {
     }
 
     setDialogOpen(false);
-    
+
     // Reset edit dialog state
     setEditDialog({
       open: false,
@@ -461,17 +469,17 @@ const CalendarView = () => {
 
   const renderEventContent = (eventInfo) => {
     const { title, start, end, extendedProps } = eventInfo.event;
-  
+
     const formattedStart = new Date(start).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
+      hour: "2-digit",
+      minute: "2-digit",
     });
-  
+
     const formattedEnd = new Date(end).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
+      hour: "2-digit",
+      minute: "2-digit",
     });
-  
+
     return (
       <Box
         sx={{
@@ -500,49 +508,53 @@ const CalendarView = () => {
         >
           {title}
         </Typography>
-  
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mt: 0.3 }}>
+
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mt: 0.3 }}>
           <ScheduleIcon sx={{ fontSize: 16, opacity: 0.9 }} />
           <Typography
             sx={{
-              fontSize: '0.85rem',
+              fontSize: "0.85rem",
               fontWeight: 500,
               opacity: 0.9,
-              color: '#fff',
+              color: "#fff",
             }}
           >
             {formattedStart} – {formattedEnd}
           </Typography>
         </Box>
-  
+
         {extendedProps.durationText && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mt: 0.2 }}>
+          <Box
+            sx={{ display: "flex", alignItems: "center", gap: 0.8, mt: 0.2 }}
+          >
             <AccessTimeIcon sx={{ fontSize: 16, opacity: 0.8 }} />
             <Typography
               sx={{
-                fontSize: '0.85rem',
+                fontSize: "0.85rem",
                 fontWeight: 500,
                 opacity: 0.85,
-                color: '#fff',
+                color: "#fff",
               }}
             >
               {extendedProps.durationText}
             </Typography>
           </Box>
         )}
-  
+
         {extendedProps.timezone && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8, mt: 0.2 }}>
+          <Box
+            sx={{ display: "flex", alignItems: "center", gap: 0.8, mt: 0.2 }}
+          >
             <PublicIcon sx={{ fontSize: 16, opacity: 0.85 }} />
             <Typography
               sx={{
-                fontSize: '0.85rem',
+                fontSize: "0.85rem",
                 fontWeight: 500,
                 opacity: 0.85,
-                color: '#fff',
-                textOverflow: 'ellipsis',
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
+                color: "#fff",
+                textOverflow: "ellipsis",
+                overflow: "hidden",
+                whiteSpace: "nowrap",
               }}
             >
               {extendedProps.timezone}
@@ -581,7 +593,7 @@ const CalendarView = () => {
   const handleCreateFromAI = () => {
     if (aiVoiceInputValue.trim()) {
       // TODO: Parse AI input and create event
-      console.log('Creating event from AI input:', aiVoiceInputValue);
+      console.log("Creating event from AI input:", aiVoiceInputValue);
       // For now, just open the regular event dialog with the AI input as title
       setSelectedDate(new Date());
       setEventToEdit(null);
@@ -600,75 +612,125 @@ const CalendarView = () => {
   };
 
   const handleCalendarSettings = useCallback((calendar, action) => {
-    console.log('Calendar settings action:', action, 'for calendar:', calendar);
+    console.log("Calendar settings action:", action, "for calendar:", calendar);
     // This will be handled by CalendarSidebar now
   }, []);
 
-  const handleCalendarDelete = useCallback(async (calendar) => {
-    console.log('Deleting calendar:', calendar);
-    
-    try {
-      // Call API to delete calendar from server
-      setCreatedCalendars(prev => prev.filter(cal => cal.id !== calendar.id));
-    
-    if (selectedCalendar === calendar.name) {
-      setSelectedCalendar("My Personal Calendar");
-    }
-      
-      // Show success notification
-      showToast(`Calendar "${calendar.name}" has been deleted successfully`, 'success');
-    } catch (error) {
-      console.error("❌ Failed to delete calendar:", error);
-      // Show error notification
-      showToast(`Failed to delete calendar "${calendar.name}". Please try again.`, 'error');
-    }
-  }, [selectedCalendar, showToast]);
+  const handleCalendarDelete = useCallback(
+    async (calendar) => {
+      console.log("Deleting calendar:", calendar);
 
-  const handleCalendarCreate = useCallback(async (newCalendar) => {
-    try {
-      const response = await axiosService.post("/calendar", newCalendar);
-      console.log("✅ Calendar created:", response.data);
-  
-      // Add the returned calendar to the state
-      setCreatedCalendars((prev) => [...prev, response.data.data]);
-      
-      // Show success notification
-      showToast(`Calendar "${newCalendar.name}" has been created successfully`, 'success');
-    } catch (error) {
-      console.error("❌ Failed to create calendar:", error);
-      // Show error notification
-      showToast(`Failed to create calendar "${newCalendar.name}". Please try again.`, 'error');
-    }
-  }, [showToast]);
+      try {
+        // Call API to delete calendar from server
+        setCreatedCalendars((prev) =>
+          prev.filter((cal) => cal.id !== calendar.id)
+        );
 
-  const handleCalendarUpdate = useCallback(async (updatedCalendar) => {
-    try {
-      const response = await axiosService.put(`/calendar/${updatedCalendar.id}`, updatedCalendar);
-      console.log("✅ Calendar updated:", response.data);
-  
-      // Update state with latest server data
-      setCreatedCalendars(prev =>
-        prev.map(cal => cal.id === updatedCalendar.id ? response.data.data : cal)
-      );
-      
-      // Show success notification
-      showToast(`Calendar "${updatedCalendar.name}" has been updated successfully`, 'success');
-    } catch (error) {
-      console.error("❌ Failed to update calendar:", error);
-      // Show error notification
-      showToast(`Failed to update calendar "${updatedCalendar.name}". Please try again.`, 'error');
-    }
-  }, [showToast]);
+        if (selectedCalendar === calendar.name) {
+          setSelectedCalendar("My Personal Calendar");
+        }
+
+        // Show success notification
+        showToast(
+          `Calendar "${calendar.name}" has been deleted successfully`,
+          "success"
+        );
+      } catch (error) {
+        console.error("❌ Failed to delete calendar:", error);
+        // Show error notification
+        showToast(
+          `Failed to delete calendar "${calendar.name}". Please try again.`,
+          "error"
+        );
+      }
+    },
+    [selectedCalendar, showToast]
+  );
+
+  const handleCalendarCreate = useCallback(
+    async (newCalendar) => {
+      try {
+        const response = await axiosService.post("/calendar", newCalendar);
+        console.log("✅ Calendar created:", response.data);
+
+        // Add the returned calendar to the state
+        setCreatedCalendars((prev) => [...prev, response.data.data]);
+
+        // Show success notification
+        showToast(
+          `Calendar "${newCalendar.name}" has been created successfully`,
+          "success"
+        );
+      } catch (error) {
+        console.error("❌ Failed to create calendar:", error);
+        // Show error notification
+        showToast(
+          `Failed to create calendar "${newCalendar.name}". Please try again.`,
+          "error"
+        );
+      }
+    },
+    [showToast]
+  );
+
+  const [googleEvents, setGoogleEvents] = useState([]);
+
+  const handleGoogleEvents = (apiEvents) => {
+    const formatted = apiEvents.map((event) => ({
+      id: event.id,
+      title: event.summary || "Untitled",
+      start: event.start?.dateTime || event.start?.date,
+      end: event.end?.dateTime || event.end?.date,
+      allDay: !event.start?.dateTime,
+    }));
+
+    setGoogleEvents(formatted);
+  };
+
+  const handleCalendarUpdate = useCallback(
+    async (updatedCalendar) => {
+      try {
+        const response = await axiosService.put(
+          `/calendar/${updatedCalendar.id}`,
+          updatedCalendar
+        );
+        console.log("✅ Calendar updated:", response.data);
+
+        // Update state with latest server data
+        setCreatedCalendars((prev) =>
+          prev.map((cal) =>
+            cal.id === updatedCalendar.id ? response.data.data : cal
+          )
+        );
+
+        // Show success notification
+        showToast(
+          `Calendar "${updatedCalendar.name}" has been updated successfully`,
+          "success"
+        );
+      } catch (error) {
+        console.error("❌ Failed to update calendar:", error);
+        // Show error notification
+        showToast(
+          `Failed to update calendar "${updatedCalendar.name}". Please try again.`,
+          "error"
+        );
+      }
+    },
+    [showToast]
+  );
 
   return (
-    <Box sx={{ 
-      display: 'flex', 
-      height: '100vh', 
-      overflow: 'hidden',
-      width: '100%',
-      maxWidth: '100%',
-      position: 'relative',
-    }}>
+    <Box
+      sx={{
+        display: "flex",
+        height: "100vh",
+        overflow: "hidden",
+        width: "100%",
+        maxWidth: "100%",
+        position: "relative",
+      }}
+    >
       {/* Sidebar */}
       <CalendarSidebar
         sidebarCollapsed={sidebarCollapsed}
@@ -683,44 +745,59 @@ const CalendarView = () => {
         onCalendarCreate={handleCalendarCreate}
         onCalendarUpdate={handleCalendarUpdate}
       />
-      
+
       {/* Expand/Collapse Button - Always Visible */}
       <IconButton
         onClick={handleToggleSidebar}
         sx={{
-          position: 'fixed',
+          position: "fixed",
           top: { xs: 80, sm: 20 },
           left: sidebarCollapsed ? { xs: 10, sm: 20 } : { xs: 250, sm: 300 },
           zIndex: 1200,
-          background: '#fff',
-          border: '1px solid #e0e0e0',
+          background: "#fff",
+          border: "1px solid #e0e0e0",
           boxShadow: 2,
-          '&:hover': {
-            background: '#f5f5f5',
+          "&:hover": {
+            background: "#f5f5f5",
             boxShadow: 3,
           },
-          transition: 'all 0.3s ease',
+          transition: "all 0.3s ease",
         }}
         size="medium"
       >
         {sidebarCollapsed ? <ChevronRightIcon /> : <ChevronLeftIcon />}
       </IconButton>
-      
+
       {/* Main content */}
       <Box
         sx={{
           flexGrow: 1,
-          display: 'flex',
-          flexDirection: 'column',
+          display: "flex",
+          flexDirection: "column",
           minWidth: 0,
-          overflow: 'hidden',
-          width: '100%',
-          maxWidth: '100%',
-          position: 'relative',
+          overflow: "hidden",
+          width: "100%",
+          maxWidth: "100%",
+          position: "relative",
         }}
       >
+        <LinkGoogleCalendarButton
+          onSuccess={(googleEvents) => {
+            console.log("Google Calendar events:", googleEvents);
+
+            const formatted = googleEvents.map((event, index) => ({
+              id: index.toString(), // fallback id
+              title: event.title || "Untitled Event",
+              start: event.startDateTime,
+              end: event.endDateTime,
+              allDay: !event.startDateTime?.includes("T"), // optional logic
+            }));
+
+            setEvents(formatted);
+          }}
+        />
         {/* Main calendar content */}
-        <CalendarMain 
+        <CalendarMain
           events={events}
           onEventClick={handleEventClick}
           onDateClick={({ dateStr }) => handleCreate(new Date(dateStr))}
@@ -738,29 +815,29 @@ const CalendarView = () => {
         {isLoadingEvents && (
           <Box
             sx={{
-              position: 'absolute',
+              position: "absolute",
               top: 0,
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.6)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              backgroundColor: "rgba(0, 0, 0, 0.6)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
               zIndex: 1000,
               borderRadius: 1,
             }}
           >
             <Box
               sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
                 gap: 1.5,
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                backgroundColor: "rgba(255, 255, 255, 0.95)",
                 borderRadius: 2,
                 padding: 3,
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+                boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
                 minWidth: 200,
               }}
             >
@@ -768,19 +845,19 @@ const CalendarView = () => {
                 size={40}
                 thickness={3}
                 sx={{
-                  color: '#6f42c1',
-                  '& .MuiCircularProgress-circle': {
-                    strokeLinecap: 'round',
+                  color: "#6f42c1",
+                  "& .MuiCircularProgress-circle": {
+                    strokeLinecap: "round",
                   },
                 }}
               />
               <Typography
                 variant="body1"
                 sx={{
-                  color: '#333',
+                  color: "#333",
                   fontWeight: 500,
-                  textAlign: 'center',
-                  fontSize: '0.9rem',
+                  textAlign: "center",
+                  fontSize: "0.9rem",
                 }}
               >
                 Loading events...
@@ -789,7 +866,7 @@ const CalendarView = () => {
           </Box>
         )}
 
-    <Fab
+        <Fab
           color="primary"
           aria-label="add"
           onClick={() => handleCreate(new Date())}
@@ -869,7 +946,9 @@ const CalendarView = () => {
             }}
           >
             {/* Title as first field */}
-            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1.5 }}>
+            <Box
+              sx={{ display: "flex", alignItems: "center", gap: 2, mb: 1.5 }}
+            >
               <LocalOfferIcon sx={{ fontSize: 28 }} />
               <Box>
                 <Typography
@@ -966,14 +1045,17 @@ const CalendarView = () => {
                   }
                   sx={{ mt: 0.2 }}
                 >
-                  {eventToView?.extendedProps?.recurrenceRule || "No recurrence"}
+                  {eventToView?.extendedProps?.recurrenceRule ||
+                    "No recurrence"}
                 </Typography>
               </Box>
             </Box>
             <Divider sx={{ my: 1.5 }} />
             {/* Meeting Link */}
             {eventToView?.extendedProps?.meetingUrl && (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+              <Box
+                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
+              >
                 <LinkIcon color="primary" />
                 <Box>
                   <Typography variant="overline" color="text.secondary">
@@ -1365,10 +1447,6 @@ const CalendarView = () => {
           onClose={() => setSnackbarOpen(false)}
           message="Copied to clipboard"
         />
-
-
-
-
       </Box>
     </Box>
   );
