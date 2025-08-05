@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -13,19 +13,34 @@ import {
   TextField,
   Button,
   CircularProgress,
-  Divider,
   useTheme,
   useMediaQuery,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   InputAdornment,
-  FormHelperText,
+  Collapse,
+  Switch,
+  FormControlLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Alert,
+  Chip,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
-import { ArrowBack, ArrowForward, Phone } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
-import theme from "../theme/theme";
+import { 
+  ArrowBack, 
+  ArrowForward, 
+  Phone, 
+  LockReset,
+  Visibility,
+  VisibilityOff,
+  ContentCopy,
+  Security,
+  Warning,
+  Email as EmailIcon
+} from "@mui/icons-material";
+import { useNavigate, useLocation } from "react-router-dom";
 import ReactFlagsSelect from "react-flags-select";
 
 // Validation schema
@@ -87,20 +102,42 @@ const validationSchema = yup.object({
     .max(100, "Email must not exceed 100 characters"),
   password: yup
     .string()
-    .required("Password is required")
-    .min(8, "Password must be at least 6 characters")
-    .max(50, "Password must not exceed 50 characters")
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, 
-      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"),
+    .when('isEditMode', {
+      is: true,
+      then: (schema) => schema.notRequired(),
+      otherwise: (schema) => schema.required("Password is required")
+        .min(8, "Password must be at least 8 characters")
+        .max(50, "Password must not exceed 50 characters")
+        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, 
+          "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"),
+    }),
 });
 
 const AddUser = () => {
-  const muiTheme = useTheme();
+  const theme = useTheme();
   const navigate = useNavigate();
-  const isMobile = useMediaQuery(muiTheme.breakpoints.down("sm"));
+  const location = useLocation();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { showToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedCountry, setSelectedCountry] = useState("US");
+  const [selectedCountry, setSelectedCountry] = useState("GB");
+
+  // Toggle states for collapsible sections
+  const [isAddressCollapsed, setIsAddressCollapsed] = useState(false);
+
+  // Reset Password states
+  const [resetPasswordDialog, setResetPasswordDialog] = useState(false);
+  const [resetConfirmDialog, setResetConfirmDialog] = useState(false);
+  const [tempPasswordDialog, setTempPasswordDialog] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [tempPassword, setTempPassword] = useState("");
+  const [showTempPassword, setShowTempPassword] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
+
+  // Check if we're in edit mode
+  const isEditMode = location.state?.isEditMode || false;
+  const userData = location.state?.userData || null;
+  const userId = location.state?.userId || null;
 
   // Phone number formatting function
   const formatPhoneNumber = (value) => {
@@ -120,28 +157,68 @@ const AddUser = () => {
     return limitedDigits;
   };
 
-
+  // Parse user data for form
+  const parseUserData = (data) => {
+    if (!data) return {};
+    
+    console.log('Parsing user data for form:', data);
+    
+    // Extract name parts from authName
+    const nameParts = (data.customerName || '').split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    
+    // Extract email from website (mailto: format)
+    const email = data.website?.replace('mailto:', '') || '';
+    
+    // Parse address from originalData if available, otherwise from address field
+    let address = {};
+    if (data.originalData && data.originalData.address) {
+      // Use the original address object from API
+      address = data.originalData.address;
+      console.log('Using original address data:', address);
+    } else if (typeof data.address === 'string') {
+      address.street = data.address;
+      console.log('Using string address data:', address);
+    } else if (data.address && typeof data.address === 'object') {
+      address = data.address;
+      console.log('Using object address data:', address);
+    }
+    
+    const parsedData = {
+      firstName,
+      lastName,
+      email,
+      phone: data.originalData?.phone || '', // Try to get phone from original data
+      street: address.street || '',
+      city: address.city || '',
+      state: address.state || '',
+      country: address.country || '',
+      postcode: address.postcode || '',
+      password: '', // Don't pre-fill password for security
+    };
+    
+    console.log('Parsed form data:', parsedData);
+    return parsedData;
+  };
 
   const {
     control,
     handleSubmit,
     formState: { errors },
+    reset,
   } = useForm({
     resolver: yupResolver(validationSchema),
     mode: "onChange",
-    defaultValues: {
-      firstName: "",
-      lastName: "",
-      phone: "",
-      street: "",
-      city: "",
-      state: "",
-      country: "",
-      postcode: "",
-      email: "",
-      password: "",
-    },
+    defaultValues: parseUserData(userData),
   });
+
+  // Reset form when userData changes (for edit mode)
+  useEffect(() => {
+    if (userData && isEditMode) {
+      reset(parseUserData(userData));
+    }
+  }, [userData, isEditMode, reset]);
 
   const handleBack = () => {
     showToast("Changes discarded", "info");
@@ -153,43 +230,118 @@ const AddUser = () => {
     showToast("Please fix the form errors before submitting", "warning");
   };
 
+  // Professional Reset Password Functions
+  const handleResetPasswordClick = () => {
+    setResetConfirmDialog(true);
+  };
 
+  const handleResetPasswordConfirm = async () => {
+    setIsResettingPassword(true);
+    setResetConfirmDialog(false);
+    
+    try {
+      // Mock API call - simulate sending reset password email
+      console.log('Simulating reset password email for user:', userId);
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Mock successful response
+      const mockResponse = {
+        success: true,
+        message: 'Reset email sent successfully',
+        email: userData?.website?.replace('mailto:', '') || 'user@example.com',
+        resetLink: 'https://example.com/reset-password?token=mock-token'
+      };
+
+      console.log('Mock reset password email sent successfully:', mockResponse);
+      setResetSuccess(true);
+      setTempPasswordDialog(true);
+      showToast("Password reset email sent successfully! (Mock)", "success");
+      
+    } catch (error) {
+      console.error('Error in mock reset password:', error);
+      showToast("Failed to send reset password email. Please try again.", "error");
+    } finally {
+      setIsResettingPassword(false);
+    }
+  };
+
+  const handleCloseTempPasswordDialog = () => {
+    setTempPasswordDialog(false);
+    setResetSuccess(false);
+  };
+
+  const handleCloseResetConfirmDialog = () => {
+    setResetConfirmDialog(false);
+  };
 
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
-      // Prepare the payload for the API
-      const payload = {
-        authName: `${data.firstName} ${data.lastName}`,
-        authUserName: data.email,
-        authPassword: data.password,
-        authStatus: "auth-active",
-        timeZone: "Asia/Calcutta",
-        address: {
-          street: data.street,
-          city: data.city,
-          state: data.state,
-          country: data.country,
-          postcode: data.postcode,
-        },
-        // Additional fields for reference
-        firstName: data.firstName,
-        lastName: data.lastName,
-        phone: data.phone,
-        email: data.email,
-        password: data.password,
-      };
+      if (isEditMode) {
+        // Update existing user
+        const payload = {
+          id: userId,
+          authName: `${data.firstName} ${data.lastName}`,
+          authUserName: data.email,
+          authStatus: "auth-active",
+          timeZone: "Asia/Calcutta",
+          address: {
+            street: data.street,
+            city: data.city,
+            state: data.state,
+            country: data.country,
+            postcode: data.postcode,
+          },
+          // Additional fields for reference
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phone: data.phone,
+          email: data.email,
+        };
 
-      // Make API call to create user
-      const response = await axiosService.post('/user/create', payload);
+        // Only include password if it was provided
+        if (data.password) {
+          payload.authPassword = data.password;
+        }
+
+        const response = await axiosService.put(`/user/update/${userId}`, payload);
+        console.log('User updated successfully:', response.data);
+        showToast("User updated successfully!", "success");
+      } else {
+        // Create new user
+        const payload = {
+          authName: `${data.firstName} ${data.lastName}`,
+          authUserName: data.email,
+          authPassword: data.password,
+          authStatus: "auth-active",
+          timeZone: "Asia/Calcutta",
+          address: {
+            street: data.street,
+            city: data.city,
+            state: data.state,
+            country: data.country,
+            postcode: data.postcode,
+          },
+          // Additional fields for reference
+          firstName: data.firstName,
+          lastName: data.lastName,
+          phone: data.phone,
+          email: data.email,
+          password: data.password,
+        };
+
+        const response = await axiosService.post('/user/create', payload);
+        console.log('User created successfully:', response.data);
+        showToast("User added successfully!", "success");
+      }
       
-      console.log('User created successfully:', response.data);
-      showToast("User added successfully!", "success");
       navigate(-1);
     } catch (error) {
-      console.error('Error adding user:', error);
+      console.error('Error saving user:', error);
       showToast(
-        error.response?.data?.message || "Failed to add user. Please try again.", 
+        error.response?.data?.message || `Failed to ${isEditMode ? 'update' : 'add'} user. Please try again.`, 
         "error"
       );
     } finally {
@@ -200,281 +352,206 @@ const AddUser = () => {
   return (
     <Box
       sx={{
-        width: '100%',
-        position: 'relative',
-        minHeight: '100vh',
-        px: { xs: 1, sm: 2, md: 4, lg: 6 },
-        py: { xs: 1, sm: 2, md: 4, lg: 6 },
-                backgroundColor: '#f5f5f5',
-        '& .flag-select-button-small': {
-          height: '100%',
-          border: 'none',
-          borderRadius: '0',
-          backgroundColor: 'transparent',
-          padding: '0 12px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          cursor: 'pointer',
-          minWidth: 'auto',
-          marginRight: '0',
-          borderRight: '1px solid rgba(0, 0, 0, 0.12)',
-          '&:hover': {
-            backgroundColor: 'rgba(0,0,0,0.04)',
-          },
-        },
-        '& .flag-select-options-small': {
-          border: '1px solid rgba(0, 0, 0, 0.23)',
-          borderRadius: '8px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-          maxHeight: '250px',
-          backgroundColor: '#fff',
-          fontSize: '15px',
-          padding: '12px 0',
-          minWidth: '200px',
-        },
-        '& .flag-selected-label-small': {
-          fontSize: '14px',
-          fontWeight: 500,
-          color: theme.palette.text.primary,
-        },
-        '& .flag-secondary-label-small': {
-          fontSize: '13px',
-          color: theme.palette.text.primary,
-          fontWeight: 600,
+        minHeight: "100vh",
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        // background: theme.palette.background.gradientBackground,
+        padding: { xs: 1, sm: 2 },
+        position: "relative",
+        overflow: "auto",
+        "&::before": {
+          content: '""',
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background:
+            "radial-gradient(circle at 20% 80%, rgba(255,255,255,0.1) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255,255,255,0.15) 0%, transparent 50%)",
+          pointerEvents: "none",
         },
       }}
     >
-      <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2, md: 4 } }}>
+      <Container
+        maxWidth="md"
+        sx={{
+          px: { xs: 1, sm: 2, md: 4 },
+        }}
+      >
         <Card
-          elevation={8}
+          elevation={3}
           sx={{
-            mx: 'auto',
-            borderRadius: { xs: 3, sm: 4, md: 6 },
-            position: 'relative',
-            overflow: 'hidden',
+            mx: "auto",
+            borderRadius: { xs: 1, sm: 2 },
+            position: "relative",
+            overflow: "hidden",
             backgroundColor: theme.palette.background.paper,
-            p: { xs: 4, sm: 6, md: 8, lg: 10 },
-            maxWidth: { xs: '100%', sm: 900, md: 1100, lg: 1400 },
-            boxShadow: '0 12px 40px rgba(0,0,0,0.15)',
-            minHeight: { xs: 'auto', sm: '600px' },
           }}
         >
-          <CardContent sx={{ p: 0 }}>
-
+          <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+            {/* Title */}
+            <Box sx={{ textAlign: "center", mb: 3 }}>
+              <Typography
+                variant={isMobile ? "h6" : "h5"}
+                sx={{
+                  fontWeight: theme.typography.fontWeightBold,
+                  fontFamily: theme.typography.fontFamily,
+                  color: theme.palette.text.primary,
+                  mb: 0.5
+                }}
+              >
+                {isEditMode ? "Edit User" : "Add New User"}
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: theme.palette.text.secondary,
+                  fontFamily: theme.typography.fontFamily,
+                }}
+              >
+                {isEditMode ? "Update user information" : "User Management"}
+              </Typography>
+            </Box>
 
             <form onSubmit={handleSubmit(onSubmit, handleFormError)}>
               {/* Customer Information Section */}
-              <Typography sx={{ fontWeight: theme.typography.fontWeightBold, fontFamily: theme.typography.fontFamily, color: theme.palette.text.primary, mb: 3, fontSize: { xs: 20, sm: 24, md: 28 } }}>
-                Customer Information
-              </Typography>
-              <Divider sx={{ mb: 4, borderColor: theme.palette.divider }} />
-              
-              <Box
+              <Typography
                 sx={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: { xs: 2, sm: 3 },
-                  mb: 3,
+                  fontWeight: theme.typography.fontWeightBold,
+                  fontFamily: theme.typography.fontFamily,
+                  color: theme.palette.text.primary,
+                  mb: 1.5,
+                  fontSize: { xs: 14, sm: 16 }
                 }}
               >
-                <Box sx={{ flex: "1 1 48%", minWidth: { xs: '100%', sm: '300px' } }}>
-                  <Controller
-                    name="firstName"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        label="First Name"
-                        error={!!errors.firstName}
-                        helperText={errors.firstName?.message}
-                      />
-                    )}
-                  />
-                </Box>
-                <Box sx={{ flex: "1 1 48%", minWidth: { xs: '100%', sm: '300px' } }}>
-                  <Controller
-                    name="lastName"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        label="Last Name"
-                        error={!!errors.lastName}
-                        helperText={errors.lastName?.message}
-                      />
-                    )}
-                  />
-                </Box>
-              </Box>
-              
-                                <Controller
-                    name="phone"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        label="Phone Number"
-                        placeholder="(555) 123-4567"
-                        error={!!errors.phone}
-                        helperText={errors.phone?.message}
-                        sx={{ mb: 3 }}
-                        inputProps={{
-                          maxLength: 14, // (XXX) XXX-XXXX = 14 characters
-                        }}
-                        onChange={(e) => {
-                          const formatted = formatPhoneNumber(e.target.value);
-                          field.onChange(formatted);
-                        }}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <ReactFlagsSelect
-                                  selected={selectedCountry}
-                                  onSelect={(countryCode) => setSelectedCountry(countryCode)}
-                                  searchable={true}
-                                  searchPlaceholder="Search..."
-                                  customLabels={{
-                                    US: { primary: "US", secondary: "+1" },
-                                    GB: { primary: "GB", secondary: "+44" },
-                                    CA: { primary: "CA", secondary: "+1" },
-                                    AU: { primary: "AU", secondary: "+61" },
-                                    IN: { primary: "IN", secondary: "+91" },
-                                    DE: { primary: "DE", secondary: "+49" },
-                                    FR: { primary: "FR", secondary: "+33" },
-                                    JP: { primary: "JP", secondary: "+81" },
-                                    BR: { primary: "BR", secondary: "+55" },
-                                    CN: { primary: "CN", secondary: "+86" },
-                                  }}
-                                  selectButtonClassName="flag-select-button-small"
-                                  optionsClassName="flag-select-options-small"
-                                  selectedSize={18}
-                                  showSelectedLabel={true}
-                                  showSecondarySelectedLabel={true}
-                                  selectedLabelClassName="flag-selected-label-small"
-                                  secondarySelectedLabelClassName="flag-secondary-label-small"
-                                />
-                                <Phone sx={{ color: 'action.active' }} />
-                              </Box>
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                    )}
-                  />
-
-              {/* Address Information Section */}
-              <Typography sx={{ fontWeight: theme.typography.fontWeightBold, fontFamily: theme.typography.fontFamily, color: theme.palette.text.primary, mb: 3,mt: 3, fontSize: { xs: 20, sm: 24, md: 28 } }}>
-                Address Information
+                User Information
               </Typography>
-              <Divider sx={{ mb: 4, borderColor: theme.palette.divider }} />
               
               <Controller
-                name="street"
+                name="firstName"
                 control={control}
                 render={({ field }) => (
                   <TextField
                     {...field}
                     fullWidth
-                    label="Street"
-                    multiline
-                    rows={3}
-                    error={!!errors.street}
-                    helperText={errors.street?.message}
-                    sx={{ mb: 3 }}
+                    placeholder="First Name"
+                    error={!!errors.firstName}
+                    helperText={errors.firstName?.message}
+                    sx={{ mb: 1.5 }}
+                  />
+                )}
+              />
+
+              <Controller
+                name="lastName"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    placeholder="Last Name"
+                    error={!!errors.lastName}
+                    helperText={errors.lastName?.message}
+                    sx={{ mb: 1.5 }}
                   />
                 )}
               />
               
-               <Box
-                  sx={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: { xs: 2, sm: 3 },
-                    mb: 3,
-                  }}
-                >
-                <Box sx={{ flex: "1 1 48%" }}>
-                  <Controller
-                    name="city"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        label="City"
-                        error={!!errors.city}
-                        helperText={errors.city?.message}
-                      />
-                    )}
+              <Controller
+                name="phone"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    fullWidth
+                    placeholder="Phone Number"
+                    error={!!errors.phone}
+                    helperText={errors.phone?.message}
+                    sx={{ mb: 2.5 }}
+                    inputProps={{
+                      maxLength: 14,
+                    }}
+                    onChange={(e) => {
+                      const formatted = formatPhoneNumber(e.target.value);
+                      field.onChange(formatted);
+                    }}
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box sx={{ 
+                              '& .flag-select-button-small': {
+                                border: 'none',
+                                backgroundColor: 'transparent',
+                                padding: '4px 8px',
+                                borderRadius: '4px',
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  backgroundColor: 'rgba(0, 0, 0, 0.04)',
+                                  border: '1px solid #e0e0e0',
+                                },
+                                '&:focus': {
+                                  border: '1px solid #1976d2',
+                                  backgroundColor: 'rgba(25, 118, 210, 0.04)',
+                                  outline: 'none',
+                                }
+                              },
+                              '& .flag-select-options-small': {
+                                border: '1px solid #e0e0e0',
+                                borderRadius: '4px',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                                backgroundColor: 'white',
+                              }
+                            }}>
+                              <ReactFlagsSelect
+                                selected={selectedCountry}
+                                onSelect={(countryCode) => setSelectedCountry(countryCode)}
+                                searchable={true}
+                                searchPlaceholder="Search..."
+                                customLabels={{
+                                  US: { primary: "US", secondary: "+1" },
+                                  GB: { primary: "GB", secondary: "+44" },
+                                  CA: { primary: "CA", secondary: "+1" },
+                                  AU: { primary: "AU", secondary: "+61" },
+                                  IN: { primary: "IN", secondary: "+91" },
+                                  DE: { primary: "DE", secondary: "+49" },
+                                  FR: { primary: "FR", secondary: "+33" },
+                                  JP: { primary: "JP", secondary: "+81" },
+                                  BR: { primary: "BR", secondary: "+55" },
+                                  CN: { primary: "CN", secondary: "+86" },
+                                }}
+                                selectButtonClassName="flag-select-button-small"
+                                optionsClassName="flag-select-options-small"
+                                selectedSize={18}
+                                showSelectedLabel={true}
+                                showSecondarySelectedLabel={true}
+                                selectedLabelClassName="flag-selected-label-small"
+                                secondarySelectedLabelClassName="flag-secondary-label-small"
+                              />
+                            </Box>
+                            <Phone sx={{ color: 'action.active' }} />
+                          </Box>
+                        </InputAdornment>
+                      ),
+                    }}
                   />
-                </Box>
-                <Box sx={{ flex: "1 1 48%" }}>
-                  <Controller
-                    name="state"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        label="State"
-                        error={!!errors.state}
-                        helperText={errors.state?.message}
-                      />
-                    )}
-                  />
-                </Box>
-              </Box>
-              
-                              <Box
-                  sx={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: { xs: 2, sm: 3 },
-                    mb: 4,
-                  }}
-                >
-                <Box sx={{ flex: "1 1 48%" }}>
-                  <Controller
-                    name="country"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        label="Country"
-                        error={!!errors.country}
-                        helperText={errors.country?.message}
-                      />
-                    )}
-                  />
-                </Box>
-                <Box sx={{ flex: "1 1 48%" }}>
-                  <Controller
-                    name="postcode"
-                    control={control}
-                    render={({ field }) => (
-                      <TextField
-                        {...field}
-                        fullWidth
-                        label="Postcode"
-                        error={!!errors.postcode}
-                        helperText={errors.postcode?.message}
-                      />
-                    )}
-                  />
-                </Box>
-              </Box>
+                )}
+              />
 
-              {/* Login Information Section */}
-              <Typography sx={{ fontWeight: theme.typography.fontWeightBold, fontFamily: theme.typography.fontFamily, color: theme.palette.text.primary, mb: 3, fontSize: { xs: 20, sm: 24, md: 28 } }}>
+              {/* Login Information Section - Always Visible */}
+              <Typography
+                sx={{
+                  fontWeight: theme.typography.fontWeightBold,
+                  fontFamily: theme.typography.fontFamily,
+                  color: theme.palette.text.primary,
+                  mb: 1.5,
+                  fontSize: { xs: 14, sm: 16 }
+                }}
+              >
                 Login Information
               </Typography>
-              <Divider sx={{ mb: 4, borderColor: theme.palette.divider }} />
               
               <Controller
                 name="email"
@@ -483,83 +560,471 @@ const AddUser = () => {
                   <TextField
                     {...field}
                     fullWidth
-                    label="Email"
+                    placeholder="Email"
                     type="email"
                     error={!!errors.email}
                     helperText={errors.email?.message}
-                    sx={{ mb: 3 }}
+                    sx={{ mb: 1.5 }}
                   />
                 )}
               />
               
-              <Controller
-                name="password"
-                control={control}
-                render={({ field }) => (
-                  <TextField
-                    {...field}
-                    fullWidth
-                    label="Password"
-                    type="password"
-                    error={!!errors.password}
-                    helperText={errors.password?.message}
-                    sx={{ mb: 5 }}
+              {/* Reset Password Button - Only show in edit mode */}
+              {isEditMode && (
+                <Box sx={{ mb: 2.5 }}>
+                  <Button
+                    variant="outlined"
+                    startIcon={<LockReset />}
+                    onClick={handleResetPasswordClick}
+                    disabled={isResettingPassword}
+                    sx={{
+                      // borderColor: '#6c5ce7',
+                      // color: '#6c5ce7',
+                      fontWeight: 600,
+                      borderRadius: 2,
+                      px: 3,
+                      py: 1,
+                      fontSize: '0.875rem',
+                      textTransform: 'none',
+                      // '&:hover': {
+                      //   backgroundColor: 'rgba(108, 92, 231, 0.1)',
+                      //   borderColor: '#5f4dd0',
+                      //   color: '#5f4dd0',
+                      // },
+                      '&:disabled': {
+                        borderColor: '#ccc',
+                        color: '#666',
+                      }
+                    }}
+                  >
+                    {isResettingPassword ? (
+                      <>
+                        <CircularProgress size={16} sx={{ mr: 1, color: 'inherit' }} />
+                        Sending...
+                      </>
+                    ) : (
+                      'Send Reset Email'
+                    )}
+                  </Button>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      display: 'block',
+                      mt: 0.5,
+                      color: 'text.secondary',
+                      fontSize: '0.75rem',
+                      fontStyle: 'italic'
+                    }}
+                  >
+                    Send password reset link to user's email
+                  </Typography>
+                </Box>
+              )}
+              
+              {/* Only show password field when not in edit mode */}
+              {!isEditMode && (
+                <Controller
+                  name="password"
+                  control={control}
+                  render={({ field }) => (
+                    <TextField
+                      {...field}
+                      fullWidth
+                      placeholder="Password"
+                      type="password"
+                      error={!!errors.password}
+                      helperText={errors.password?.message}
+                      sx={{ mb: 2.5 }}
+                    />
+                  )}
+                />
+              )}
+
+              {/* Address Information Section */}
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={!isAddressCollapsed}
+                    onChange={() => setIsAddressCollapsed(!isAddressCollapsed)}
+                    sx={{
+                      transform: "scale(1.2)",
+                      mx: 1,
+                      "& .MuiSwitch-switchBase.Mui-checked": {
+                        color: theme.palette.background.paper,
+                        "& + .MuiSwitch-track": {
+                          backgroundColor: theme.palette.secondary.main,
+                        },
+                      },
+                      "& .MuiSwitch-track": {
+                        backgroundColor: "rgba(0, 0, 0, 0.38)",
+                      },
+                    }}
                   />
-                )}
+                }
+                label={
+                  <Typography
+                    sx={{
+                      fontWeight: theme.typography.fontWeightBold,
+                     fontFamily: theme.typography.fontFamily,
+                     color: theme.palette.text.primary,
+                     mb: 1,
+                  fontSize: { xs: 14, sm: 16 }
+                    }}
+                  >
+                    Address Information
+                  </Typography>
+                }
+                sx={{ mb: !isAddressCollapsed ? 1.5 : 0 }}
               />
+              
+              <Collapse in={!isAddressCollapsed}>
+                <Box sx={{ mb: 2 }}>
+                  <Controller
+                    name="street"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        placeholder="Street Address"
+                        multiline
+                        rows={3}
+                        error={!!errors.street}
+                        helperText={errors.street?.message}
+                        sx={{ mb: 1.5 }}
+                      />
+                    )}
+                  />
+                  
+                  <Controller
+                    name="city"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        placeholder="City"
+                        error={!!errors.city}
+                        helperText={errors.city?.message}
+                        sx={{ mb: 1.5 }}
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    name="state"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        placeholder="State"
+                        error={!!errors.state}
+                        helperText={errors.state?.message}
+                        sx={{ mb: 1.5 }}
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    name="country"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        placeholder="Country"
+                        error={!!errors.country}
+                        helperText={errors.country?.message}
+                        sx={{ mb: 1.5 }}
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    name="postcode"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        placeholder="Postcode"
+                        error={!!errors.postcode}
+                        helperText={errors.postcode?.message}
+                        sx={{ mb: 2.5 }}
+                      />
+                    )}
+                  />
+                </Box>
+              </Collapse>
 
               {/* Buttons */}
               <Box
                 sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: { xs: 1, sm: 2 },
-                  mt: { xs: 2, sm: 4 },
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  mt: 4,
+                  gap: 2,
+                  flexDirection: { xs: "column", sm: "row" },
                 }}
               >
                 <Button
                   variant="outlined"
                   startIcon={<ArrowBack />}
                   onClick={handleBack}
-                  size="medium"
+                  disabled={isSubmitting}
                   sx={{
-                    fontSize: { xs: 14, sm: 16 },
-                    py: { xs: 1, sm: 1.5 },
-                    px: { xs: 3, sm: 4 },
-                    borderRadius: '8px',
-                    textTransform: 'none',
-                    minWidth: '120px',
-                    height: '48px',
+                    width: { xs: "100%", sm: 140 },
+                    height: theme.components.MuiButton.styleOverrides.root.height,
+                    fontSize: theme.components.MuiButton.styleOverrides.root.fontSize,
+                    fontFamily: theme.components.MuiButton.styleOverrides.root.fontFamily,
+                    fontWeight: theme.components.MuiButton.styleOverrides.root.fontWeight,
+                    borderRadius: theme.components.MuiButton.styleOverrides.root.borderRadius,
+                    textTransform: theme.components.MuiButton.styleOverrides.root.textTransform,
+                    order: { xs: 2, sm: 1 },
                   }}
                 >
                   Back
                 </Button>
+
                 <Button
                   type="submit"
                   variant="contained"
-                  endIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : <ArrowForward />}
-                  size="medium"
+                  endIcon={
+                    isSubmitting ? (
+                      <CircularProgress size={20} color="inherit" />
+                    ) : (
+                      <ArrowForward />
+                    )
+                  }
+                  disabled={isSubmitting}
                   sx={{
-                    fontSize: { xs: 14, sm: 16 },
-                    py: { xs: 1, sm: 1.5 },
-                    px: { xs: 3, sm: 4 },
-                    borderRadius: '8px',
-                    textTransform: 'none',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    minWidth: '120px',
-                    height: '48px',
+                    width: { xs: "100%", sm: 140 },
+                    height: theme.components.MuiButton.styleOverrides.root.height,
+                    fontSize: theme.components.MuiButton.styleOverrides.root.fontSize,
+                    fontFamily: theme.components.MuiButton.styleOverrides.root.fontFamily,
+                    fontWeight: theme.components.MuiButton.styleOverrides.root.fontWeight,
+                    borderRadius: theme.components.MuiButton.styleOverrides.root.borderRadius,
+                    textTransform: theme.components.MuiButton.styleOverrides.root.textTransform,
+                    order: { xs: 1, sm: 2 },
                   }}
                 >
-                  {isSubmitting ? 'Saving...' : 'Save'}
+                  {isSubmitting ? "Saving..." : (isEditMode ? "Update" : "Save")}
                 </Button>
               </Box>
-
-
             </form>
           </CardContent>
         </Card>
       </Container>
+
+      {/* Reset Password Confirmation Dialog */}
+      <Dialog
+        open={resetConfirmDialog}
+        onClose={handleCloseResetConfirmDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 4,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
+            overflow: 'hidden',
+          }
+        }}
+      >
+        <DialogTitle
+          sx={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 2,
+            px: 4,
+            py: 3,
+            fontSize: '1.25rem',
+          }}
+        >
+          <LockReset sx={{ fontSize: 28 }} />
+          Reset User Password
+        </DialogTitle>
+        
+        <DialogContent sx={{ px: 4, pt: 4, pb: 2 }}>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="body1" sx={{ fontWeight: 500, mb: 2, color: '#333', fontSize: '1rem' }}>
+              Send a password reset email to <strong>{userData?.customerName || 'this user'}</strong>?
+            </Typography>
+            
+            <Box sx={{ 
+              backgroundColor: '#f8f9fa', 
+              borderRadius: 3, 
+              p: 3,
+              border: '1px solid #e9ecef'
+            }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 2, color: '#495057', display: 'flex', alignItems: 'center', gap: 1 }}>
+                <EmailIcon sx={{ fontSize: 18, color: '#667eea' }} />
+                What will happen:
+              </Typography>
+              <Box component="ul" sx={{ mt: 1, pl: 2, mb: 0 }}>
+                <Typography component="li" variant="body2" sx={{ color: '#6c757d', mb: 1, fontSize: '0.9rem' }}>
+                  Secure reset link sent to user's email
+                </Typography>
+                <Typography component="li" variant="body2" sx={{ color: '#6c757d', mb: 1, fontSize: '0.9rem' }}>
+                  User can set their own new password
+                </Typography>
+                <Typography component="li" variant="body2" sx={{ color: '#6c757d', fontSize: '0.9rem' }}>
+                  Link expires in 24 hours for security
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+        </DialogContent>
+
+        <DialogActions sx={{ px: 4, pb: 4, gap: 2 }}>
+          <Button
+            onClick={handleCloseResetConfirmDialog}
+            variant="outlined"
+            sx={{ 
+              borderRadius: 2, 
+              px: 4,
+              py: 1.5,
+              // borderColor: '#dee2e6',
+              // color: '#6c757d',
+              fontWeight: 500,
+              // '&:hover': {
+              //   borderColor: '#adb5bd',
+              //   backgroundColor: '#f8f9fa',
+              // }
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleResetPasswordConfirm}
+            variant="contained"
+            startIcon={<LockReset />}
+            sx={{ 
+              borderRadius: 2, 
+              px: 4,
+              py: 1.5,
+              // backgroundColor: '#667eea',
+              fontWeight: 600,
+              textTransform: 'none',
+              fontSize: '0.95rem',
+              // '&:hover': {
+              //   backgroundColor: '#5e35b1',
+              //   transform: 'translateY(-1px)',
+              //   boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+              // }
+            }}
+          >
+            Send Reset Email
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Temporary Password Display Dialog */}
+      <Dialog
+        open={tempPasswordDialog}
+        onClose={handleCloseTempPasswordDialog}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: 10,
+          }
+        }}
+      >
+        <DialogTitle
+          sx={{
+            backgroundColor: resetSuccess ? '#e8f5e8' : '#fff3e0',
+            color: resetSuccess ? '#2e7d32' : '#bf360c',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            px: 3,
+            py: 2,
+          }}
+        >
+          <Security sx={{ fontSize: 24 }} />
+          Password Reset Email Sent
+        </DialogTitle>
+        <DialogContent sx={{ px: 3, pt: 2, pb: 1 }}>
+          <Alert severity="success" sx={{ mb: 2 ,mt: 2}}>
+            <Typography variant="body1" sx={{ fontWeight: 500, mb: 1 }}>
+              Password reset email sent successfully! (Mock)
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+              A secure password reset link has been sent to the user's email address.
+            </Typography>
+          </Alert>
+          
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: 'text.primary' }}>
+              Email Details:
+            </Typography>
+            <Box
+              sx={{
+                p: 2,
+                backgroundColor: '#f5f5f5',
+                borderRadius: 2,
+                border: '1px solid #e0e0e0',
+              }}
+            >
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                <strong>To:</strong> {userData?.website?.replace('mailto:', '') || 'user@example.com'}
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                <strong>Subject:</strong> Password Reset Request (Mock)
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                <strong>Link Expiry:</strong> 24 hours from now
+              </Typography>
+              <Typography variant="body2">
+                <strong>Status:</strong> Mock email sent successfully
+              </Typography>
+            </Box>
+          </Box>
+
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+              What happens next (Mock):
+            </Typography>
+            <Box component="ul" sx={{ mt: 0.5, pl: 2, mb: 0 }}>
+              <Typography component="li" variant="body2" sx={{ fontSize: '0.875rem' }}>
+                User receives email with secure reset link (Mock)
+              </Typography>
+              <Typography component="li" variant="body2" sx={{ fontSize: '0.875rem' }}>
+                User clicks link and sets their own new password (Mock)
+              </Typography>
+              <Typography component="li" variant="body2" sx={{ fontSize: '0.875rem' }}>
+                Reset link expires after 24 hours for security
+              </Typography>
+              <Typography component="li" variant="body2" sx={{ fontSize: '0.875rem' }}>
+                All password changes are logged for audit purposes
+              </Typography>
+            </Box>
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={handleCloseTempPasswordDialog}
+            variant="contained"
+            sx={{ 
+              borderRadius: 2, 
+              px: 3,
+              // backgroundColor: '#2e7d32',
+              // '&:hover': {
+              //   backgroundColor: '#1b5e20',
+              // }
+            }}
+          >
+            Done
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
