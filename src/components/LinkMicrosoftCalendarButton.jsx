@@ -4,7 +4,7 @@ import axiosService from '../services/axiosService';
 
 const CLIENT_ID = '953030921199-1mp8r5q7d4jgk9cru6ifuc3sjh29l9ou.apps.googleusercontent.com';
 
-function LinkGoogleCalendarButton({ onSuccess, onDisconnect }) {
+function LinkMicrosoftCalendarButton({ onSuccess, onDisconnect }) {
   const codeClientRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -15,8 +15,8 @@ function LinkGoogleCalendarButton({ onSuccess, onDisconnect }) {
 
   const checkConnectionStatus = async () => {
     try {
-      // Check if Google Calendar is connected
-      const response = await axiosService.get('/calendar/google-status');
+      // Check if Microsoft Calendar is connected
+      const response = await axiosService.get('/calendar/microsoft-status');
       setIsConnected(response.data?.connected || false);
     } catch (error) {
       console.error('Error checking connection status:', error);
@@ -32,16 +32,16 @@ function LinkGoogleCalendarButton({ onSuccess, onDisconnect }) {
         ux_mode: 'popup',
         callback: async (response) => {
           if (!response.code) {
-            alert('Google authorization failed.');
+            alert('Microsoft authorization failed.');
             return;
           }
           try {
             setIsLoading(true);
-            const res = await axiosService.post('/calendar/google-connect', {
+            const res = await axiosService.post('/calendar/microsoft-connect', {
               code: response.code,
               calendarId: '070dab4e-b897-4de9-b3bc-3fca9b6636b1'
             });
-            console.log(':white_check_mark: Google Calendar linked successfully');
+            console.log(':white_check_mark: Microsoft Calendar linked successfully');
             console.log('Response:', res.data);
             setIsConnected(true);
             if (onSuccess) {
@@ -58,19 +58,19 @@ function LinkGoogleCalendarButton({ onSuccess, onDisconnect }) {
       });
     }
   }, []);
-  const linkGoogleCalendar = () => {
+  const linkMicrosoftCalendar = () => {
     if (codeClientRef.current) {
       codeClientRef.current.requestCode();
     } else {
-      alert('Google API not loaded.');
+      alert('Microsoft API not loaded.');
     }
   };
 
-  const disconnectGoogleCalendar = async () => {
+  const disconnectMicrosoftCalendar = async () => {
     try {
       setIsLoading(true);
-      const res = await axiosService.post('/calendar/google-disconnect');
-      console.log(':white_check_mark: Google Calendar disconnected successfully');
+      const res = await axiosService.post('/calendar/microsoft-disconnect');
+      console.log(':white_check_mark: Microsoft Calendar disconnected successfully');
       console.log('Response:', res.data);
       setIsConnected(false);
       if (onDisconnect) {
@@ -87,7 +87,7 @@ function LinkGoogleCalendarButton({ onSuccess, onDisconnect }) {
     <Button
       variant={isConnected ? "contained" : "outlined"}
       color={isConnected ? "error" : "primary"}
-      onClick={isConnected ? disconnectGoogleCalendar : linkGoogleCalendar}
+      onClick={isConnected ? disconnectMicrosoftCalendar : linkMicrosoftCalendar}
       disabled={isLoading}
       sx={{ 
         ml: 2, 
@@ -98,8 +98,8 @@ function LinkGoogleCalendarButton({ onSuccess, onDisconnect }) {
         }
       }}
     >
-      {isLoading ? 'Loading...' : isConnected ? 'Disconnect Google' : 'Connect with Google'}
+      {isLoading ? 'Loading...' : isConnected ? 'Disconnect Microsoft' : 'Connect with Microsoft'}
     </Button>
   );
 }
-export default LinkGoogleCalendarButton;
+export default LinkMicrosoftCalendarButton;

@@ -43,75 +43,81 @@ import {
 import { useNavigate, useLocation } from "react-router-dom";
 import ReactFlagsSelect from "react-flags-select";
 
-// Validation schema
-const validationSchema = yup.object({
-  firstName: yup
-    .string()
-    .required("First name is required")
-    .min(2, "First name must be at least 2 characters")
-    .max(50, "First name must not exceed 50 characters")
-    .matches(/^[a-zA-Z\s]+$/, "First name can only contain letters and spaces"),
-  lastName: yup
-    .string()
-    .required("Last name is required")
-    .min(2, "Last name must be at least 2 characters")
-    .max(50, "Last name must not exceed 50 characters")
-    .matches(/^[a-zA-Z\s]+$/, "Last name can only contain letters and spaces"),
-  phone: yup
-    .string()
-    .required("Phone number is required")
-    .test("phone-format", "Please enter exactly 10 digits", (value) => {
-      if (!value) return false;
-      // Remove all non-digit characters and check for exactly 10 digits
-      const digitsOnly = value.replace(/\D/g, '');
-      return digitsOnly.length === 10;
-    }),
-  street: yup
-    .string()
-    .required("Street address is required")
-    .min(5, "Street address must be at least 5 characters")
-    .max(200, "Street address must not exceed 200 characters"),
-  city: yup
-    .string()
-    .required("City is required")
-    .min(2, "City must be at least 2 characters")
-    .max(50, "City must not exceed 50 characters")
-    .matches(/^[a-zA-Z\s]+$/, "City can only contain letters and spaces"),
-  state: yup
-    .string()
-    .required("State is required")
-    .min(2, "State must be at least 2 characters")
-    .max(50, "State must not exceed 50 characters")
-    .matches(/^[a-zA-Z\s]+$/, "State can only contain letters and spaces"),
-  country: yup
-    .string()
-    .required("Country is required")
-    .min(2, "Country must be at least 2 characters")
-    .max(50, "Country must not exceed 50 characters")
-    .matches(/^[a-zA-Z\s]+$/, "Country can only contain letters and spaces"),
-  postcode: yup
-    .string()
-    .required("Postcode is required")
-    .min(3, "Postcode must be at least 3 characters")
-    .max(10, "Postcode must not exceed 10 characters")
-    .matches(/^[a-zA-Z0-9\s-]+$/, "Postcode can only contain letters, numbers, spaces, and hyphens"),
-  email: yup
-    .string()
-    .required("Email is required")
-    .email("Please enter a valid email address")
-    .max(100, "Email must not exceed 100 characters"),
-  password: yup
-    .string()
-    .when('isEditMode', {
-      is: true,
-      then: (schema) => schema.notRequired(),
-      otherwise: (schema) => schema.required("Password is required")
-        .min(8, "Password must be at least 8 characters")
-        .max(50, "Password must not exceed 50 characters")
-        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, 
-          "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"),
-    }),
-});
+// Create dynamic validation schema based on edit mode
+const createValidationSchema = (isEditMode) => {
+  const baseSchema = {
+    firstName: yup
+      .string()
+      .required("First name is required")
+      .min(2, "First name must be at least 2 characters")
+      .max(50, "First name must not exceed 50 characters")
+      .matches(/^[a-zA-Z\s]+$/, "First name can only contain letters and spaces"),
+    lastName: yup
+      .string()
+      .required("Last name is required")
+      .min(2, "Last name must be at least 2 characters")
+      .max(50, "Last name must not exceed 50 characters")
+      .matches(/^[a-zA-Z\s]+$/, "Last name can only contain letters and spaces"),
+    phone: yup
+      .string()
+      .required("Phone number is required")
+      .test("phone-format", "Please enter exactly 10 digits", (value) => {
+        if (!value) return false;
+        // Remove all non-digit characters and check for exactly 10 digits
+        const digitsOnly = value.replace(/\D/g, '');
+        return digitsOnly.length === 10;
+      }),
+    street: yup
+      .string()
+      .required("Street address is required")
+      .min(5, "Street address must be at least 5 characters")
+      .max(200, "Street address must not exceed 200 characters"),
+    city: yup
+      .string()
+      .required("City is required")
+      .min(2, "City must be at least 2 characters")
+      .max(50, "City must not exceed 50 characters")
+      .matches(/^[a-zA-Z\s]+$/, "City can only contain letters and spaces"),
+    state: yup
+      .string()
+      .required("State is required")
+      .min(2, "State must be at least 2 characters")
+      .max(50, "State must not exceed 50 characters")
+      .matches(/^[a-zA-Z\s]+$/, "State can only contain letters and spaces"),
+    country: yup
+      .string()
+      .required("Country is required")
+      .min(2, "Country must be at least 2 characters")
+      .max(50, "Country must not exceed 50 characters")
+      .matches(/^[a-zA-Z\s]+$/, "Country can only contain letters and spaces"),
+    postcode: yup
+      .string()
+      .required("Postcode is required")
+      .min(3, "Postcode must be at least 3 characters")
+      .max(10, "Postcode must not exceed 10 characters")
+      .matches(/^[a-zA-Z0-9\s-]+$/, "Postcode can only contain letters, numbers, spaces, and hyphens"),
+    email: yup
+      .string()
+      .required("Email is required")
+      .email("Please enter a valid email address")
+      .max(100, "Email must not exceed 100 characters"),
+  };
+
+  // Only add password validation if not in edit mode
+  if (!isEditMode) {
+    baseSchema.password = yup
+      .string()
+      .required("Password is required")
+      .min(8, "Password must be at least 8 characters")
+      .max(50, "Password must not exceed 50 characters")
+      .matches(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+        "Password must contain an uppercase, a lowercase, a number, and a special character"
+      );
+  }
+
+  return yup.object(baseSchema);
+};
 
 const AddUser = () => {
   const theme = useTheme();
@@ -139,10 +145,21 @@ const AddUser = () => {
   const userData = location.state?.userData || null;
   const userId = location.state?.userId || null;
 
-  // Phone number formatting function
-  const formatPhoneNumber = (value) => {
+  // Phone number formatting function with better backspace handling
+  const formatPhoneNumber = (value, isDeleting = false) => {
+    // If user is deleting, don't reformat - let them delete naturally
+    if (isDeleting) {
+      return value;
+    }
+    
     // Remove all non-digit characters
     const digitsOnly = value.replace(/\D/g, '');
+    
+    // If empty, return empty string
+    if (digitsOnly.length === 0) {
+      return '';
+    }
+    
     // Limit to 10 digits
     const limitedDigits = digitsOnly.slice(0, 10);
     
@@ -168,8 +185,19 @@ const AddUser = () => {
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
     
-    // Extract email from website (mailto: format)
-    const email = data.website?.replace('mailto:', '') || '';
+    // Extract email - prioritize email field, then website field, then originalData
+    let email = '';
+    if (data.email) {
+      email = data.email;
+    } else if (data.website) {
+      email = data.website.replace('mailto:', '');
+    } else if (data.originalData?.email) {
+      email = data.originalData.email;
+    } else if (data.originalData?.authUserName) {
+      email = data.originalData.authUserName;
+    } else if (data.authUserName) {
+      email = data.authUserName;
+    }
     
     // Parse address from originalData if available, otherwise from address field
     let address = {};
@@ -189,7 +217,7 @@ const AddUser = () => {
       firstName,
       lastName,
       email,
-      phone: data.originalData?.phone || '', // Try to get phone from original data
+      phone: data.originalData?.phone || data.phone || '', // Try to get phone from original data or direct field
       street: address.street || '',
       city: address.city || '',
       state: address.state || '',
@@ -207,11 +235,14 @@ const AddUser = () => {
     handleSubmit,
     formState: { errors },
     reset,
+    getValues,
+    clearErrors, // Make sure this is included
   } = useForm({
-    resolver: yupResolver(validationSchema),
+    resolver: yupResolver(createValidationSchema(isEditMode)),
     mode: "onChange",
     defaultValues: parseUserData(userData),
   });
+  
 
   // Reset form when userData changes (for edit mode)
   useEffect(() => {
@@ -220,15 +251,28 @@ const AddUser = () => {
     }
   }, [userData, isEditMode, reset]);
 
+  // Reset form when edit mode changes to update validation schema
+  useEffect(() => {
+    reset(parseUserData(userData));
+  }, [isEditMode, reset]);
+
+  // Clear address errors when toggle changes
+  useEffect(() => {
+    if (isAddressCollapsed) {
+      // Clear all address field errors when collapsed
+      const addressFields = ['street', 'city', 'state', 'country', 'postcode'];
+      addressFields.forEach(field => clearErrors(field));
+    }
+  }, [isAddressCollapsed, clearErrors]);
+  
+
+
   const handleBack = () => {
     showToast("Changes discarded", "info");
     navigate(-1);
   };
 
-  const handleFormError = (errors) => {
-    console.log('Form validation errors:', errors);
-    showToast("Please fix the form errors before submitting", "warning");
-  };
+
 
   // Professional Reset Password Functions
   const handleResetPasswordClick = () => {
@@ -279,6 +323,7 @@ const AddUser = () => {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     try {
+
       if (isEditMode) {
         // Update existing user
         const payload = {
@@ -287,13 +332,24 @@ const AddUser = () => {
           authUserName: data.email,
           authStatus: "auth-active",
           timeZone: "Asia/Calcutta",
-          address: {
-            street: data.street,
-            city: data.city,
-            state: data.state,
-            country: data.country,
-            postcode: data.postcode,
-          },
+          // Only include address if address section is not collapsed AND has valid data
+          ...(isAddressCollapsed ? {} : {
+            address: (() => {
+              const addressFields = ['street', 'city', 'state', 'country', 'postcode'];
+              const hasValidAddress = addressFields.some(field => data[field] && data[field].trim() !== '');
+              
+              if (hasValidAddress) {
+                return {
+                  street: data.street || '',
+                  city: data.city || '',
+                  state: data.state || '',
+                  country: data.country || '',
+                  postcode: data.postcode || '',
+                };
+              }
+              return null; // Don't include address if all fields are empty
+            })(),
+          }),
           // Additional fields for reference
           firstName: data.firstName,
           lastName: data.lastName,
@@ -317,13 +373,24 @@ const AddUser = () => {
           authPassword: data.password,
           authStatus: "auth-active",
           timeZone: "Asia/Calcutta",
-          address: {
-            street: data.street,
-            city: data.city,
-            state: data.state,
-            country: data.country,
-            postcode: data.postcode,
-          },
+          // Only include address if address section is not collapsed AND has valid data
+          ...(isAddressCollapsed ? {} : {
+            address: (() => {
+              const addressFields = ['street', 'city', 'state', 'country', 'postcode'];
+              const hasValidAddress = addressFields.some(field => data[field] && data[field].trim() !== '');
+              
+              if (hasValidAddress) {
+                return {
+                  street: data.street || '',
+                  city: data.city || '',
+                  state: data.state || '',
+                  country: data.country || '',
+                  postcode: data.postcode || '',
+                };
+              }
+              return null; // Don't include address if all fields are empty
+            })(),
+          }),
           // Additional fields for reference
           firstName: data.firstName,
           lastName: data.lastName,
@@ -415,7 +482,26 @@ const AddUser = () => {
               </Typography>
             </Box>
 
-            <form onSubmit={handleSubmit(onSubmit, handleFormError)}>
+            <form onSubmit={handleSubmit(onSubmit, (errors) => {
+              console.log('Form validation errors:', errors);
+              
+              // If address is collapsed, ignore address errors and proceed
+              if (isAddressCollapsed) {
+                console.log('Address collapsed - proceeding with submission');
+                onSubmit(getValues());
+                return;
+              }
+              
+              // If there are any errors, show warning
+              if (Object.keys(errors).length > 0) {
+                showToast("Please fix the form errors before submitting", "warning");
+                return;
+              }
+              
+              // If no errors, proceed with submission
+              console.log('Proceeding with submission (no errors)');
+              onSubmit(getValues());
+            })}>
               {/* Customer Information Section */}
               <Typography
                 sx={{
@@ -474,7 +560,13 @@ const AddUser = () => {
                       maxLength: 14,
                     }}
                     onChange={(e) => {
-                      const formatted = formatPhoneNumber(e.target.value);
+                      const currentValue = e.target.value;
+                      const previousValue = field.value || '';
+                      
+                      // Check if user is deleting (backspace)
+                      const isDeleting = currentValue.length < previousValue.length;
+                      
+                      const formatted = formatPhoneNumber(currentValue, isDeleting);
                       field.onChange(formatted);
                     }}
                     InputProps={{
@@ -573,6 +665,7 @@ const AddUser = () => {
               {isEditMode && (
                 <Box sx={{ mb: 2.5 }}>
                   <Button
+                    type="button"
                     variant="outlined"
                     startIcon={<LockReset />}
                     onClick={handleResetPasswordClick}
@@ -770,6 +863,7 @@ const AddUser = () => {
                 }}
               >
                 <Button
+                  type="button"
                   variant="outlined"
                   startIcon={<ArrowBack />}
                   onClick={handleBack}

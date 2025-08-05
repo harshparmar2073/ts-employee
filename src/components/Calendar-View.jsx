@@ -781,21 +781,14 @@ const CalendarView = () => {
           position: "relative",
         }}
       >
-        <LinkGoogleCalendarButton
-          onSuccess={(googleEvents) => {
-            console.log("Google Calendar events:", googleEvents);
-
-            const formatted = googleEvents.map((event, index) => ({
-              id: index.toString(), // fallback id
-              title: event.title || "Untitled Event",
-              start: event.startDateTime,
-              end: event.endDateTime,
-              allDay: !event.startDateTime?.includes("T"), // optional logic
-            }));
-
-            setEvents(formatted);
+     {/* <LinkGoogleCalendarButton
+          onSuccess={(calendar) => {
+            console.log(":white_check_mark: Linked calendar:", calendar);
+            // Optionally store the calendar or show a success message
+            // You can later fetch events using a separate call
+            // For now, don’t try to .map()
           }}
-        />
+        /> */}
         {/* Main calendar content */}
         <CalendarMain
           events={events}
