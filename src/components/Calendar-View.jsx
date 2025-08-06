@@ -169,7 +169,6 @@ const CalendarView = () => {
 
     if (options.isAI) {
       // Handle AI event creation
-      console.log("AI Event Creation - Opening AI dialog");
       // TODO: Open AI-specific dialog with voice input capabilities
       // For now, just open the regular dialog but mark it as AI mode
       setDialogOpen(true);
@@ -212,7 +211,7 @@ const CalendarView = () => {
     }
   };
 
-  const fetchEvents = async () => {
+  const fetchEvents = async (retryCount = 0) => {
     const from = startOfMonth(new Date()).toISOString();
     const to = endOfMonth(new Date()).toISOString();
 
@@ -223,7 +222,6 @@ const CalendarView = () => {
       return;
     }
 
-    console.log("📅 Fetching events for calendar ID:", selectedCalendarId);
     setIsLoadingEvents(true);
 
     try {
@@ -235,19 +233,11 @@ const CalendarView = () => {
         },
       });
 
-      console.log("📅 API /load response:", response.data);
-      console.log("📅 Request params:", {
-        from,
-        to,
-        calendarId: selectedCalendarId,
-      });
-
       const fetchedEvents = response.data.map((event) => {
         const minutes = differenceInMinutes(
           parseISO(event.endDateTime),
           parseISO(event.startDateTime)
         );
-        console.log(`Event ${event.id} duration: ${minutes} minutes`);
 
         const calendarEvent = {
           id: event.id,
@@ -265,7 +255,7 @@ const CalendarView = () => {
         if (event.recurrenceRule) {
           calendarEvent.rrule = {
             ...parseRRuleString(event.recurrenceRule, event.startDateTime),
-            dtstart: event.startDateTime,
+            dtstart: event.startDateTime, // ✅ Must be JS Date
           };
           calendarEvent.duration = formatDuration(
             event.startDateTime,
@@ -288,8 +278,30 @@ const CalendarView = () => {
       });
 
       setEvents(fetchedEvents);
+      console.log("📅 Events fetched successfully:", fetchedEvents);
     } catch (error) {
-      console.error("❌ Failed to fetch events via /load:", error);
+      console.error("❌ Failed to fetch events:", error);
+      
+      // Handle specific error cases
+      if (error.response?.status === 403) {
+        console.error("🔒 Forbidden error - likely OAuth token issue");
+        showToast("Calendar access denied. Please reconnect your Google Calendar.", "error");
+        
+        // If this is a retry, don't retry again to avoid infinite loops
+        if (retryCount === 0) {
+          console.log("🔄 Attempting to refresh calendar connection...");
+          // You could trigger a reconnection flow here
+          // For now, just show the error
+        }
+      } else if (error.response?.status === 401) {
+        console.error("🔑 Unauthorized - authentication issue");
+        showToast("Authentication failed. Please log in again.", "error");
+      } else if (error.response?.status >= 500) {
+        console.error("🌐 Server error");
+        showToast("Server error. Please try again later.", "error");
+      } else {
+        showToast("Failed to load events. Please try again.", "error");
+      }
     } finally {
       setIsLoadingEvents(false);
     }
@@ -611,6 +623,63 @@ const CalendarView = () => {
     setSelectedCalendarId(calendarId);
   };
 
+  // Handle Google Calendar reconnection when tokens are invalid
+  const handleGoogleCalendarReconnect = async (calendarId) => {
+    try {
+      showToast("Reconnecting to Google Calendar...", "info");
+      
+      // First, disconnect to clear any invalid tokens
+      await axiosService.post('/calendar/google-disconnect', {
+        calendarId: calendarId
+      });
+      
+      // Then trigger a reconnection
+      showToast("Please reconnect your Google Calendar to continue.", "warning");
+      
+      // You could automatically trigger the Google OAuth flow here
+      // For now, we'll just show a message asking the user to reconnect
+      
+    } catch (error) {
+      console.error("❌ Error during Google Calendar reconnection:", error);
+      showToast("Failed to reconnect Google Calendar. Please try manually.", "error");
+    }
+  };
+
+  // Handle successful Google Calendar connection
+  const handleGoogleCalendarConnected = (calendarData) => {
+    console.log("✅ Google Calendar connected successfully:", calendarData);
+    showToast("Google Calendar connected successfully! Events will be loaded shortly.", "success");
+    
+    // Refresh the calendar list to get updated connection status
+    fetchCalendars();
+    
+    // Retry fetching events after a short delay
+    setTimeout(() => {
+      if (selectedCalendarId) {
+        fetchEvents();
+      }
+    }, 1000);
+  };
+
+  // Handle Google Calendar disconnection
+  const handleGoogleCalendarDisconnected = (calendarData) => {
+    console.log("🔌 Google Calendar disconnected:", calendarData);
+    showToast("Google Calendar disconnected successfully.", "info");
+    
+    // Refresh the calendar list to get updated connection status
+    fetchCalendars();
+    
+    // Clear events if the disconnected calendar was selected
+    if (selectedCalendarId === calendarData?.calendarId) {
+      setEvents([]);
+    }
+  };
+
+  // Utility function to check if a calendar is connected to Google
+  const isGoogleCalendarConnected = (calendar) => {
+    return calendar?.externalCalendarType === 'GOOGLE';
+  };
+
   const handleCalendarSettings = useCallback((calendar, action) => {
     console.log("Calendar settings action:", action, "for calendar:", calendar);
     // This will be handled by CalendarSidebar now
@@ -744,6 +813,8 @@ const CalendarView = () => {
         onCalendarDelete={handleCalendarDelete}
         onCalendarCreate={handleCalendarCreate}
         onCalendarUpdate={handleCalendarUpdate}
+        onGoogleCalendarConnected={handleGoogleCalendarConnected}
+        onGoogleCalendarDisconnected={handleGoogleCalendarDisconnected}
       />
 
       {/* Expand/Collapse Button - Always Visible */}

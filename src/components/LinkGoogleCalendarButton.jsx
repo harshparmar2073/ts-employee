@@ -32,9 +32,11 @@ function LinkGoogleCalendarButton({ onSuccess, calendarId, calendarData, onDisco
     if (window.google && window.google.accounts?.oauth2?.initCodeClient) {
       codeClientRef.current = window.google.accounts.oauth2.initCodeClient({
         client_id: CLIENT_ID,
-        scope: 'openid profile email https://www.googleapis.com/auth/calendar.readonly',
+        scope: 'openid profile email https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/calendar',
         ux_mode: 'popup',
-                callback: async (response) => {
+        access_type: 'offline', // Request refresh token
+        prompt: 'consent', // Force consent screen to get refresh token
+        callback: async (response) => {
           if (!response.code) {
             showToast('Google authorization failed.', 'error');
             return;
@@ -51,16 +53,16 @@ function LinkGoogleCalendarButton({ onSuccess, calendarId, calendarData, onDisco
               code: response.code,
               calendarId: calendarId
             });
-            console.log(':white_check_mark: Google Calendar linked successfully');
+            console.log('✅ Google Calendar linked successfully');
             console.log('Response:', res.data);
             setIsConnected(true);
             showToast('✅ Google Calendar connected successfully!', 'success');
             if (onSuccess) {
-              console.log(':link: Invoking onSuccess callback after linking');
+              console.log('🔗 Invoking onSuccess callback after linking');
               onSuccess(res.data); // Send calendar metadata or status to parent
             }
           } catch (err) {
-            console.error(':x: Error linking calendar:', err);
+            console.error('❌ Error linking calendar:', err);
             const errorMessage = err.response?.data?.message || err.message || 'Unknown error occurred';
             showToast('Error linking calendar: ' + errorMessage, 'error');
           } finally {
@@ -100,16 +102,16 @@ function LinkGoogleCalendarButton({ onSuccess, calendarId, calendarData, onDisco
       const res = await axiosService.post('/calendar/google-disconnect', {
         calendarId: calendarId
       });
-      console.log(':white_check_mark: Google Calendar disconnected successfully');
+      console.log('✅ Google Calendar disconnected successfully');
       console.log('Response:', res.data);
       setIsConnected(false);
       showToast('✅ Google Calendar disconnected successfully!', 'success');
       if (onDisconnect) {
-        console.log(':link: Invoking onDisconnect callback after disconnecting');
+        console.log('🔗 Invoking onDisconnect callback after disconnecting');
         onDisconnect(res.data);
       }
     } catch (err) {
-      console.error(':x: Error disconnecting calendar:', err);
+      console.error('❌ Error disconnecting calendar:', err);
       const errorMessage = err.response?.data?.message || err.message || 'Unknown error occurred';
       showToast('Error disconnecting calendar: ' + errorMessage, 'error');
     } finally {
