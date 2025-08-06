@@ -1,28 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
 import Button from '@mui/material/Button';
 import axiosService from '../services/axiosService';
+import { useToast } from '../context/ToastContext';
 
 const CLIENT_ID = '953030921199-1mp8r5q7d4jgk9cru6ifuc3sjh29l9ou.apps.googleusercontent.com';
 
-function LinkGoogleCalendarButton({ onSuccess, onDisconnect }) {
+function LinkGoogleCalendarButton({ onSuccess, calendarId, calendarData }) {
   const codeClientRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  // Check connection status on component mount
+  const { showToast } = useToast();
+  
+  // Check if calendar is already connected to Google
   useEffect(() => {
-    checkConnectionStatus();
-  }, []);
-
-  const checkConnectionStatus = async () => {
-    try {
-      // Check if Google Calendar is connected
-      const response = await axiosService.get('/calendar/google-status');
-      setIsConnected(response.data?.connected || false);
-    } catch (error) {
-      console.error('Error checking connection status:', error);
-      setIsConnected(false);
+    if (calendarData?.externalCalendarType === 'GOOGLE') {
+      setIsConnected(true);
     }
-  };
+  }, [calendarData]);
+  
+  // Debug logging
+  console.log('LinkGoogleCalendarButton props:', { calendarId, calendarData, onSuccess });
+  console.log('Calendar data structure:', {
+    id: calendarData?.id,
+    name: calendarData?.name,
+    externalCalendarType: calendarData?.externalCalendarType,
+    isDefault: calendarData?.isDefault
+  });
 
   useEffect(() => {
     if (window.google && window.google.accounts?.oauth2?.initCodeClient) {
@@ -30,27 +33,38 @@ function LinkGoogleCalendarButton({ onSuccess, onDisconnect }) {
         client_id: CLIENT_ID,
         scope: 'openid profile email https://www.googleapis.com/auth/calendar.readonly',
         ux_mode: 'popup',
-        callback: async (response) => {
+                callback: async (response) => {
           if (!response.code) {
-            alert('Google authorization failed.');
+            showToast('Google authorization failed.', 'error');
             return;
           }
           try {
             setIsLoading(true);
+            if (!calendarId) {
+              showToast('Calendar ID is required to link Google Calendar.', 'error');
+              return;
+            }
+            
+            // Log the calendar ID being sent
+            console.log('Sending calendar ID to backend:', calendarId);
+            console.log('Calendar data being used:', calendarData);
+            
             const res = await axiosService.post('/calendar/google-connect', {
               code: response.code,
-              calendarId: '070dab4e-b897-4de9-b3bc-3fca9b6636b1'
+              calendarId: calendarId
             });
             console.log(':white_check_mark: Google Calendar linked successfully');
             console.log('Response:', res.data);
             setIsConnected(true);
+            showToast('✅ Google Calendar connected successfully!', 'success');
             if (onSuccess) {
               console.log(':link: Invoking onSuccess callback after linking');
               onSuccess(res.data); // Send calendar metadata or status to parent
             }
           } catch (err) {
             console.error(':x: Error linking calendar:', err);
-            alert('Error linking calendar. ' + (err.response?.data?.message || ''));
+            const errorMessage = err.response?.data?.message || err.message || 'Unknown error occurred';
+            showToast('Error linking calendar: ' + errorMessage, 'error');
           } finally {
             setIsLoading(false);
           }
@@ -58,48 +72,43 @@ function LinkGoogleCalendarButton({ onSuccess, onDisconnect }) {
       });
     }
   }, []);
+
   const linkGoogleCalendar = () => {
+    if (!calendarData) {
+      showToast('Please select a calendar first.', 'warning');
+      return;
+    }
+    
+    if (!calendarId) {
+      showToast('Invalid calendar ID. Please select a valid calendar.', 'error');
+      return;
+    }
+    
     if (codeClientRef.current) {
       codeClientRef.current.requestCode();
     } else {
-      alert('Google API not loaded.');
+      showToast('Google API not loaded.', 'error');
     }
   };
 
-  const disconnectGoogleCalendar = async () => {
-    try {
-      setIsLoading(true);
-      const res = await axiosService.post('/calendar/google-disconnect');
-      console.log(':white_check_mark: Google Calendar disconnected successfully');
-      console.log('Response:', res.data);
-      setIsConnected(false);
-      if (onDisconnect) {
-        onDisconnect(res.data);
-      }
-    } catch (err) {
-      console.error(':x: Error disconnecting calendar:', err);
-      alert('Error disconnecting calendar. ' + (err.response?.data?.message || ''));
-    } finally {
-      setIsLoading(false);
-    }
-  };
   return (
     <Button
       variant={isConnected ? "contained" : "outlined"}
-      color={isConnected ? "error" : "primary"}
-      onClick={isConnected ? disconnectGoogleCalendar : linkGoogleCalendar}
-      disabled={isLoading}
+      color={isConnected ? "success" : "primary"}
+      onClick={linkGoogleCalendar}
+      disabled={isLoading || !calendarData}
       sx={{ 
         ml: 2, 
         mb: 2,
         minWidth: '140px',
         '&:hover': {
-          backgroundColor: isConnected ? '#d32f2f' : undefined,
+          backgroundColor: isConnected ? '#2e7d32' : undefined,
         }
       }}
     >
-      {isLoading ? 'Loading...' : isConnected ? 'Disconnect Google' : 'Connect with Google'}
+      {isLoading ? 'Connecting...' : isConnected ? '✅ Connected' : !calendarData ? 'Select Calendar First' : 'Connect with Google'}
     </Button>
   );
 }
+
 export default LinkGoogleCalendarButton;

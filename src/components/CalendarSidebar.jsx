@@ -991,17 +991,21 @@ const CalendarSidebar = ({
                    
                    <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
                      <LinkGoogleCalendarButton 
+                       calendarId={selectedCalendar?.id || (createdCalendars?.length > 0 ? createdCalendars[0]?.id : null)}
+                       calendarData={selectedCalendar || (createdCalendars?.length > 0 ? createdCalendars[0] : null)}
                        onSuccess={(calendar) => {
                          console.log(":white_check_mark: Linked calendar:", calendar);
                          // Optionally store the calendar or show a success message
                          // You can later fetch events using a separate call
                          // For now, don't try to .map()
                        }}
-                       onDisconnect={(data) => {
-                         console.log(":white_check_mark: Disconnected Google calendar:", data);
-                         // Handle disconnect success
-                       }}
                      />
+                     {/* Debug info */}
+                     {!selectedCalendar?.id && !createdCalendars?.length && (
+                       <Typography variant="caption" sx={{ color: 'red', ml: 1 }}>
+                         No calendar available
+                       </Typography>
+                     )}
                    </Box>
                     </Box>
 
