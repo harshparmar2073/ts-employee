@@ -2,10 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import Button from '@mui/material/Button';
 import axiosService from '../services/axiosService';
 import { useToast } from '../context/ToastContext';
+import { Box } from '@mui/material';
 
 const CLIENT_ID = '953030921199-1mp8r5q7d4jgk9cru6ifuc3sjh29l9ou.apps.googleusercontent.com';
 
-function LinkGoogleCalendarButton({ onSuccess, calendarId, calendarData }) {
+function LinkGoogleCalendarButton({ onSuccess, calendarId, calendarData, onDisconnect }) {
   const codeClientRef = useRef(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -18,14 +19,14 @@ function LinkGoogleCalendarButton({ onSuccess, calendarId, calendarData }) {
     }
   }, [calendarData]);
   
-  // Debug logging
-  console.log('LinkGoogleCalendarButton props:', { calendarId, calendarData, onSuccess });
-  console.log('Calendar data structure:', {
-    id: calendarData?.id,
-    name: calendarData?.name,
-    externalCalendarType: calendarData?.externalCalendarType,
-    isDefault: calendarData?.isDefault
-  });
+  // // Debug logging
+  // console.log('LinkGoogleCalendarButton props:', { calendarId, calendarData, onSuccess });
+  // console.log('Calendar data structure:', {
+  //   id: calendarData?.id,
+  //   name: calendarData?.name,
+  //   externalCalendarType: calendarData?.externalCalendarType,
+  //   isDefault: calendarData?.isDefault
+  // });
 
   useEffect(() => {
     if (window.google && window.google.accounts?.oauth2?.initCodeClient) {
@@ -45,9 +46,6 @@ function LinkGoogleCalendarButton({ onSuccess, calendarId, calendarData }) {
               return;
             }
             
-            // Log the calendar ID being sent
-            console.log('Sending calendar ID to backend:', calendarId);
-            console.log('Calendar data being used:', calendarData);
             
             const res = await axiosService.post('/calendar/google-connect', {
               code: response.code,
@@ -91,23 +89,98 @@ function LinkGoogleCalendarButton({ onSuccess, calendarId, calendarData }) {
     }
   };
 
+  const disconnectGoogleCalendar = async () => {
+    if (!calendarId) {
+      showToast('Invalid calendar ID. Please select a valid calendar.', 'error');
+      return;
+    }
+    
+    try {
+      setIsLoading(true);
+      const res = await axiosService.post('/calendar/google-disconnect', {
+        calendarId: calendarId
+      });
+      console.log(':white_check_mark: Google Calendar disconnected successfully');
+      console.log('Response:', res.data);
+      setIsConnected(false);
+      showToast('✅ Google Calendar disconnected successfully!', 'success');
+      if (onDisconnect) {
+        console.log(':link: Invoking onDisconnect callback after disconnecting');
+        onDisconnect(res.data);
+      }
+    } catch (err) {
+      console.error(':x: Error disconnecting calendar:', err);
+      const errorMessage = err.response?.data?.message || err.message || 'Unknown error occurred';
+      showToast('Error disconnecting calendar: ' + errorMessage, 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <Button
-      variant={isConnected ? "contained" : "outlined"}
-      color={isConnected ? "success" : "primary"}
-      onClick={linkGoogleCalendar}
-      disabled={isLoading || !calendarData}
-      sx={{ 
-        ml: 2, 
-        mb: 2,
-        minWidth: '140px',
-        '&:hover': {
-          backgroundColor: isConnected ? '#2e7d32' : undefined,
-        }
-      }}
-    >
-      {isLoading ? 'Connecting...' : isConnected ? '✅ Connected' : !calendarData ? 'Select Calendar First' : 'Connect with Google'}
-    </Button>
+    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+      {isConnected ? (
+        // Connected state - show status and disconnect button
+        <>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: 1,
+            px: 2,
+            py: 1,
+            borderRadius: 2,
+            backgroundColor: '#e8f5e8',
+            border: '1px solid #4caf50',
+            color: '#2e7d32',
+            fontSize: '0.875rem',
+            fontWeight: 500
+          }}>
+            <Box sx={{ 
+              width: 8, 
+              height: 8, 
+              borderRadius: '50%', 
+              backgroundColor: '#4caf50' 
+            }} />
+            Connected to Google
+          </Box>
+          <Button
+            variant="outlined"
+            color="error"
+            size="small"
+            onClick={disconnectGoogleCalendar}
+            disabled={isLoading}
+            sx={{ 
+              minWidth: '100px',
+              borderColor: '#f44336',
+              color: '#f44336',
+              '&:hover': {
+                backgroundColor: '#ffebee',
+                borderColor: '#d32f2f',
+                color: '#d32f2f',
+              }
+            }}
+          >
+            {isLoading ? 'Disconnecting...' : 'Disconnect'}
+          </Button>
+        </>
+      ) : (
+        // Not connected state - show connect button
+        <Button
+          variant="outlined"
+          color="primary"
+          onClick={linkGoogleCalendar}
+          disabled={isLoading || !calendarData}
+          sx={{ 
+            minWidth: '140px',
+            '&:hover': {
+              backgroundColor: '#e3f2fd',
+            }
+          }}
+        >
+          {isLoading ? 'Connecting...' : !calendarData ? 'Select Calendar First' : 'Connect with Google'}
+        </Button>
+      )}
+    </Box>
   );
 }
 

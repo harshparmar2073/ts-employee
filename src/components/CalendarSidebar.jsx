@@ -999,6 +999,10 @@ const CalendarSidebar = ({
                          // You can later fetch events using a separate call
                          // For now, don't try to .map()
                        }}
+                       onDisconnect={(data) => {
+                         console.log(":white_check_mark: Disconnected Google calendar:", data);
+                         // Handle disconnect success - you can refresh calendar data here
+                       }}
                      />
                      {/* Debug info */}
                      {!selectedCalendar?.id && !createdCalendars?.length && (
