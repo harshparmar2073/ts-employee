@@ -735,7 +735,7 @@ const CalendarView = () => {
       <CalendarSidebar
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={handleToggleSidebar}
-        selectedCalendar={selectedCalendar}
+        selectedCalendar={createdCalendars.find(cal => cal.id === selectedCalendarId) || null}
         calendarType={calendarType}
         onCalendarTypeChange={handleCalendarTypeChange}
         createdCalendars={createdCalendars}
