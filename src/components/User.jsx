@@ -32,7 +32,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  InputAdornment
+  InputAdornment,
+  Chip
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -51,50 +52,34 @@ const customerData = [
     id: 1,
     customerName: 'customer 2',
     address: '123 abc street',
-    website: 'https://www.google.com/',
+    email: 'https://www.google.com/',
+    status:"active",
     description: 'lorem ipsum'
   },
   {
     id: 2,
     customerName: 'customer 2',
     address: 'new 1232 abc',
-    website: 'https://www.google.com/',
+    email: 'https://www.google.com/',
+    status:"active",
+
     description: 'abdss'
   },
   {
     id: 3,
     customerName: 'customer4',
     address: 'customer4 street',
-    website: 'https://www.google.com/',
+    email: 'https://www.google.com/',
+    status:"active",
     description: 'sample 855'
   },
   {
     id: 4,
     customerName: 'customer5',
     address: 'customer5 street 455 floor room no 714',
-    website: 'https://www.google.com/',
+    email: 'https://www.google.com/',
+    status:"active",
     description: 'sample852'
-  },
-  {
-    id: 5,
-    customerName: 'customer6',
-    address: 'customer6street',
-    website: 'https://www.google.com/',
-    description: 'sample 522'
-  },
-  {
-    id: 6,
-    customerName: 'customer7',
-    address: 'customer7street',
-    website: 'https://www.google.com/',
-    description: 'sample7584'
-  },
-  {
-    id: 7,
-    customerName: 'customer8',
-    address: 'customer8 street',
-    website: 'https://www.google.com/',
-    description: 'sample454'
   }
 ];
 
@@ -133,9 +118,13 @@ export default function UserTable() {
       // Create a combined data object with both transformed and original data
       const editData = {
         ...userToEdit,
+        // Ensure email is properly included
+        email: userToEdit.email || userToEdit.originalData?.authUserName || userToEdit.authUserName,
         // Ensure originalData is available for address parsing
         originalData: userToEdit.originalData || userToEdit
       };
+      
+      console.log('Edit data being passed:', editData);
       
       // Navigate to AddUser component with edit mode
       navigate('/dashboard/add-user', { 
@@ -279,8 +268,9 @@ export default function UserTable() {
             customerName: user.authName || user.authUserName || `User ${index + 1}`,
             // Preserve the original address object structure for editing
             address: user.address || 'No address provided',
-            website: user.authUserName ? `mailto:${user.authUserName}` : 'https://www.example.com/',
-            description: `Status: ${user.authStatus || 'Unknown'}, Timezone: ${user.timeZone || 'Unknown'}`,
+            email: user.authUserName || 'No email provided',
+            status: user.authStatus || 'Unknown',
+            timezone: user.timeZone || 'Unknown',
             // Store original user data for editing - this contains the full address object
             originalData: user
           }));
@@ -467,7 +457,7 @@ export default function UserTable() {
                          borderBottom: 'none'
                        }}
                      >
-                       Website
+                       Email
                      </TableCell>
                      <TableCell 
                        sx={{ 
@@ -479,7 +469,19 @@ export default function UserTable() {
                          borderBottom: 'none'
                        }}
                      >
-                       Description
+                       Status
+                     </TableCell>
+                     <TableCell 
+                       sx={{ 
+                         color: 'white',
+                         fontWeight: 600,
+                         fontSize: '16px',
+                         py: 3,
+                         px: 3,
+                         borderBottom: 'none'
+                       }}
+                     >
+                       Timezone
                      </TableCell>
                      <TableCell 
                        sx={{ 
@@ -538,9 +540,7 @@ export default function UserTable() {
                         }}
                       >
                        <Link 
-                         href={customer.website}
-                         target="_blank"
-                         rel="noopener noreferrer"
+                         href={`mailto:${customer.email}`}
                          sx={{
                            color: '#1976d2',
                            textDecoration: 'none',
@@ -550,19 +550,39 @@ export default function UserTable() {
                            }
                          }}
                        >
-                         {customer.website}
+                         {customer.email}
                        </Link>
                      </TableCell>
-                                        <TableCell 
-                        sx={{ 
-                          fontSize: '16px', 
-                          color: '#666',
-                          py: 2.5,
-                          px: 3
-                        }}
-                      >
-                        {customer.description}
-                      </TableCell>
+                     <TableCell 
+                       sx={{ 
+                         py: 2.5,
+                         px: 3
+                       }}
+                     >
+                       <Chip
+                         label={customer.status}
+                         size="small"
+                         sx={{
+                           bgcolor: customer.status === 'auth-active' ? '#e8f5e8' : '#fff3e0',
+                           color: customer.status === 'auth-active' ? '#2e7d32' : '#bf360c',
+                           fontWeight: 600,
+                           fontSize: '12px',
+                           '& .MuiChip-label': {
+                             px: 1.5,
+                           }
+                         }}
+                       />
+                     </TableCell>
+                     <TableCell 
+                       sx={{ 
+                         fontSize: '16px', 
+                         color: '#666',
+                         py: 2.5,
+                         px: 3
+                       }}
+                     >
+                       {customer.timezone}
+                     </TableCell>
                       <TableCell 
                         sx={{ 
                           py: 2.5,
@@ -676,11 +696,9 @@ export default function UserTable() {
                            ) : 'No address'}
                          </Typography>
 
-                         {/* Website */}
+                         {/* Email */}
                          <Link 
-                           href={customer.website}
-                           target="_blank"
-                           rel="noopener noreferrer"
+                           href={`mailto:${customer.email}`}
                            sx={{
                              color: '#1976d2',
                              textDecoration: 'none',
@@ -695,25 +713,36 @@ export default function UserTable() {
                              }
                            }}
                          >
-                           {customer.website}
+                           {customer.email}
                          </Link>
 
-                         {/* Description */}
-                         <Typography 
-                           variant="body2" 
-                           sx={{ 
-                             color: '#666',
-                             fontSize: '14px',
-                             lineHeight: 1.4,
-                             overflow: 'hidden',
-                             textOverflow: 'ellipsis',
-                             display: '-webkit-box',
-                             WebkitLineClamp: 2,
-                             WebkitBoxOrient: 'vertical'
-                           }}
-                         >
-                           {customer.description}
-                         </Typography>
+                         {/* Status and Timezone */}
+                         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1.5 }}>
+                           <Chip
+                             label={customer.status}
+                             size="small"
+                             sx={{
+                               bgcolor: customer.status === 'auth-active' ? '#e8f5e8' : '#fff3e0',
+                               color: customer.status === 'auth-active' ? '#2e7d32' : '#bf360c',
+                               fontWeight: 600,
+                               fontSize: '11px',
+                               height: '20px',
+                               '& .MuiChip-label': {
+                                 px: 1,
+                               }
+                             }}
+                           />
+                           <Typography 
+                             variant="body2" 
+                             sx={{ 
+                               color: '#666',
+                               fontSize: '12px',
+                               fontWeight: 500
+                             }}
+                           >
+                             {customer.timezone}
+                           </Typography>
+                         </Box>
                       </Box>
 
                       {/* Action Icons */}

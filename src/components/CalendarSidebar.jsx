@@ -35,6 +35,13 @@ import {
   PushPin as PushPinIcon,
 } from "@mui/icons-material";
 import { HexColorPicker } from "react-colorful";
+import CalendarNotifications from "./CalendarNotifications";
+import LinkGoogleCalendarButton from "./LinkGoogleCalendarButton";
+import LinkMicrosoftCalendarButton from "./LinkMicrosoftCalendarButton";
+
+
+
+
 
 // Calendar form validation schema
 const calendarSchema = yup.object({
@@ -56,401 +63,6 @@ const CALENDAR_TYPES = [
   { value: "company", label: "Company" },
 ];
 
-// Dynamic time options generator
-const generateTimeOptions = (interval = 30) => {
-  const times = [];
-  for (let hour = 0; hour < 24; hour++) {
-    for (let minute = 0; minute < 60; minute += interval) {
-      const time = new Date();
-      time.setHours(hour, minute, 0, 0);
-      const timeString = time.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true
-      });
-      times.push(timeString);
-    }
-  }
-  return times;
-};
-
-const EventNotificationsSection = ({ calendar }) => {
-  const [notifications, setNotifications] = useState([
-    {
-      id: 1,
-      type: "notification",
-      quantity: 30,
-      timeUnit: "minutes",
-      time: "5:00pm",
-    },
-    { id: 2, type: "email", quantity: 10, timeUnit: "minutes", time: "5:00pm" },
-  ]);
-
-  const timeOptions = generateTimeOptions(30); // 30-minute intervals
-
-  const addNotification = () => {
-    const newNotification = {
-      id: Date.now(),
-      type: "notification",
-      quantity: 30,
-      timeUnit: "minutes",
-      time: "5:00pm",
-    };
-    setNotifications([...notifications, newNotification]);
-  };
-
-  const removeNotification = (id) => {
-    setNotifications(notifications.filter((n) => n.id !== id));
-  };
-
-  const updateNotification = (id, field, value) => {
-    setNotifications(
-      notifications.map((n) => (n.id === id ? { ...n, [field]: value } : n))
-    );
-  };
-
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-      <Typography variant="h6" sx={{ fontWeight: 600, color: "#333", mb: 1 }}>
-        Event notifications
-      </Typography>
-      <Typography variant="body2" sx={{ color: "#666", mb: 3 }}>
-        Receive notifications for events on this calendar.
-      </Typography>
-
-      {/* All notification rules */}
-      {notifications.map((notification) => (
-        <Box
-          key={notification.id}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 2,
-            p: 2,
-            border: "1px solid #e0e0e0",
-            borderRadius: 2,
-            background: "#fafbfc",
-          }}
-        >
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <Select
-              value={notification.type}
-              onChange={(e) =>
-                updateNotification(notification.id, "type", e.target.value)
-              }
-            >
-              <SelectMenuItem value="notification">Notification</SelectMenuItem>
-              <SelectMenuItem value="email">Email</SelectMenuItem>
-            </Select>
-          </FormControl>
-
-          <TextField
-            size="small"
-            value={notification.quantity}
-            onChange={(e) =>
-              updateNotification(
-                notification.id,
-                "quantity",
-                parseInt(e.target.value) || 1
-              )
-            }
-            sx={{
-              width: 60,
-              "& .MuiInputBase-input": {
-                textAlign: "center",
-                fontSize: "0.9rem",
-                fontWeight: 500,
-                color: "#333",
-              },
-            }}
-            inputProps={{ min: 1, max: 30 }}
-          />
-
-          <FormControl size="small" sx={{ minWidth: 80 }}>
-            <Select
-              value={notification.timeUnit}
-              onChange={(e) =>
-                updateNotification(notification.id, "timeUnit", e.target.value)
-              }
-            >
-              <SelectMenuItem value="minutes">minutes</SelectMenuItem>
-              <SelectMenuItem value="hours">hours</SelectMenuItem>
-              <SelectMenuItem value="days">days</SelectMenuItem>
-              <SelectMenuItem value="weeks">weeks</SelectMenuItem>
-            </Select>
-          </FormControl>
-
-          <Typography variant="body2" sx={{ color: "#666" }}>
-            before at
-          </Typography>
-
-          <FormControl size="small" sx={{ minWidth: 100 }}>
-            <Select
-              value={notification.time}
-              onChange={(e) =>
-                updateNotification(notification.id, "time", e.target.value)
-              }
-            >
-              {timeOptions.map((time) => (
-                <SelectMenuItem key={time} value={time}>
-                  {time}
-                </SelectMenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <IconButton
-            size="small"
-            onClick={() => removeNotification(notification.id)}
-            sx={{ color: "#dc3545" }}
-          >
-            ✕
-          </IconButton>
-        </Box>
-      ))}
-
-      <Button
-        variant="outlined"
-        startIcon={<AddIcon />}
-        onClick={addNotification}
-        sx={{ alignSelf: "flex-start", borderRadius: 2 }}
-      >
-        Add notification
-      </Button>
-    </Box>
-  );
-};
-
-const AllDayNotificationsSection = ({ calendar }) => {
-  const [notifications, setNotifications] = useState([
-    { id: 1, type: "email", quantity: 1, timeUnit: "days", time: "5:00pm" },
-  ]);
-
-  const timeOptions = generateTimeOptions(30); // 30-minute intervals
-
-  const addNotification = () => {
-    const newNotification = {
-      id: Date.now(),
-      type: "email",
-      quantity: 1,
-      timeUnit: "days",
-      time: "5:00pm",
-    };
-    setNotifications([...notifications, newNotification]);
-  };
-
-  const removeNotification = (id) => {
-    setNotifications(notifications.filter((n) => n.id !== id));
-  };
-
-  const updateNotification = (id, field, value) => {
-    setNotifications(
-      notifications.map((n) => (n.id === id ? { ...n, [field]: value } : n))
-    );
-  };
-
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-      <Typography variant="h6" sx={{ fontWeight: 600, color: "#333", mb: 1 }}>
-        All-day event notifications
-      </Typography>
-      <Typography variant="body2" sx={{ color: "#666", mb: 3 }}>
-        Receive notifications for all day events on this calendar.
-      </Typography>
-
-      {/* All notification rules */}
-      {notifications.map((notification) => (
-        <Box
-          key={notification.id}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 2,
-            p: 2,
-            border: "1px solid #e0e0e0",
-            borderRadius: 2,
-            background: "#fafbfc",
-          }}
-        >
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <Select
-              value={notification.type}
-              onChange={(e) =>
-                updateNotification(notification.id, "type", e.target.value)
-              }
-            >
-              <SelectMenuItem value="notification">Notification</SelectMenuItem>
-              <SelectMenuItem value="email">Email</SelectMenuItem>
-            </Select>
-          </FormControl>
-
-          <TextField
-            size="small"
-            value={notification.quantity}
-            onChange={(e) =>
-              updateNotification(
-                notification.id,
-                "quantity",
-                parseInt(e.target.value) || 1
-              )
-            }
-            sx={{
-              width: 60,
-              "& .MuiInputBase-input": {
-                textAlign: "center",
-                fontSize: "0.9rem",
-                fontWeight: 500,
-                color: "#333",
-              },
-            }}
-            inputProps={{ min: 1, max: 30 }}
-          />
-
-          <FormControl size="small" sx={{ minWidth: 80 }}>
-            <Select
-              value={notification.timeUnit}
-              onChange={(e) =>
-                updateNotification(notification.id, "timeUnit", e.target.value)
-              }
-            >
-              <SelectMenuItem value="minutes">minutes</SelectMenuItem>
-              <SelectMenuItem value="hours">hours</SelectMenuItem>
-              <SelectMenuItem value="days">days</SelectMenuItem>
-              <SelectMenuItem value="weeks">weeks</SelectMenuItem>
-            </Select>
-          </FormControl>
-
-          <Typography variant="body2" sx={{ color: "#666" }}>
-            before at
-          </Typography>
-
-          <FormControl size="small" sx={{ minWidth: 100 }}>
-            <Select
-              value={notification.time}
-              onChange={(e) =>
-                updateNotification(notification.id, "time", e.target.value)
-              }
-            >
-              {timeOptions.map((time) => (
-                <SelectMenuItem key={time} value={time}>
-                  {time}
-                </SelectMenuItem>
-              ))}
-            </Select>
-          </FormControl>
-
-          <IconButton
-            size="small"
-            onClick={() => removeNotification(notification.id)}
-            sx={{ color: "#dc3545" }}
-          >
-            ✕
-          </IconButton>
-        </Box>
-      ))}
-
-      <Button
-        variant="outlined"
-        startIcon={<AddIcon />}
-        onClick={addNotification}
-        sx={{ alignSelf: "flex-start", borderRadius: 2 }}
-      >
-        Add notification
-      </Button>
-    </Box>
-  );
-};
-
-const OtherNotificationsSection = ({ calendar }) => {
-  const [notifications, setNotifications] = useState([
-    {
-      id: "new",
-      label: "New events",
-      desc: "An event is added to this calendar",
-      type: "none",
-    },
-    {
-      id: "changed",
-      label: "Changed events",
-      desc: "An event on this calendar is changed",
-      type: "none",
-    },
-    {
-      id: "canceled",
-      label: "Canceled events",
-      desc: "An event on this calendar is cancelled",
-      type: "none",
-    },
-    {
-      id: "responses",
-      label: "Event responses",
-      desc: "Guests respond to an event on this calendar",
-      type: "none",
-    },
-    {
-      id: "agenda",
-      label: "Daily agenda",
-      desc: "Receive a daily email with the agenda for this calendar",
-      type: "none",
-    },
-  ]);
-
-  const updateNotification = (id, value) => {
-    setNotifications(
-      notifications.map((n) => (n.id === id ? { ...n, type: value } : n))
-    );
-  };
-
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-      <Typography variant="h6" sx={{ fontWeight: 600, color: "#333", mb: 1 }}>
-        Other notifications
-      </Typography>
-      <Typography variant="body2" sx={{ color: "#666", mb: 3 }}>
-        Receive email notifications when changes are made to this calendar.
-      </Typography>
-
-      {notifications.map((item) => (
-        <Box
-          key={item.id}
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            p: 2,
-            border: "1px solid #e0e0e0",
-            borderRadius: 2,
-            background: "#fafbfc",
-          }}
-        >
-          <Box>
-            <Typography variant="body2" sx={{ fontWeight: 500, color: "#333" }}>
-              {item.label}
-            </Typography>
-            <Typography
-              variant="caption"
-              sx={{ color: "#666", display: "block", mt: 0.5 }}
-            >
-              {item.desc}
-            </Typography>
-          </Box>
-          <FormControl size="small" sx={{ minWidth: 120 }}>
-            <Select
-              value={item.type}
-              onChange={(e) => updateNotification(item.id, e.target.value)}
-            >
-              <SelectMenuItem value="none">None</SelectMenuItem>
-              <SelectMenuItem value="email">Email</SelectMenuItem>
-              <SelectMenuItem value="notification">Notification</SelectMenuItem>
-            </Select>
-          </FormControl>
-        </Box>
-      ))}
-    </Box>
-  );
-};
-
-
 
 const CalendarSidebar = ({
   sidebarCollapsed,
@@ -463,6 +75,8 @@ const CalendarSidebar = ({
   onCalendarCreate,
   onCalendarUpdate,
   onCalendarDelete,
+  onGoogleCalendarConnected,
+  onGoogleCalendarDisconnected,
 }) => {
 
 
@@ -490,7 +104,7 @@ const CalendarSidebar = ({
     defaultValues: {
       name: "",
       description: "",
-      type: "private",
+      type: "company",
       color: "#4285f4",
     },
   });
@@ -498,13 +112,38 @@ const CalendarSidebar = ({
   // Reset form when selectedCalendarForDetails changes
   useEffect(() => {
     if (selectedCalendarForDetails) {
+      // Map the calendar type correctly
+      let calendarType = "private";
+      if (selectedCalendarForDetails.securityVisibility) {
+        // Map API values to form values - preserve original values
+        const securityVisibility = selectedCalendarForDetails.securityVisibility;
+        
+        // Map to form values while preserving the original type
+        if (securityVisibility.toLowerCase() === "private") {
+          calendarType = "private";
+        } else if (securityVisibility.toLowerCase() === "team" || securityVisibility.toLowerCase() === "company") {
+          calendarType = "company"; // Map both team and company to company
+        } else {
+          calendarType = "private"; // default
+        }
+      } else if (selectedCalendarForDetails.type) {
+        calendarType = selectedCalendarForDetails.type;
+      }
+      
+      console.log('Setting calendar form data:', {
+        name: selectedCalendarForDetails.name,
+        description: selectedCalendarForDetails.description,
+        type: calendarType,
+        color: selectedCalendarForDetails.colour || selectedCalendarForDetails.color || "#4285f4",
+        originalData: selectedCalendarForDetails,
+        securityVisibility: selectedCalendarForDetails.securityVisibility,
+        originalType: selectedCalendarForDetails.type
+      });
+      
       reset({
         name: selectedCalendarForDetails.name,
         description: selectedCalendarForDetails.description,
-        type:
-          selectedCalendarForDetails.securityVisibility ||
-          selectedCalendarForDetails.type ||
-          "private",
+        type: calendarType,
         color:
           selectedCalendarForDetails.colour ||
           selectedCalendarForDetails.color ||
@@ -514,7 +153,7 @@ const CalendarSidebar = ({
       reset({
         name: "",
         description: "",
-        type: "private",
+        type: "company",
         color: "#4285f4",
       });
     }
@@ -523,6 +162,7 @@ const CalendarSidebar = ({
 
   const handleCalendarSettings = useCallback((calendar) => {
     // Open the same calendar form dialog but with existing data
+    console.log('Opening calendar settings for:', calendar);
     setSelectedCalendarForDetails(calendar);
 
     // Always default to 'basic' section when editing calendar
@@ -578,8 +218,6 @@ const CalendarSidebar = ({
     handleMenuClose();
   }, [selectedCalendarForMenu, handleCalendarSettings, onCalendarUpdate]);
 
-
-
   // Calendar management handlers
   const handleAddCalendar = () => {
     setSelectedCalendarForDetails(null); // Clear any selected calendar
@@ -588,6 +226,23 @@ const CalendarSidebar = ({
   };
 
   const handleSaveCalendar = (formData) => {
+    console.log('Saving calendar with form data:', formData);
+    
+    // Map form type to API expected values
+    const typeMapping = {
+      "private": "Private",
+      "company": "Company", // Handle company type
+    };
+    
+    const apiType = typeMapping[formData.type] || "Private";
+    
+    console.log('Type mapping:', {
+      formType: formData.type,
+      apiType: apiType,
+      typeMapping: typeMapping,
+      availableTypes: CALENDAR_TYPES
+    });
+    
     if (selectedCalendarForDetails) {
       // Update existing calendar
       const updatedCalendar = {
@@ -595,10 +250,12 @@ const CalendarSidebar = ({
         calendarId: selectedCalendarForDetails.id, // Include calendar ID for updates
         name: formData.name,
         description: formData.description,
-        securityVisibility: formData.type, // Map to API field
+        securityVisibility: apiType, // Map to API field with proper casing
         colour: formData.color, // Map to API field
+        type: formData.type, // Also keep the form type for consistency
       };
 
+      console.log('Updating calendar with:', updatedCalendar);
       if (onCalendarUpdate) {
         onCalendarUpdate(updatedCalendar);
       }
@@ -608,11 +265,13 @@ const CalendarSidebar = ({
         calendarId: null, // Will be assigned by the backend for new calendars
         name: formData.name,
         description: formData.description,
-        securityVisibility: formData.type, // Map to API field
+        securityVisibility: apiType, // Map to API field with proper casing
         colour: formData.color, // Map to API field
+        type: formData.type, // Also keep the form type for consistency
         createdAt: new Date().toISOString(),
       };
 
+      console.log('Creating new calendar with:', newCalendar);
       if (onCalendarCreate) {
         onCalendarCreate(newCalendar);
       }
@@ -749,22 +408,47 @@ const CalendarSidebar = ({
             >
               My {calendarType} calendars
             </Typography>
+            
+            {/* Debug info */}
+            {console.log('Calendar filtering debug:', {
+              totalCalendars: createdCalendars.length,
+              calendarType: calendarType,
+              calendars: createdCalendars.map(cal => ({
+                name: cal.name,
+                securityVisibility: cal.securityVisibility,
+                type: cal.type,
+                id: cal.id
+              }))
+            })}
                          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                {createdCalendars
                  .filter((calendar) => {
-                   // Map calendar type to filter type - handle both API and form field names
-                   const typeMapping = {
-                     private: "Private",
-                     company: "Company",
-                   };
-                   // Use securityVisibility from API or type from form
+                   // Get the calendar type value from API response
                    const calendarTypeValue = (
                      calendar.securityVisibility || calendar.type || ""
                    ).toLowerCase();
+                   
+                   // Normalize the current filter type
                    const normalizedType = (calendarType || "").toLowerCase();
-                   return (
-                     typeMapping[calendarTypeValue]?.toLowerCase() === normalizedType
-                   );
+                   
+                   // Map the calendar type to the expected filter type
+                   let mappedCalendarType = null;
+                   if (calendarTypeValue === "private") {
+                     mappedCalendarType = "Private";
+                   } else if (calendarTypeValue === "team" || calendarTypeValue === "company") {
+                     // Both team and company show in Company section
+                     mappedCalendarType = "Company";
+                   }
+                   
+                   console.log('Calendar filtering:', {
+                     calendarName: calendar.name,
+                     calendarTypeValue,
+                     mappedCalendarType,
+                     normalizedType,
+                     matches: mappedCalendarType?.toLowerCase() === normalizedType
+                   });
+                   
+                   return mappedCalendarType?.toLowerCase() === normalizedType;
                  })
                  .map((calendar) => (
                                  <Box
@@ -796,7 +480,6 @@ const CalendarSidebar = ({
                           height: 8,
                           borderRadius: "50%",
                           backgroundColor: calendar.colour || calendar.color || "#4285f4",
-                         //  border: selectedCalendar === calendar.name ? "1px solid #6f42c1" : "none",
                         }}
                       />
                      <Box
@@ -885,9 +568,6 @@ const CalendarSidebar = ({
           </ListItem>
         </List>
       </Box>
-
-
-
       {/* Calendar Form Dialog */}
       <Dialog
         open={calendarFormOpen}
@@ -945,6 +625,7 @@ const CalendarSidebar = ({
               >
                 {[
                   { id: "basic", label: "Basic" },
+                   { id: "external", label: "Connect External" },
                   { id: "notifications", label: "Notifications" },
                 ].map((item) => (
                   <Box
@@ -1017,7 +698,6 @@ const CalendarSidebar = ({
                     </Box>
                   )}
                 />
-
                 {/* Description Field */}
                 <Controller
                   name="description"
@@ -1043,7 +723,6 @@ const CalendarSidebar = ({
                     </Box>
                   )}
                 />
-
                 {/* Calendar Type Field */}
                 <Controller
                   name="type"
@@ -1057,7 +736,12 @@ const CalendarSidebar = ({
                         Calendar Type *
                       </Typography>
                       <FormControl fullWidth size="small" error={!!errors.type}>
-                        <Select {...field} displayEmpty>
+                        <Select 
+                          {...field} 
+                          displayEmpty
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                        >
                           {CALENDAR_TYPES.map((type) => (
                             <SelectMenuItem key={type.value} value={type.value}>
                               {type.label}
@@ -1076,7 +760,6 @@ const CalendarSidebar = ({
                     </Box>
                   )}
                 />
-
                 {/* Calendar Color Field */}
                 <Controller
                   name="color"
@@ -1089,7 +772,6 @@ const CalendarSidebar = ({
                       >
                         Calendar Color *
                       </Typography>
-
                       {/* Custom Color Picker */}
                       <Box
                         sx={{ display: "flex", alignItems: "center", gap: 2 }}
@@ -1228,60 +910,200 @@ const CalendarSidebar = ({
                 />
               </Box>
             )}
-            {/* Settings Sections - Only show when editing existing calendar */}
-            {selectedCalendarForDetails && activeSection !== "basic" && (
-              <Box sx={{ maxHeight: "50vh", overflow: "auto" }}>
-                {activeSection === "notifications" && (
-                  <Box
-                    sx={{ display: "flex", flexDirection: "column", gap: 4 }}
-                  >
-                    {/* Event Notifications Section */}
+            
+                          {/* External Calendar Connection Section */}
+             {activeSection === "external" && (
+               <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                 <Typography variant="h6" sx={{ fontWeight: 600, color: "#333", mb: 1 }}>
+                   External Calendar Connections
+                 </Typography>
+                 
+                 {/* Google Calendar Connection */}
                     <Box
                       sx={{
                         p: 3,
-                        border: "1px solid #e0e0e0",
+                     border: "2px solid #e8f0fe",
                         borderRadius: 3,
-                        background: "#fff",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                      }}
-                    >
-                      <EventNotificationsSection
-                        calendar={selectedCalendarForDetails}
-                      />
+                     background: "linear-gradient(135deg, #f8faff 0%, #ffffff 100%)",
+                     boxShadow: "0 4px 16px rgba(66, 133, 244, 0.08)",
+                     position: "relative",
+                     overflow: "hidden",
+                     transition: "all 0.3s ease",
+                     "&:hover": {
+                       transform: "translateY(-1px)",
+                       boxShadow: "0 8px 24px rgba(66, 133, 244, 0.12)",
+                       borderColor: "#4285f4",
+                     },
+                     "&::before": {
+                       content: '""',
+                       position: "absolute",
+                       top: 0,
+                       left: 0,
+                       right: 0,
+                       height: "3px",
+                       background: "linear-gradient(90deg, #4285f4 0%, #34a853 50%, #fbbc04 100%)",
+                     },
+                   }}
+                 >
+                   <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                    <Box
+                      sx={{
+                         width: 44,
+                         height: 44,
+                         borderRadius: "12px",
+                         background: "linear-gradient(135deg, #4285f4 0%, #34a853 100%)",
+                         display: "flex",
+                         alignItems: "center",
+                         justifyContent: "center",
+                         color: "white",
+                         fontWeight: "bold",
+                         fontSize: "20px",
+                         boxShadow: "0 4px 12px rgba(66, 133, 244, 0.3)",
+                         position: "relative",
+                         "&::after": {
+                           content: '""',
+                           position: "absolute",
+                           top: "-1px",
+                           left: "-1px",
+                           right: "-1px",
+                           bottom: "-1px",
+                           borderRadius: "13px",
+                           background: "linear-gradient(135deg, #4285f4, #34a853)",
+                           zIndex: -1,
+                           opacity: 0.2,
+                         },
+                       }}
+                     >
+                       G
+                     </Box>
+                     <Box>
+                       <Typography variant="h6" sx={{ fontWeight: 600, color: "#1a1a1a", mb: 0.5 }}>
+                         Google Calendar
+                       </Typography>
+                       <Typography variant="body2" sx={{ color: "#5f6368", fontWeight: 500 }}>
+                         Sync with your Google Calendar
+                       </Typography>
+                     </Box>
+                   </Box>
+                   
+                   <Typography variant="body2" sx={{ color: "#5f6368", mb: 3, lineHeight: 1.5 }}>
+                     Connect your Google Calendar to automatically sync events, meetings, and appointments. 
+                     Changes made in either calendar will be reflected in both.
+                   </Typography>
+                   
+                   <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
+                     <LinkGoogleCalendarButton 
+                       calendarId={selectedCalendar?.id || (createdCalendars?.length > 0 ? createdCalendars[0]?.id : null)}
+                       calendarData={selectedCalendar || (createdCalendars?.length > 0 ? createdCalendars[0] : null)}
+                       onSuccess={onGoogleCalendarConnected}
+                       onDisconnect={onGoogleCalendarDisconnected}
+                     />
+                     {/* Debug info */}
+                     {!selectedCalendar?.id && !createdCalendars?.length && (
+                       <Typography variant="caption" sx={{ color: 'red', ml: 1 }}>
+                         No calendar available
+                       </Typography>
+                     )}
+                   </Box>
                     </Box>
 
-                    {/* All-day Event Notifications Section */}
+                 {/* Microsoft Calendar Connection */}
                     <Box
                       sx={{
                         p: 3,
-                        border: "1px solid #e0e0e0",
+                     border: "2px solid #f0f8ff",
                         borderRadius: 3,
-                        background: "#fff",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                      }}
-                    >
-                      <AllDayNotificationsSection
-                        calendar={selectedCalendarForDetails}
-                      />
-                    </Box>
-
-                    {/* Other Notifications Section */}
-                    <Box
-                      sx={{
-                        p: 3,
-                        border: "1px solid #e0e0e0",
-                        borderRadius: 3,
-                        background: "#fff",
-                        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                      }}
-                    >
-                      <OtherNotificationsSection
-                        calendar={selectedCalendarForDetails}
+                     background: "linear-gradient(135deg, #f8fbff 0%, #ffffff 100%)",
+                     boxShadow: "0 4px 16px rgba(0, 120, 212, 0.08)",
+                     position: "relative",
+                     overflow: "hidden",
+                     transition: "all 0.3s ease",
+                     "&:hover": {
+                       transform: "translateY(-1px)",
+                       boxShadow: "0 8px 24px rgba(0, 120, 212, 0.12)",
+                       borderColor: "#0078d4",
+                     },
+                     "&::before": {
+                       content: '""',
+                       position: "absolute",
+                       top: 0,
+                       left: 0,
+                       right: 0,
+                       height: "3px",
+                       background: "linear-gradient(90deg, #0078d4 0%, #00a1f1 50%, #7fba00 100%)",
+                     },
+                   }}
+                 >
+                   <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                     <Box
+                       sx={{
+                         width: 44,
+                         height: 44,
+                         borderRadius: "12px",
+                         background: "linear-gradient(135deg, #0078d4 0%, #00a1f1 100%)",
+                         display: "flex",
+                         alignItems: "center",
+                         justifyContent: "center",
+                         color: "white",
+                         fontWeight: "bold",
+                         fontSize: "20px",
+                         boxShadow: "0 4px 12px rgba(0, 120, 212, 0.3)",
+                         position: "relative",
+                         "&::after": {
+                           content: '""',
+                           position: "absolute",
+                           top: "-1px",
+                           left: "-1px",
+                           right: "-1px",
+                           bottom: "-1px",
+                           borderRadius: "13px",
+                           background: "linear-gradient(135deg, #0078d4, #00a1f1)",
+                           zIndex: -1,
+                           opacity: 0.2,
+                         },
+                       }}
+                     >
+                       M
+                     </Box>
+                     <Box>
+                       <Typography variant="h6" sx={{ fontWeight: 600, color: "#1a1a1a", mb: 0.5 }}>
+                         Microsoft Outlook
+                       </Typography>
+                       <Typography variant="body2" sx={{ color: "#5f6368", fontWeight: 500 }}>
+                         Sync with your Outlook Calendar
+                       </Typography>
+                     </Box>
+                   </Box>
+                   
+                   <Typography variant="body2" sx={{ color: "#5f6368", mb: 3, lineHeight: 1.5 }}>
+                     Connect your Microsoft Outlook Calendar to sync events, meetings, and appointments. 
+                     Perfect for enterprise users and Office 365 subscribers.
+                   </Typography>
+                   
+                   <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
+                     <LinkMicrosoftCalendarButton 
+                       onSuccess={(calendar) => {
+                         console.log(":white_check_mark: Linked Microsoft calendar:", calendar);
+                         // Optionally store the calendar or show a success message
+                         // You can later fetch events using a separate call
+                         // For now, don't try to .map()
+                       }}
+                       onDisconnect={(data) => {
+                         console.log(":white_check_mark: Disconnected Microsoft calendar:", data);
+                         // Handle disconnect success
+                       }}
                       />
                     </Box>
                   </Box>
-                )}
               </Box>
+            )}
+             
+             {/* Settings Sections - Only show when editing existing calendar */}
+             {selectedCalendarForDetails && activeSection !== "basic" && activeSection !== "external" && (
+               <CalendarNotifications 
+                 calendar={selectedCalendarForDetails}
+                 activeSection={activeSection}
+               />
             )}
           </Box>
         </DialogContent>
