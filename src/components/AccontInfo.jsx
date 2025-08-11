@@ -440,5 +440,4 @@ const AccountInfo = () => {
     </Box>
   );
 };
-
 export default AccountInfo;

@@ -71,6 +71,7 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 });
 
 import { rrulestr } from "rrule";
+import { alpha } from "@mui/material/styles";
 
 import LinkGoogleCalendarButton from "./LinkGoogleCalendarButton";
 
@@ -281,12 +282,15 @@ const CalendarView = () => {
       console.log("📅 Events fetched successfully:", fetchedEvents);
     } catch (error) {
       console.error("❌ Failed to fetch events:", error);
-      
+
       // Handle specific error cases
       if (error.response?.status === 403) {
         console.error("🔒 Forbidden error - likely OAuth token issue");
-        showToast("Calendar access denied. Please reconnect your Google Calendar.", "error");
-        
+        showToast(
+          "Calendar access denied. Please reconnect your Google Calendar.",
+          "error"
+        );
+
         // If this is a retry, don't retry again to avoid infinite loops
         if (retryCount === 0) {
           console.log("🔄 Attempting to refresh calendar connection...");
@@ -479,99 +483,64 @@ const CalendarView = () => {
     setEditOption("this");
   };
 
+  // imports:
+  // import { Box, Typography } from "@mui/material";
+  // import { alpha } from "@mui/material/styles";
+
   const renderEventContent = (eventInfo) => {
     const { title, start, end, extendedProps } = eventInfo.event;
-
-    const formattedStart = new Date(start).toLocaleTimeString([], {
+    const fmt = new Intl.DateTimeFormat(undefined, {
       hour: "2-digit",
       minute: "2-digit",
     });
-
-    const formattedEnd = new Date(end).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    const timeLabel = `${fmt.format(start)} – ${fmt.format(end)}`;
 
     return (
       <Box
-        sx={{
-          p: 1,
-          backgroundColor: eventInfo.event.backgroundColor || "#1976d2",
-          color: "#fff",
-          borderRadius: 2,
-          width: "100%",
+        sx={(theme) => ({
           height: "100%",
+          width: "100%",
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
-          overflow: "hidden",
+          gap: 0.25,
+          px: 1,
+          py: 0.75,
+          borderRadius: 0, // square
+          backgroundColor: eventInfo.event.backgroundColor, // use user's color directly
+          color: theme.palette.getContrastText(eventInfo.event.backgroundColor),
           fontFamily: theme.typography.fontFamily,
-          boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-        }}
+          transition: "filter 120ms ease",
+          "&:hover": { filter: "brightness(0.98)" },
+        })}
       >
-        <Typography
-          noWrap
-          sx={{
-            fontWeight: 700,
-            fontSize: "0.95rem",
-            color: "#fff",
-            lineHeight: 1.3,
-          }}
+        <Box
+          sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0 }}
         >
-          {title}
-        </Typography>
-
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.8, mt: 0.3 }}>
-          <ScheduleIcon sx={{ fontSize: 16, opacity: 0.9 }} />
           <Typography
-            sx={{
-              fontSize: "0.85rem",
-              fontWeight: 500,
-              opacity: 0.9,
-              color: "#fff",
-            }}
+            className="ec-title"
+            title={title}
+            sx={{ flex: 1, minWidth: 0 }}
           >
-            {formattedStart} – {formattedEnd}
+            {title}
           </Typography>
+          <Typography className="ec-time">{timeLabel}</Typography>
         </Box>
 
-        {extendedProps.durationText && (
-          <Box
-            sx={{ display: "flex", alignItems: "center", gap: 0.8, mt: 0.2 }}
+        {extendedProps?.durationText && (
+          <Typography
+            sx={{
+              fontSize: "0.78rem",
+              fontWeight: 500,
+              opacity: 0.85,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+            title={extendedProps.durationText}
           >
-            <AccessTimeIcon sx={{ fontSize: 16, opacity: 0.8 }} />
-            <Typography
-              sx={{
-                fontSize: "0.85rem",
-                fontWeight: 500,
-                opacity: 0.85,
-                color: "#fff",
-              }}
-            >
-              {extendedProps.durationText}
-            </Typography>
-          </Box>
-        )}
-
-        {extendedProps.timezone && (
-          <Box
-            sx={{ display: "flex", alignItems: "center", gap: 0.8, mt: 0.2 }}
-          >
-            <PublicIcon sx={{ fontSize: 16, opacity: 0.85 }} />
-            <Typography
-              sx={{
-                fontSize: "0.85rem",
-                fontWeight: 500,
-                opacity: 0.85,
-                color: "#fff",
-                textOverflow: "ellipsis",
-                overflow: "hidden",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {extendedProps.timezone}
-            </Typography>
-          </Box>
+            {extendedProps.durationText}
+          </Typography>
         )}
       </Box>
     );
@@ -627,32 +596,40 @@ const CalendarView = () => {
   const handleGoogleCalendarReconnect = async (calendarId) => {
     try {
       showToast("Reconnecting to Google Calendar...", "info");
-      
+
       // First, disconnect to clear any invalid tokens
-      await axiosService.post('/calendar/google-disconnect', {
-        calendarId: calendarId
+      await axiosService.post("/calendar/google-disconnect", {
+        calendarId: calendarId,
       });
-      
+
       // Then trigger a reconnection
-      showToast("Please reconnect your Google Calendar to continue.", "warning");
-      
+      showToast(
+        "Please reconnect your Google Calendar to continue.",
+        "warning"
+      );
+
       // You could automatically trigger the Google OAuth flow here
       // For now, we'll just show a message asking the user to reconnect
-      
     } catch (error) {
       console.error("❌ Error during Google Calendar reconnection:", error);
-      showToast("Failed to reconnect Google Calendar. Please try manually.", "error");
+      showToast(
+        "Failed to reconnect Google Calendar. Please try manually.",
+        "error"
+      );
     }
   };
 
   // Handle successful Google Calendar connection
   const handleGoogleCalendarConnected = (calendarData) => {
     console.log("✅ Google Calendar connected successfully:", calendarData);
-    showToast("Google Calendar connected successfully! Events will be loaded shortly.", "success");
-    
+    showToast(
+      "Google Calendar connected successfully! Events will be loaded shortly.",
+      "success"
+    );
+
     // Refresh the calendar list to get updated connection status
     fetchCalendars();
-    
+
     // Retry fetching events after a short delay
     setTimeout(() => {
       if (selectedCalendarId) {
@@ -665,10 +642,10 @@ const CalendarView = () => {
   const handleGoogleCalendarDisconnected = (calendarData) => {
     console.log("🔌 Google Calendar disconnected:", calendarData);
     showToast("Google Calendar disconnected successfully.", "info");
-    
+
     // Refresh the calendar list to get updated connection status
     fetchCalendars();
-    
+
     // Clear events if the disconnected calendar was selected
     if (selectedCalendarId === calendarData?.calendarId) {
       setEvents([]);
@@ -677,7 +654,7 @@ const CalendarView = () => {
 
   // Utility function to check if a calendar is connected to Google
   const isGoogleCalendarConnected = (calendar) => {
-    return calendar?.externalCalendarType === 'GOOGLE';
+    return calendar?.externalCalendarType === "GOOGLE";
   };
 
   const handleCalendarSettings = useCallback((calendar, action) => {
@@ -804,7 +781,9 @@ const CalendarView = () => {
       <CalendarSidebar
         sidebarCollapsed={sidebarCollapsed}
         onToggleSidebar={handleToggleSidebar}
-        selectedCalendar={createdCalendars.find(cal => cal.id === selectedCalendarId) || null}
+        selectedCalendar={
+          createdCalendars.find((cal) => cal.id === selectedCalendarId) || null
+        }
         calendarType={calendarType}
         onCalendarTypeChange={handleCalendarTypeChange}
         createdCalendars={createdCalendars}
@@ -852,7 +831,7 @@ const CalendarView = () => {
           position: "relative",
         }}
       >
-     {/* <LinkGoogleCalendarButton
+        {/* <LinkGoogleCalendarButton
           onSuccess={(calendar) => {
             console.log(":white_check_mark: Linked calendar:", calendar);
             // Optionally store the calendar or show a success message
