@@ -277,7 +277,11 @@ const CalendarView = () => {
             event.startDateTime,
             event.endDateTime
           );
-          calendarEvent.exdate = event.exceptionDates;
+          
+          if (Array.isArray(event.exceptionDates) && event.exceptionDates.length) {
+            calendarEvent.exdate = event.exceptionDates;
+          }
+          
           calendarEvent.extendedProps.durationText = `${minutes} min`;
         } else {
           calendarEvent.start = event.startDateTime;
@@ -752,63 +756,86 @@ const CalendarView = () => {
                     const hasImg = Boolean(a.photoUrl);
                     return (
                       <Tooltip
-                        key={idx}
-                        title={`${a.name || a.email || "Attendee"}${
-                          status ? ` — ${status}` : ""
-                        }`}
-                        placement="top"
-                        arrow
-                      >
-                        <Avatar
-                          src={hasImg ? a.photoUrl : undefined}
-                          alt={a.name || a.email || "Attendee"}
-                          sx={{
-                            bgcolor: hasImg ? avatarFillBg : avatarFillBg,
-                            color: avatarFillText,
-                            border: `1px solid ${avatarRing}`,
-                            position: "relative",
-                          }}
-                        >
-                          {!hasImg &&
-                            (a.name?.[0]?.toUpperCase() ||
-                              a.email?.[0]?.toUpperCase() ||
-                              "?")}
-
+                      key={idx}
+                      placement="top"
+                      arrow
+                      title={
+                        <Box sx={{ p: 1 }}>
+                          <Typography sx={{ fontWeight: 600, fontSize: "0.95rem" }}>
+                            {a.name || "Unknown Name"}
+                          </Typography>
+                          <Typography sx={{ fontSize: "0.85rem", opacity: 0.8 }}>
+                            {a.email || "No Email"}
+                          </Typography>
                           {status && (
-                            <Box
-                              sx={{
-                                position: "absolute",
-                                right: -2,
-                                bottom: -2,
-                                width: 14,
-                                height: 14,
-                                borderRadius: "50%",
-                                backgroundColor: "#fff",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                boxShadow: darkBg
-                                  ? "0 0 0 1px rgba(255,255,255,0.4)"
-                                  : "0 0 0 1px rgba(0,0,0,0.12)",
-                              }}
-                            >
-                              {/^(accepted|yes)$/.test(status) ? (
-                                <CheckCircleIcon
-                                  sx={{ fontSize: 12, color: "#2e7d32" }}
-                                />
-                              ) : /^(declined|no)$/.test(status) ? (
-                                <CancelIcon
-                                  sx={{ fontSize: 12, color: "#c62828" }}
-                                />
-                              ) : (
-                                <HourglassEmptyIcon
-                                  sx={{ fontSize: 12, color: "#6b7280" }}
-                                />
-                              )}
-                            </Box>
+                            <Typography sx={{ fontSize: "0.8rem", mt: 0.5 }}>
+                              Status: {status}
+                            </Typography>
                           )}
-                        </Avatar>
-                      </Tooltip>
+                        </Box>
+                      }
+                      componentsProps={{
+                        tooltip: {
+                          sx: {
+                            bgcolor: "#333",
+                            color: "#fff",
+                            fontSize: "0.9rem",
+                            maxWidth: 240,
+                            borderRadius: 1,
+                            boxShadow: "0px 4px 12px rgba(0,0,0,0.4)",
+                          },
+                        },
+                        arrow: {
+                          sx: {
+                            color: "#333",
+                          },
+                        },
+                      }}
+                    >
+                      <Avatar
+                        src={hasImg ? a.photoUrl : undefined}
+                        alt={a.name || a.email || "Attendee"}
+                        sx={{
+                          bgcolor: hasImg ? avatarFillBg : avatarFillBg,
+                          color: avatarFillText,
+                          border: `1px solid ${avatarRing}`,
+                          position: "relative",
+                        }}
+                      >
+                        {!hasImg &&
+                          (a.name?.[0]?.toUpperCase() ||
+                            a.email?.[0]?.toUpperCase() ||
+                            "?")}
+                    
+                        {status && (
+                          <Box
+                            sx={{
+                              position: "absolute",
+                              right: -2,
+                              bottom: -2,
+                              width: 14,
+                              height: 14,
+                              borderRadius: "50%",
+                              backgroundColor: "#fff",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              boxShadow: darkBg
+                                ? "0 0 0 1px rgba(255,255,255,0.4)"
+                                : "0 0 0 1px rgba(0,0,0,0.12)",
+                            }}
+                          >
+                            {/^(accepted|yes)$/.test(status) ? (
+                              <CheckCircleIcon sx={{ fontSize: 12, color: "#2e7d32" }} />
+                            ) : /^(declined|no)$/.test(status) ? (
+                              <CancelIcon sx={{ fontSize: 12, color: "#c62828" }} />
+                            ) : (
+                              <HourglassEmptyIcon sx={{ fontSize: 12, color: "#6b7280" }} />
+                            )}
+                          </Box>
+                        )}
+                      </Avatar>
+                    </Tooltip>
                     );
                   })}
                 </AvatarGroup>

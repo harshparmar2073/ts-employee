@@ -44,15 +44,6 @@ const CalendarMain = ({
   const theme = useTheme();
   const isMobile = useMediaQuery("(max-width:600px)");
 
-  // imports you likely already have
-  // import FullCalendar from "@fullcalendar/react";
-  // import dayGridPlugin from "@fullcalendar/daygrid";
-  // import timeGridPlugin from "@fullcalendar/timegrid";
-  // import listPlugin from "@fullcalendar/list";
-  // import interactionPlugin from "@fullcalendar/interaction";
-  // import rrulePlugin from "@fullcalendar/rrule";
-  // import axios from "@/services/axiosService"; // or wherever yours lives
-
   const toIsoOrNull = (d) => (d ? d.toISOString() : null);
 
   const onEventTimeChange = async (info) => {
