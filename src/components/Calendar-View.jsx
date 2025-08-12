@@ -7,13 +7,15 @@ import {
   format,
   parseISO,
   differenceInMinutes,
+  isValid,
 } from "date-fns";
-
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
+import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import axiosService from "../services/axiosService";
 import Slide from "@mui/material/Slide";
 import EventForm from "../components/EventForm";
 import { useToast } from "../context/ToastContext";
-
 // Import new components
 import CalendarSidebar from "./CalendarSidebar";
 import CalendarMain from "./CalendarMain";
@@ -65,7 +67,7 @@ import {
   ChevronRight as ChevronRightIcon,
   ChevronLeft as ChevronLeftIcon,
 } from "@mui/icons-material";
-
+import AvatarGroup from "@mui/material/AvatarGroup";
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
@@ -483,17 +485,96 @@ const CalendarView = () => {
     setEditOption("this");
   };
 
-  // imports:
-  // import { Box, Typography } from "@mui/material";
-  // import { alpha } from "@mui/material/styles";
+  const formatDurationHuman = (startISO, endISO) => {
+    const start = parseISO(startISO);
+    const end = parseISO(endISO);
+    if (!isValid(start) || !isValid(end)) return "";
 
+    let total = Math.max(0, differenceInMinutes(end, start));
+
+    const days = Math.floor(total / (60 * 24));
+    total %= 60 * 24;
+    const hours = Math.floor(total / 60);
+    const minutes = total % 60;
+
+    const parts = [];
+    if (days > 0) parts.push(`${days} ${days === 1 ? "day" : "days"}`);
+    if (hours > 0) parts.push(`${hours} ${hours === 1 ? "hr" : "hrs"}`);
+    if (minutes > 0) parts.push(`${minutes} min`);
+    return parts.join(" ") || "0 min";
+  };
+
+  // Helpers (keep near your other utils)
+  const isValidCssColor = (color) => {
+    if (!color || typeof color !== "string") return false;
+    const el = document.createElement("div");
+    el.style.color = "";
+    el.style.color = color.trim();
+    return el.style.color !== "";
+  };
+  const normalizeColor = (v, fb = "#1976d2") =>
+    isValidCssColor(v) ? v.trim() : fb;
+
+  // Perceived brightness: true if dark color
+  const isDarkColor = (color) => {
+    const ctx = document.createElement("canvas").getContext("2d");
+    ctx.fillStyle = color || "#000";
+    const computed = ctx.fillStyle;
+    if (!computed) return false;
+
+    const [r, g, b] = computed
+      .replace(/^rgba?\(|\s+|\)$/g, "")
+      .split(",")
+      .map(Number);
+    if ([r, g, b].some((v) => Number.isNaN(v))) return false;
+
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness < 128;
+  };
+
+  // Flat chip style (auto adapts to dark/light bg)
+  const chipSx = (dark) => ({
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 0.5,
+    padding: "2px 8px",
+    borderRadius: 10,
+    backgroundColor: dark ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.06)",
+    color: "inherit",
+    lineHeight: 1,
+    fontWeight: 700,
+    fontSize: "0.72rem",
+  });
+
+  // ========= DROP‑IN renderEventContent =========
   const renderEventContent = (eventInfo) => {
-    const { title, start, end, extendedProps } = eventInfo.event;
+    const { title, start, end, extendedProps, backgroundColor } =
+      eventInfo.event;
+
     const fmt = new Intl.DateTimeFormat(undefined, {
       hour: "2-digit",
       minute: "2-digit",
     });
-    const timeLabel = `${fmt.format(start)} – ${fmt.format(end)}`;
+    const timeLabel =
+      start && end
+        ? `${fmt.format(start)} – ${fmt.format(end)}`
+        : start
+        ? fmt.format(start)
+        : "";
+
+    // Uses your formatDurationHuman helper (multi‑day friendly)
+    const durationText =
+      start && end
+        ? formatDurationHuman(start.toISOString(), end.toISOString())
+        : "";
+
+    // Safe bg + adaptive contrast
+    const safeBg = normalizeColor(backgroundColor, "#1976d2");
+    const darkBg = isDarkColor(safeBg);
+
+    // Avatar theming for contrast
+    const avatarBg = darkBg ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.08)";
+    const avatarBorder = darkBg ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.12)";
 
     return (
       <Box
@@ -502,46 +583,194 @@ const CalendarView = () => {
           width: "100%",
           display: "flex",
           flexDirection: "column",
-          justifyContent: "center",
-          gap: 0.25,
+          alignItems: "flex-start",
+          gap: 0.5,
           px: 1,
           py: 0.75,
-          borderRadius: 0, // square
-          backgroundColor: eventInfo.event.backgroundColor, // use user's color directly
-          color: theme.palette.getContrastText(eventInfo.event.backgroundColor),
+          borderRadius: 1,
+          backgroundColor: safeBg,
+          color: theme.palette.getContrastText(safeBg),
           fontFamily: theme.typography.fontFamily,
-          transition: "filter 120ms ease",
-          "&:hover": { filter: "brightness(0.98)" },
+          overflow: "hidden",
         })}
       >
-        <Box
-          sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0 }}
+        {/* Title */}
+        <Typography
+          title={title}
+          sx={{
+            fontWeight: 700,
+            fontSize: "0.92rem",
+            lineHeight: 1.2,
+            width: "100%",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
         >
-          <Typography
-            className="ec-title"
-            title={title}
-            sx={{ flex: 1, minWidth: 0 }}
-          >
-            {title}
-          </Typography>
-          <Typography className="ec-time">{timeLabel}</Typography>
-        </Box>
+          {title}
+        </Typography>
 
-        {extendedProps?.durationText && (
-          <Typography
-            sx={{
-              fontSize: "0.78rem",
-              fontWeight: 500,
-              opacity: 0.85,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-            title={extendedProps.durationText}
+        {/* Badges row (flat) */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            flexWrap: "wrap",
+            width: "100%",
+          }}
+        >
+          {timeLabel && (
+            <Box sx={chipSx(darkBg)} title={timeLabel}>
+              <ScheduleIcon sx={{ fontSize: 14, opacity: 0.9 }} />
+              <Typography
+                component="span"
+                sx={{ fontSize: "0.72rem", fontWeight: 700 }}
+              >
+                {timeLabel}
+              </Typography>
+            </Box>
+          )}
+
+          {durationText && (
+            <Box sx={chipSx(darkBg)} title={durationText}>
+              <AccessTimeIcon sx={{ fontSize: 13, opacity: 0.9 }} />
+              <Typography
+                component="span"
+                sx={{ fontSize: "0.72rem", fontWeight: 700 }}
+              >
+                {durationText}
+              </Typography>
+            </Box>
+          )}
+
+          {extendedProps?.location && (
+            <Box sx={chipSx(darkBg)} title={extendedProps.location}>
+              <PlaceIcon sx={{ fontSize: 14, opacity: 0.9 }} />
+              <Typography
+                component="span"
+                sx={{
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  maxWidth: "10rem",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {extendedProps.location}
+              </Typography>
+            </Box>
+          )}
+
+          {extendedProps?.recurrenceRule && (
+            <Box sx={chipSx(darkBg)} title="Repeats">
+              <RepeatIcon sx={{ fontSize: 14, opacity: 0.9 }} />
+              <Typography
+                component="span"
+                sx={{ fontSize: "0.72rem", fontWeight: 700 }}
+              >
+                Repeats
+              </Typography>
+            </Box>
+          )}
+
+          {extendedProps?.externalCalendarType === "GOOGLE" && (
+            <Box sx={chipSx(darkBg)} title="Synced from Google (read-only)">
+              <LinkIcon sx={{ fontSize: 14, opacity: 0.9 }} />
+              <Typography
+                component="span"
+                sx={{ fontSize: "0.72rem", fontWeight: 700 }}
+              >
+                Google
+              </Typography>
+            </Box>
+          )}
+
+{extendedProps?.attendees?.length > 0 && (() => {
+  const avatarFillBg   = darkBg ? "#ffffff" : "#111827";   // white on dark bg, near-black on light bg
+  const avatarFillText = darkBg ? "#111827" : "#ffffff";   // opposite for text
+  const avatarRing     = darkBg ? "rgba(255,255,255,0.85)" : "rgba(17,24,39,0.25)";
+
+  return (
+    <AvatarGroup
+      max={3}
+      sx={{
+        "& .MuiAvatar-root": {
+          width: 22,
+          height: 22,
+          fontSize: "0.7rem",
+          bgcolor: avatarFillBg,
+          color: avatarFillText,
+          border: `1px solid ${avatarRing}`,
+        },
+        "& .MuiAvatarGroup-avatar": {
+          bgcolor: avatarFillBg,
+          color: avatarFillText,
+          border: `1px solid ${avatarRing}`,
+        },
+      }}
+    >
+      {extendedProps.attendees.map((a, idx) => {
+        const status = (a.responseStatus || a.status || "").toLowerCase();
+        const hasImg = Boolean(a.photoUrl);
+        return (
+          <Tooltip
+            key={idx}
+            title={`${a.name || a.email || "Attendee"}${status ? ` — ${status}` : ""}`}
+            placement="top"
+            arrow
           >
-            {extendedProps.durationText}
-          </Typography>
-        )}
+            <Avatar
+              src={hasImg ? a.photoUrl : undefined}
+              alt={a.name || a.email || "Attendee"}
+              sx={{
+                bgcolor: hasImg ? avatarFillBg : avatarFillBg,
+                color: avatarFillText,
+                border: `1px solid ${avatarRing}`,
+                position: "relative",
+              }}
+            >
+              {!hasImg &&
+                (a.name?.[0]?.toUpperCase() ||
+                  a.email?.[0]?.toUpperCase() ||
+                  "?")}
+
+              {status && (
+                <Box
+                  sx={{
+                    position: "absolute",
+                    right: -2,
+                    bottom: -2,
+                    width: 14,
+                    height: 14,
+                    borderRadius: "50%",
+                    backgroundColor: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: darkBg
+                      ? "0 0 0 1px rgba(255,255,255,0.4)"
+                      : "0 0 0 1px rgba(0,0,0,0.12)",
+                  }}
+                >
+                  {(/^(accepted|yes)$/.test(status)) ? (
+                    <CheckCircleIcon sx={{ fontSize: 12, color: "#2e7d32" }} />
+                  ) : (/^(declined|no)$/.test(status)) ? (
+                    <CancelIcon sx={{ fontSize: 12, color: "#c62828" }} />
+                  ) : (
+                    <HourglassEmptyIcon sx={{ fontSize: 12, color: "#6b7280" }} />
+                  )}
+                </Box>
+              )}
+            </Avatar>
+          </Tooltip>
+        );
+      })}
+    </AvatarGroup>
+  );
+})()}
+        </Box>
       </Box>
     );
   };
@@ -1151,7 +1380,7 @@ const CalendarView = () => {
                         <MuiChip
                           key={idx}
                           avatar={
-                            <MuiAvatar
+                            <Avatar
                               sx={{
                                 bgcolor: "primary.main",
                                 color: "#fff",
@@ -1161,7 +1390,7 @@ const CalendarView = () => {
                               }}
                             >
                               {att.name?.[0] || "?"}
-                            </MuiAvatar>
+                            </Avatar>
                           }
                           label={att.name}
                           variant="outlined"
