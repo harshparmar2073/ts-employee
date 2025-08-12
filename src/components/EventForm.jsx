@@ -28,12 +28,12 @@ import { HexColorPicker } from "react-colorful";
 import Popover from "@mui/material/Popover";
 import Tooltip from "@mui/material/Tooltip";
 import { RgbaColorPicker } from "react-colorful";
-import PersonAddAlt1Icon from '@mui/icons-material/PersonAddAlt1';
-import Avatar from '@mui/material/Avatar';
-import Accordion from '@mui/material/Accordion';
-import AccordionSummary from '@mui/material/AccordionSummary';
-import AccordionDetails from '@mui/material/AccordionDetails';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import PersonAddAlt1Icon from "@mui/icons-material/PersonAddAlt1";
+import Avatar from "@mui/material/Avatar";
+import Accordion from "@mui/material/Accordion";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 // Get timezones
 const getIanaTimezones = () => {
   if (typeof Intl.supportedValuesOf === "function") {
@@ -58,18 +58,24 @@ const eventSchema = yup.object({
   recurrence: yup.string().nullable(),
   recurrenceEnd: yup.date().nullable(), // End date is now always optional
   weekdays: yup.array().nullable(),
-  dayOfMonth: yup.mixed().transform((value) => {
-    if (Array.isArray(value)) return null;
-    if (value === '' || value === undefined || value === null) return null;
-    const num = Number(value);
-    return isNaN(num) ? null : num;
-  }).nullable(),
-  monthOfYear: yup.mixed().transform((value) => {
-    if (Array.isArray(value)) return null;
-    if (value === '' || value === undefined || value === null) return null;
-    const num = Number(value);
-    return isNaN(num) ? null : num;
-  }).nullable(),
+  dayOfMonth: yup
+    .mixed()
+    .transform((value) => {
+      if (Array.isArray(value)) return null;
+      if (value === "" || value === undefined || value === null) return null;
+      const num = Number(value);
+      return isNaN(num) ? null : num;
+    })
+    .nullable(),
+  monthOfYear: yup
+    .mixed()
+    .transform((value) => {
+      if (Array.isArray(value)) return null;
+      if (value === "" || value === undefined || value === null) return null;
+      const num = Number(value);
+      return isNaN(num) ? null : num;
+    })
+    .nullable(),
   // New interval field for recurrence frequency
   interval: yup.number().min(1, "Interval must be at least 1").nullable(),
   eventColour: yup.string().required("Event color is required"),
@@ -193,10 +199,12 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
               if (rule.options.byweekday) {
                 weekdays = Array.isArray(rule.options.byweekday)
                   ? rule.options.byweekday.map((d) => {
-                      if (typeof d === 'string') return d.slice(0,2).toUpperCase();
-                      if (typeof d === 'number') return weekdayMap[d];
-                      if (typeof d === 'object' && d.weekday !== undefined) return weekdayMap[d.weekday];
-                      return '';
+                      if (typeof d === "string")
+                        return d.slice(0, 2).toUpperCase();
+                      if (typeof d === "number") return weekdayMap[d];
+                      if (typeof d === "object" && d.weekday !== undefined)
+                        return weekdayMap[d.weekday];
+                      return "";
                     })
                   : [];
                 weekdays = weekdays.filter(Boolean); // Remove empty
@@ -204,7 +212,9 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
                 if (
                   recurrence === "daily" &&
                   weekdays.length === 5 &&
-                  ["MO","TU","WE","TH","FR"].every((d) => weekdays.includes(d))
+                  ["MO", "TU", "WE", "TH", "FR"].every((d) =>
+                    weekdays.includes(d)
+                  )
                 ) {
                   skipWeekends = true;
                 }
@@ -216,11 +226,35 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
           return {
             title: initialEvent.title || "",
             description: initialEvent.extendedProps?.description || "",
-            startDate: initialEvent.start ? new Date(initialEvent.start) : (initialDate || new Date()),
-            endDate: initialEvent.end ? new Date(initialEvent.end) : (initialDate || new Date()),
-            startTime: initialEvent.start ? `${new Date(initialEvent.start).getHours().toString().padStart(2, '0')}:${new Date(initialEvent.start).getMinutes().toString().padStart(2, '0')}` : defaultTime,
-            endTime: initialEvent.end ? `${new Date(initialEvent.end).getHours().toString().padStart(2, '0')}:${new Date(initialEvent.end).getMinutes().toString().padStart(2, '0')}` : defaultEndTime,
-            timezone: initialEvent.extendedProps?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+            location: initialEvent.extendedProps?.location || "",
+            meetingUrl: initialEvent.extendedProps?.meetingUrl || "",
+            startDate: initialEvent.start
+              ? new Date(initialEvent.start)
+              : initialDate || new Date(),
+            endDate: initialEvent.end
+              ? new Date(initialEvent.end)
+              : initialDate || new Date(),
+            startTime: initialEvent.start
+              ? `${new Date(initialEvent.start)
+                  .getHours()
+                  .toString()
+                  .padStart(2, "0")}:${new Date(initialEvent.start)
+                  .getMinutes()
+                  .toString()
+                  .padStart(2, "0")}`
+              : defaultTime,
+            endTime: initialEvent.end
+              ? `${new Date(initialEvent.end)
+                  .getHours()
+                  .toString()
+                  .padStart(2, "0")}:${new Date(initialEvent.end)
+                  .getMinutes()
+                  .toString()
+                  .padStart(2, "0")}`
+              : defaultEndTime,
+            timezone:
+              initialEvent.extendedProps?.timezone ||
+              Intl.DateTimeFormat().resolvedOptions().timeZone,
             allDay: initialEvent.allDay || false,
             recurrence,
             recurrenceEnd,
@@ -234,24 +268,26 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
           };
         })()
       : {
-        title: "",
-        startDate: initialDate || new Date(),
-        endDate: initialDate || new Date(),
-        startTime: defaultTime,
-        endTime: defaultEndTime,
-        description: "",
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        allDay: false,
-        recurrence: "",
-        recurrenceEnd: null,
-        weekdays: [],
-        dayOfMonth: null,
-        monthOfYear: null,
-        interval: 1,
-        eventColour: "#4285f4",
-        skipWeekends: false,
-        attendees: [],
-      },
+          title: "",
+          description: "",
+          location: "",
+          meetingUrl: "",
+          startDate: initialDate || new Date(),
+          endDate: initialDate || new Date(),
+          startTime: defaultTime,
+          endTime: defaultEndTime,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          allDay: false,
+          recurrence: "",
+          recurrenceEnd: null,
+          weekdays: [],
+          dayOfMonth: null,
+          monthOfYear: null,
+          interval: 1,
+          eventColour: "#4285f4",
+          skipWeekends: false,
+          attendees: [],
+        },
   });
 
   // When initialEvent changes, reset the form to ensure all fields (including weekdays) are in sync
@@ -290,17 +326,18 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
           if (rule.options.byweekday) {
             weekdays = Array.isArray(rule.options.byweekday)
               ? rule.options.byweekday.map((d) => {
-                  if (typeof d === 'string') return d.slice(0,2).toUpperCase();
-                  if (typeof d === 'number') return weekdayMap[d];
-                  if (typeof d === 'object' && d.weekday !== undefined) return weekdayMap[d.weekday];
-                  return '';
+                  if (typeof d === "string") return d.slice(0, 2).toUpperCase();
+                  if (typeof d === "number") return weekdayMap[d];
+                  if (typeof d === "object" && d.weekday !== undefined)
+                    return weekdayMap[d.weekday];
+                  return "";
                 })
               : [];
             weekdays = weekdays.filter(Boolean);
             if (
               recurrence === "daily" &&
               weekdays.length === 5 &&
-              ["MO","TU","WE","TH","FR"].every((d) => weekdays.includes(d))
+              ["MO", "TU", "WE", "TH", "FR"].every((d) => weekdays.includes(d))
             ) {
               skipWeekends = true;
             }
@@ -312,11 +349,33 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
       reset({
         title: initialEvent.title || "",
         description: initialEvent.extendedProps?.description || "",
-        startDate: initialEvent.start ? new Date(initialEvent.start) : (initialDate || new Date()),
-        endDate: initialEvent.end ? new Date(initialEvent.end) : (initialDate || new Date()),
-        startTime: initialEvent.start ? `${new Date(initialEvent.start).getHours().toString().padStart(2, '0')}:${new Date(initialEvent.start).getMinutes().toString().padStart(2, '0')}` : defaultTime,
-        endTime: initialEvent.end ? `${new Date(initialEvent.end).getHours().toString().padStart(2, '0')}:${new Date(initialEvent.end).getMinutes().toString().padStart(2, '0')}` : defaultEndTime,
-        timezone: initialEvent.extendedProps?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        startDate: initialEvent.start
+          ? new Date(initialEvent.start)
+          : initialDate || new Date(),
+        endDate: initialEvent.end
+          ? new Date(initialEvent.end)
+          : initialDate || new Date(),
+        startTime: initialEvent.start
+          ? `${new Date(initialEvent.start)
+              .getHours()
+              .toString()
+              .padStart(2, "0")}:${new Date(initialEvent.start)
+              .getMinutes()
+              .toString()
+              .padStart(2, "0")}`
+          : defaultTime,
+        endTime: initialEvent.end
+          ? `${new Date(initialEvent.end)
+              .getHours()
+              .toString()
+              .padStart(2, "0")}:${new Date(initialEvent.end)
+              .getMinutes()
+              .toString()
+              .padStart(2, "0")}`
+          : defaultEndTime,
+        timezone:
+          initialEvent.extendedProps?.timezone ||
+          Intl.DateTimeFormat().resolvedOptions().timeZone,
         allDay: initialEvent.allDay || false,
         recurrence,
         recurrenceEnd,
@@ -341,38 +400,41 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
   const [attendeeEmailTouched, setAttendeeEmailTouched] = useState(false);
   // Remove email validation button logic
 
-
   useEffect(() => {
     setTimezones(getIanaTimezones());
     setColor(form.eventColour || "#4285f4");
     // If editing, update recurrence fields from RRULE
     if (initialEvent?.extendedProps?.recurrenceRule) {
       try {
-        const rule = RRule.fromString(initialEvent.extendedProps.recurrenceRule);
+        const rule = RRule.fromString(
+          initialEvent.extendedProps.recurrenceRule
+        );
         const weekdayMap = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
         if (rule.options.byweekday) {
           const weekdays = Array.isArray(rule.options.byweekday)
             ? rule.options.byweekday.map((d) => {
-                if (typeof d === 'string') return d.slice(0,2).toUpperCase();
-                if (typeof d === 'number') return weekdayMap[d];
-                if (typeof d === 'object' && d.weekday !== undefined) return weekdayMap[d.weekday];
-                return '';
+                if (typeof d === "string") return d.slice(0, 2).toUpperCase();
+                if (typeof d === "number") return weekdayMap[d];
+                if (typeof d === "object" && d.weekday !== undefined)
+                  return weekdayMap[d.weekday];
+                return "";
               })
             : [];
-          setValue('weekdays', weekdays.filter(Boolean));
+          setValue("weekdays", weekdays.filter(Boolean));
           // If all weekdays are MO-FR, set skipWeekends
           if (
             rule.options.freq === RRule.DAILY &&
             weekdays.length === 5 &&
-            ["MO","TU","WE","TH","FR"].every((d) => weekdays.includes(d))
+            ["MO", "TU", "WE", "TH", "FR"].every((d) => weekdays.includes(d))
           ) {
-            setValue('skipWeekends', true);
+            setValue("skipWeekends", true);
           }
         }
-        if (rule.options.until) setValue('recurrenceEnd', rule.options.until);
-        if (rule.options.interval) setValue('interval', rule.options.interval);
-        if (rule.options.bymonthday) setValue('dayOfMonth', rule.options.bymonthday);
-        if (rule.options.bymonth) setValue('monthOfYear', rule.options.bymonth);
+        if (rule.options.until) setValue("recurrenceEnd", rule.options.until);
+        if (rule.options.interval) setValue("interval", rule.options.interval);
+        if (rule.options.bymonthday)
+          setValue("dayOfMonth", rule.options.bymonthday);
+        if (rule.options.bymonth) setValue("monthOfYear", rule.options.bymonth);
       } catch {}
     }
   }, []);
@@ -419,7 +481,7 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
           setValue("recurrenceEnd", null);
           setValue("skipWeekends", false);
         }
-        
+
         // Force a small delay to ensure the values are properly set
         setTimeout(() => {
           console.log("Form values after reset:", watch());
@@ -434,7 +496,7 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
 
   const buildRRule = (data, dtstart) => {
     console.log("buildRRule called with data:", data);
-    
+
     const options = {
       freq: RRule[data.recurrence?.toUpperCase()],
       interval: data.interval || 1, // Use interval from form data
@@ -445,28 +507,61 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
       options.byweekday = [RRule.MO, RRule.TU, RRule.WE, RRule.TH, RRule.FR];
     }
 
-    if (data.recurrence === "weekly" && data.weekdays && data.weekdays.length > 0) {
+    if (
+      data.recurrence === "weekly" &&
+      data.weekdays &&
+      data.weekdays.length > 0
+    ) {
       console.log("Adding weekly weekdays:", data.weekdays);
       options.byweekday = data.weekdays.map((day) => RRule[day]);
     } else if (data.recurrence === "weekly") {
       // For weekly without weekdays, use the current day of week
       const currentDay = new Date().getDay();
-      const weekdayMap = [RRule.SU, RRule.MO, RRule.TU, RRule.WE, RRule.TH, RRule.FR, RRule.SA];
+      const weekdayMap = [
+        RRule.SU,
+        RRule.MO,
+        RRule.TU,
+        RRule.WE,
+        RRule.TH,
+        RRule.FR,
+        RRule.SA,
+      ];
       options.byweekday = [weekdayMap[currentDay]];
-      console.log("Using current day of week for weekly recurrence:", weekdayMap[currentDay]);
+      console.log(
+        "Using current day of week for weekly recurrence:",
+        weekdayMap[currentDay]
+      );
     }
-    
-    if (data.recurrence === "monthly" && data.dayOfMonth && data.dayOfMonth > 0) {
+
+    if (
+      data.recurrence === "monthly" &&
+      data.dayOfMonth &&
+      data.dayOfMonth > 0
+    ) {
       console.log("Adding monthly dayOfMonth:", data.dayOfMonth);
       options.bymonthday = data.dayOfMonth;
     } else if (data.recurrence === "monthly") {
       // For monthly without dayOfMonth, use the current day of month
       options.bymonthday = new Date().getDate();
-      console.log("Using current day of month for monthly recurrence:", new Date().getDate());
+      console.log(
+        "Using current day of month for monthly recurrence:",
+        new Date().getDate()
+      );
     }
-    
-    if (data.recurrence === "yearly" && data.dayOfMonth && data.dayOfMonth > 0 && data.monthOfYear && data.monthOfYear > 0) {
-      console.log("Adding yearly monthOfYear:", data.monthOfYear, "dayOfMonth:", data.dayOfMonth);
+
+    if (
+      data.recurrence === "yearly" &&
+      data.dayOfMonth &&
+      data.dayOfMonth > 0 &&
+      data.monthOfYear &&
+      data.monthOfYear > 0
+    ) {
+      console.log(
+        "Adding yearly monthOfYear:",
+        data.monthOfYear,
+        "dayOfMonth:",
+        data.dayOfMonth
+      );
       options.bymonth = data.monthOfYear;
       options.bymonthday = data.dayOfMonth;
     } else if (data.recurrence === "yearly") {
@@ -474,30 +569,39 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
       const now = new Date();
       options.bymonth = now.getMonth() + 1;
       options.bymonthday = now.getDate();
-      console.log("Using current month and day for yearly recurrence:", now.getMonth() + 1, now.getDate());
+      console.log(
+        "Using current month and day for yearly recurrence:",
+        now.getMonth() + 1,
+        now.getDate()
+      );
     }
-    
+
     console.log("Final RRule options:", options);
     const rrule = new RRule(options).toString();
     console.log("Generated RRule string:", rrule);
     return rrule;
-
   };
 
   const handleSave = (data) => {
     console.log("handleSave called with data:", data);
-    
+
     // Clean up the data to ensure proper types
     const cleanedData = {
       ...data,
-      dayOfMonth: data.dayOfMonth && !Array.isArray(data.dayOfMonth) ? Number(data.dayOfMonth) : null,
-      monthOfYear: data.monthOfYear && !Array.isArray(data.monthOfYear) ? Number(data.monthOfYear) : null,
+      dayOfMonth:
+        data.dayOfMonth && !Array.isArray(data.dayOfMonth)
+          ? Number(data.dayOfMonth)
+          : null,
+      monthOfYear:
+        data.monthOfYear && !Array.isArray(data.monthOfYear)
+          ? Number(data.monthOfYear)
+          : null,
       interval: data.interval ? Number(data.interval) : 1,
       weekdays: Array.isArray(data.weekdays) ? data.weekdays : [],
     };
-    
+
     console.log("Cleaned data:", cleanedData);
-    
+
     const startDate = parseInTimeZone(
       cleanedData.startDate,
       cleanedData.startTime,
@@ -546,9 +650,11 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
           <Typography variant="h6" gutterBottom>
             {initialEvent ? "Edit Event" : "New Event"}
           </Typography>
-          <form onSubmit={handleSubmit(handleSave, (errors) => {
-            console.log("Form validation errors:", errors);
-          })}>
+          <form
+            onSubmit={handleSubmit(handleSave, (errors) => {
+              console.log("Form validation errors:", errors);
+            })}
+          >
             <Stack spacing={2}>
               <Controller
                 name="title"
@@ -726,13 +832,15 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
                               width: "100%",
                               borderRadius: "12px",
                               boxShadow: "0 2px 12px #4285f455",
-                              transition: "box-shadow 0.3s cubic-bezier(.4,2,.6,1)",
-                              animation: "colorful-pop 0.5s cubic-bezier(.4,2,.6,1)",
+                              transition:
+                                "box-shadow 0.3s cubic-bezier(.4,2,.6,1)",
+                              animation:
+                                "colorful-pop 0.5s cubic-bezier(.4,2,.6,1)",
                             }}
                           />
                           <TextField
                             value={color}
-                            onChange={e => {
+                            onChange={(e) => {
                               setColor(e.target.value);
                               field.onChange(e.target.value);
                             }}
@@ -758,6 +866,32 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
                     fullWidth
                     multiline
                     rows={3}
+                  />
+                )}
+              />
+
+              <Controller
+                name="location"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Location"
+                    fullWidth
+                    multiline
+                    rows={3}
+                  />
+                )}
+              />
+
+              <Controller
+                name="meetingUrl"
+                control={control}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="meetingUrl"
+                    fullWidth
                   />
                 )}
               />
@@ -1018,12 +1152,18 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
                             📅 Repeat On
                           </Typography>
                           {/* Debug print for weekdays */}
-                          {console.log('form.weekdays:', form.weekdays)}
+                          {console.log("form.weekdays:", form.weekdays)}
                           <Controller
                             name="weekdays"
                             control={control}
                             render={({ field }) => (
-                              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  gap: 1.5,
+                                }}
+                              >
                                 {weekdays.map((day, index) => (
                                   <Chip
                                     key={day}
@@ -1031,13 +1171,22 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
                                     clickable
                                     onClick={() => {
                                       // Always use the code from the weekdays constant, never a number
-                                      const valueArr = Array.isArray(field.value) ? field.value : [];
+                                      const valueArr = Array.isArray(
+                                        field.value
+                                      )
+                                        ? field.value
+                                        : [];
                                       const newDays = valueArr.includes(day)
                                         ? valueArr.filter((d) => d !== day)
                                         : [...valueArr, day];
                                       field.onChange(newDays);
                                     }}
-                                    variant={Array.isArray(field.value) && field.value.includes(day) ? "filled" : "outlined"}
+                                    variant={
+                                      Array.isArray(field.value) &&
+                                      field.value.includes(day)
+                                        ? "filled"
+                                        : "outlined"
+                                    }
                                     sx={{
                                       minWidth: "56px",
                                       height: "40px",
@@ -1050,15 +1199,20 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
                                         transform: "translateY(-2px)",
                                         boxShadow:
                                           "0 4px 12px rgba(0,0,0,0.15)",
-                                        bgcolor: Array.isArray(field.value) && field.value.includes(day)
-                                          ? "#1565c0"
-                                          : "#f5f5f5",
-                                        color: Array.isArray(field.value) && field.value.includes(day)
-                                          ? "white"
-                                          : "#1976d2",
+                                        bgcolor:
+                                          Array.isArray(field.value) &&
+                                          field.value.includes(day)
+                                            ? "#1565c0"
+                                            : "#f5f5f5",
+                                        color:
+                                          Array.isArray(field.value) &&
+                                          field.value.includes(day)
+                                            ? "white"
+                                            : "#1976d2",
                                         border: "1px solid #1976d2",
                                       },
-                                      ...(Array.isArray(field.value) && field.value.includes(day)
+                                      ...(Array.isArray(field.value) &&
+                                      field.value.includes(day)
                                         ? {
                                             bgcolor: "#1976d2",
                                             color: "white",
@@ -1255,20 +1409,30 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
                 </Card>
               )}
 
-              
               {/* Attendees Field */}
               <Controller
                 name="attendees"
                 control={control}
                 defaultValue={[]}
                 render={({ field }) => (
-                  <Accordion sx={{ mb: 2, borderRadius: 2.5, background: '#fafbff', boxShadow: 'none', border: '1.5px solid #e0e0e0' }}>
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ borderRadius: 2.5 }}>
+                  <Accordion
+                    sx={{
+                      mb: 2,
+                      borderRadius: 2.5,
+                      background: "#fafbff",
+                      boxShadow: "none",
+                      border: "1.5px solid #e0e0e0",
+                    }}
+                  >
+                    <AccordionSummary
+                      expandIcon={<ExpandMoreIcon />}
+                      sx={{ borderRadius: 2.5 }}
+                    >
                       <Typography
                         sx={{
                           fontWeight: 600,
-                          fontFamily: 'Poppins, Roboto, Arial, sans-serif',
-                          color: 'text.primary',
+                          fontFamily: "Poppins, Roboto, Arial, sans-serif",
+                          color: "text.primary",
                           fontSize: { xs: 14, sm: 16 },
                         }}
                       >
@@ -1276,34 +1440,58 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
                       </Typography>
                     </AccordionSummary>
                     <AccordionDetails>
-                      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start" mb={1} mt={2}>
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        spacing={2}
+                        alignItems="flex-start"
+                        mb={1}
+                        mt={2}
+                      >
                         <TextField
                           label="Name"
                           value={attendeeName}
-                          onChange={e => setAttendeeName(e.target.value)}
+                          onChange={(e) => setAttendeeName(e.target.value)}
                           size="small"
                           fullWidth
-                          error={Boolean(attendeeNameTouched && attendeeName.length < 2)}
-                          helperText={attendeeNameTouched && attendeeName.length < 2 ? "Name too short" : ""}
+                          error={Boolean(
+                            attendeeNameTouched && attendeeName.length < 2
+                          )}
+                          helperText={
+                            attendeeNameTouched && attendeeName.length < 2
+                              ? "Name too short"
+                              : ""
+                          }
                           onBlur={() => setAttendeeNameTouched(true)}
                           sx={{ mb: { xs: 1, sm: 0 } }}
                         />
                         <TextField
                           label="Email"
                           value={attendeeEmail}
-                          onChange={e => setAttendeeEmail(e.target.value)}
+                          onChange={(e) => setAttendeeEmail(e.target.value)}
                           size="small"
                           fullWidth
                           type="email"
-                          error={Boolean(attendeeEmailTouched && !/^[^@]+@[^@]+\.[^@]+$/.test(attendeeEmail))}
-                          helperText={attendeeEmailTouched && !/^[^@]+@[^@]+\.[^@]+$/.test(attendeeEmail) ? "Invalid email" : ""}
+                          error={Boolean(
+                            attendeeEmailTouched &&
+                              !/^[^@]+@[^@]+\.[^@]+$/.test(attendeeEmail)
+                          )}
+                          helperText={
+                            attendeeEmailTouched &&
+                            !/^[^@]+@[^@]+\.[^@]+$/.test(attendeeEmail)
+                              ? "Invalid email"
+                              : ""
+                          }
                           onBlur={() => setAttendeeEmailTouched(true)}
                         />
                         <Button
                           variant="contained"
                           size="medium"
                           color="primary"
-                          sx={{ minWidth: 44, minHeight: 44, borderRadius: "50%" }}
+                          sx={{
+                            minWidth: 44,
+                            minHeight: 44,
+                            borderRadius: "50%",
+                          }}
                           onClick={() => {
                             setAttendeeNameTouched(true);
                             setAttendeeEmailTouched(true);
@@ -1336,36 +1524,63 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
                           <Chip
                             key={idx}
                             avatar={
-                              <Avatar sx={{ bgcolor: "#1976d2", color: "#fff" }}>
+                              <Avatar
+                                sx={{ bgcolor: "#1976d2", color: "#fff" }}
+                              >
                                 {att.name
                                   ? att.name
-                                      .split(' ')
-                                      .map(n => n[0])
-                                      .join('')
+                                      .split(" ")
+                                      .map((n) => n[0])
+                                      .join("")
                                       .toUpperCase()
                                   : "?"}
                               </Avatar>
                             }
                             label={
                               <Box>
-                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                <Typography
+                                  variant="body2"
+                                  sx={{ fontWeight: 600 }}
+                                >
                                   {att.name}
                                 </Typography>
-                                <Typography variant="caption" sx={{ opacity: 0.7 }}>
+                                <Typography
+                                  variant="caption"
+                                  sx={{ opacity: 0.7 }}
+                                >
                                   {att.email}
                                 </Typography>
                               </Box>
                             }
                             onDelete={() => {
-                              const newList = field.value.filter((_, i) => i !== idx);
+                              const newList = field.value.filter(
+                                (_, i) => i !== idx
+                              );
                               field.onChange(newList);
                             }}
-                            sx={{ mb: 1, px: 1.5, py: 0.5, background: "#e3f2fd", borderRadius: 2, boxShadow: "0 1px 4px #4285f422", transition: "all 0.2s cubic-bezier(.4,2,.6,1)", "& .MuiAvatar-root": { width: 28, height: 28, fontSize: 16 } }}
+                            sx={{
+                              mb: 1,
+                              px: 1.5,
+                              py: 0.5,
+                              background: "#e3f2fd",
+                              borderRadius: 2,
+                              boxShadow: "0 1px 4px #4285f422",
+                              transition: "all 0.2s cubic-bezier(.4,2,.6,1)",
+                              "& .MuiAvatar-root": {
+                                width: 28,
+                                height: 28,
+                                fontSize: 16,
+                              },
+                            }}
                           />
                         ))}
                       </Stack>
                       {errors.attendees && (
-                        <Typography color="error" variant="caption" sx={{ ml: 1 }}>
+                        <Typography
+                          color="error"
+                          variant="caption"
+                          sx={{ ml: 1 }}
+                        >
                           {errors.attendees.message}
                         </Typography>
                       )}
@@ -1396,7 +1611,6 @@ const EventForm = ({ initialDate, initialEvent, onSave, onCancel }) => {
                   This is how your event will look using the selected color.
                 </Typography>
               </Card>
-
 
               {/* Action buttons */}
               <Box display="flex" justifyContent="space-between">
