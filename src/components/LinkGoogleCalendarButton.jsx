@@ -29,49 +29,54 @@ function LinkGoogleCalendarButton({ onSuccess, calendarId, calendarData, onDisco
   // });
 
   useEffect(() => {
-    if (window.google && window.google.accounts?.oauth2?.initCodeClient) {
-      codeClientRef.current = window.google.accounts.oauth2.initCodeClient({
-        client_id: CLIENT_ID,
-        scope: 'openid profile email https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/calendar',
-        ux_mode: 'popup',
-        access_type: 'offline', // Request refresh token
-        prompt: 'consent', // Force consent screen to get refresh token
-        callback: async (response) => {
-          if (!response.code) {
-            showToast('Google authorization failed.', 'error');
+    // Bail if the Google Identity Services script hasn’t loaded yet
+    if (!window.google?.accounts?.oauth2?.initCodeClient) {
+      console.warn('Google Identity Services not ready yet.');
+      return;
+    }
+  
+    // IMPORTANT: keep scopes exactly in sync with your backend
+    const SCOPE =
+      'https://www.googleapis.com/auth/calendar.readonly openid email profile';
+  
+    codeClientRef.current = window.google.accounts.oauth2.initCodeClient({
+      client_id: CLIENT_ID,
+      scope: SCOPE,
+      ux_mode: 'popup',
+      access_type: 'offline', // request refresh token
+      prompt: 'consent',      // force consent to guarantee refresh token
+      callback: async (response) => {
+        if (!response?.code) {
+          showToast('Google authorization failed.', 'error');
+          return;
+        }
+  
+        try {
+          setIsLoading(true);
+  
+          if (!calendarId) {
+            showToast('Calendar ID is required to link Google Calendar.', 'error');
             return;
           }
-          try {
-            setIsLoading(true);
-            if (!calendarId) {
-              showToast('Calendar ID is required to link Google Calendar.', 'error');
-              return;
-            }
-            
-            
-            const res = await axiosService.post('/calendar/google-connect', {
-              code: response.code,
-              calendarId: calendarId
-            });
-            console.log('✅ Google Calendar linked successfully');
-            console.log('Response:', res.data);
-            setIsConnected(true);
-            showToast('✅ Google Calendar connected successfully!', 'success');
-            if (onSuccess) {
-              console.log('🔗 Invoking onSuccess callback after linking');
-              onSuccess(res.data); // Send calendar metadata or status to parent
-            }
-          } catch (err) {
-            console.error('❌ Error linking calendar:', err);
-            const errorMessage = err.response?.data?.message || err.message || 'Unknown error occurred';
-            showToast('Error linking calendar: ' + errorMessage, 'error');
-          } finally {
-            setIsLoading(false);
-          }
-        },
-      });
-    }
-  }, []);
+  
+          const res = await axiosService.post('/calendar/google-connect', {
+            code: response.code,
+            calendarId,
+          });
+  
+          setIsConnected(true);
+          showToast('✅ Google Calendar connected successfully!', 'success');
+          onSuccess?.(res.data);
+        } catch (err) {
+          console.error('❌ Error linking calendar:', err);
+          const errorMessage = err?.response?.data?.message || err?.message || 'Unknown error occurred';
+          showToast('Error linking calendar: ' + errorMessage, 'error');
+        } finally {
+          setIsLoading(false);
+        }
+      },
+    });
+  }, [showToast, calendarId, onSuccess]);
 
   const linkGoogleCalendar = () => {
     if (!calendarData) {
