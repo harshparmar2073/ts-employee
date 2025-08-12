@@ -1,6 +1,11 @@
-// CalendarView.jsx
-
+// -----------------------------------------------------------------------------
+// React
+// -----------------------------------------------------------------------------
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+
+// -----------------------------------------------------------------------------
+// Date utilities
+// -----------------------------------------------------------------------------
 import {
   startOfMonth,
   endOfMonth,
@@ -9,17 +14,28 @@ import {
   differenceInMinutes,
   isValid,
 } from "date-fns";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import CancelIcon from "@mui/icons-material/Cancel";
-import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
+
+// -----------------------------------------------------------------------------
+// Services & app context
+// -----------------------------------------------------------------------------
 import axiosService from "../services/axiosService";
-import Slide from "@mui/material/Slide";
-import EventForm from "../components/EventForm";
 import { useToast } from "../context/ToastContext";
-// Import new components
+
+// -----------------------------------------------------------------------------
+// App components
+// -----------------------------------------------------------------------------
+import EventForm from "../components/EventForm";
 import CalendarSidebar from "./CalendarSidebar";
 import CalendarMain from "./CalendarMain";
+// Optional helper button (even if currently commented in JSX, safe to keep import)
+import LinkGoogleCalendarButton from "./LinkGoogleCalendarButton";
 
+// -----------------------------------------------------------------------------
+// MUI: Core components & hooks
+// -----------------------------------------------------------------------------
+import Slide from "@mui/material/Slide";
+import Avatar from "@mui/material/Avatar";
+import AvatarGroup from "@mui/material/AvatarGroup";
 import {
   Box,
   Dialog,
@@ -43,12 +59,14 @@ import {
   RadioGroup,
   Radio,
   Chip as MuiChip,
-  Avatar,
   Fab,
   CircularProgress,
   Backdrop,
 } from "@mui/material";
 
+// -----------------------------------------------------------------------------
+// MUI: Icons
+// -----------------------------------------------------------------------------
 import {
   Add as AddIcon,
   ContentCopy as ContentCopyIcon,
@@ -67,16 +85,23 @@ import {
   ChevronRight as ChevronRightIcon,
   ChevronLeft as ChevronLeftIcon,
 } from "@mui/icons-material";
-import AvatarGroup from "@mui/material/AvatarGroup";
-const Transition = React.forwardRef(function Transition(props, ref) {
-  return <Slide direction="up" ref={ref} {...props} />;
-});
+import GoogleIcon from "@mui/icons-material/Google";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
+import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 
+// -----------------------------------------------------------------------------
+// Other libraries
+// -----------------------------------------------------------------------------
 import { rrulestr } from "rrule";
 import { alpha } from "@mui/material/styles";
 
-import LinkGoogleCalendarButton from "./LinkGoogleCalendarButton";
-
+// -----------------------------------------------------------------------------
+// Local component helpers (placed near imports in your file)
+// -----------------------------------------------------------------------------
+const Transition = React.forwardRef(function Transition(props, ref) {
+  return <Slide direction="up" ref={ref} {...props} />;
+});
 // RRule parsing utility
 const parseRRuleString = (ruleStr, dtstart) => {
   return rrulestr(ruleStr, { forceset: false, dtstart: new Date(dtstart) })
@@ -158,6 +183,8 @@ const CalendarView = () => {
 
   // Toast notifications
   const { showToast } = useToast();
+
+
 
   // ============================================================================
   // EVENT HANDLERS
@@ -317,21 +344,28 @@ const CalendarView = () => {
     try {
       const response = await axiosService.get("/calendar/getList/");
       console.log("📅 Calendars loaded:", response.data);
-      setCreatedCalendars(response.data); // Or `response.data.data` if using `ApiResponse`
-
-      // Set default calendar if available
+      setCreatedCalendars(response.data);
+  
       if (response.data && response.data.length > 0) {
-        const defaultCalendar =
-          response.data.find((cal) => cal.isDefault) || response.data[0];
-        if (defaultCalendar) {
+        const storedId = localStorage.getItem("lastSelectedCalendarId");
+  
+        // Try to find the stored one first
+        let targetCalendar =
+          (storedId &&
+            response.data.find((cal) => String(cal.id) === String(storedId))) ||
+          response.data.find((cal) => cal.isDefault) ||
+          response.data[0];
+  
+        if (targetCalendar) {
           console.log(
-            "🎯 Setting default calendar:",
-            defaultCalendar.name,
+            "🎯 Setting calendar:",
+            targetCalendar.name,
             "ID:",
-            defaultCalendar.id
+            targetCalendar.id
           );
-          setSelectedCalendar(defaultCalendar.name);
-          setSelectedCalendarId(defaultCalendar.id);
+          setSelectedCalendar(targetCalendar.name);
+          setSelectedCalendarId(targetCalendar.id);
+          localStorage.setItem("lastSelectedCalendarId", targetCalendar.id);
         }
       }
     } catch (error) {
@@ -686,90 +720,118 @@ const CalendarView = () => {
               </Typography>
             </Box>
           )}
+          {extendedProps?.eventType === "GOOGLE_IMPORT" && (
+            <Box sx={chipSx(darkBg)} title="Imported from Google Calendar">
+              <GoogleIcon
+                sx={{ fontSize: 14, opacity: 0.9, color: "#4285F4" }}
+              />
+              <Typography
+                component="span"
+                sx={{ fontSize: "0.72rem", fontWeight: 700 }}
+              >
+                Google
+              </Typography>
+            </Box>
+          )}
 
-{extendedProps?.attendees?.length > 0 && (() => {
-  const avatarFillBg   = darkBg ? "#ffffff" : "#111827";   // white on dark bg, near-black on light bg
-  const avatarFillText = darkBg ? "#111827" : "#ffffff";   // opposite for text
-  const avatarRing     = darkBg ? "rgba(255,255,255,0.85)" : "rgba(17,24,39,0.25)";
+          {extendedProps?.attendees?.length > 0 &&
+            (() => {
+              const avatarFillBg = darkBg ? "#ffffff" : "#111827"; // white on dark bg, near-black on light bg
+              const avatarFillText = darkBg ? "#111827" : "#ffffff"; // opposite for text
+              const avatarRing = darkBg
+                ? "rgba(255,255,255,0.85)"
+                : "rgba(17,24,39,0.25)";
 
-  return (
-    <AvatarGroup
-      max={3}
-      sx={{
-        "& .MuiAvatar-root": {
-          width: 22,
-          height: 22,
-          fontSize: "0.7rem",
-          bgcolor: avatarFillBg,
-          color: avatarFillText,
-          border: `1px solid ${avatarRing}`,
-        },
-        "& .MuiAvatarGroup-avatar": {
-          bgcolor: avatarFillBg,
-          color: avatarFillText,
-          border: `1px solid ${avatarRing}`,
-        },
-      }}
-    >
-      {extendedProps.attendees.map((a, idx) => {
-        const status = (a.responseStatus || a.status || "").toLowerCase();
-        const hasImg = Boolean(a.photoUrl);
-        return (
-          <Tooltip
-            key={idx}
-            title={`${a.name || a.email || "Attendee"}${status ? ` — ${status}` : ""}`}
-            placement="top"
-            arrow
-          >
-            <Avatar
-              src={hasImg ? a.photoUrl : undefined}
-              alt={a.name || a.email || "Attendee"}
-              sx={{
-                bgcolor: hasImg ? avatarFillBg : avatarFillBg,
-                color: avatarFillText,
-                border: `1px solid ${avatarRing}`,
-                position: "relative",
-              }}
-            >
-              {!hasImg &&
-                (a.name?.[0]?.toUpperCase() ||
-                  a.email?.[0]?.toUpperCase() ||
-                  "?")}
-
-              {status && (
-                <Box
+              return (
+                <AvatarGroup
+                  max={3}
                   sx={{
-                    position: "absolute",
-                    right: -2,
-                    bottom: -2,
-                    width: 14,
-                    height: 14,
-                    borderRadius: "50%",
-                    backgroundColor: "#fff",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    boxShadow: darkBg
-                      ? "0 0 0 1px rgba(255,255,255,0.4)"
-                      : "0 0 0 1px rgba(0,0,0,0.12)",
+                    "& .MuiAvatar-root": {
+                      width: 22,
+                      height: 22,
+                      fontSize: "0.7rem",
+                      bgcolor: avatarFillBg,
+                      color: avatarFillText,
+                      border: `1px solid ${avatarRing}`,
+                    },
+                    "& .MuiAvatarGroup-avatar": {
+                      bgcolor: avatarFillBg,
+                      color: avatarFillText,
+                      border: `1px solid ${avatarRing}`,
+                    },
                   }}
                 >
-                  {(/^(accepted|yes)$/.test(status)) ? (
-                    <CheckCircleIcon sx={{ fontSize: 12, color: "#2e7d32" }} />
-                  ) : (/^(declined|no)$/.test(status)) ? (
-                    <CancelIcon sx={{ fontSize: 12, color: "#c62828" }} />
-                  ) : (
-                    <HourglassEmptyIcon sx={{ fontSize: 12, color: "#6b7280" }} />
-                  )}
-                </Box>
-              )}
-            </Avatar>
-          </Tooltip>
-        );
-      })}
-    </AvatarGroup>
-  );
-})()}
+                  {extendedProps.attendees.map((a, idx) => {
+                    const status = (
+                      a.responseStatus ||
+                      a.status ||
+                      ""
+                    ).toLowerCase();
+                    const hasImg = Boolean(a.photoUrl);
+                    return (
+                      <Tooltip
+                        key={idx}
+                        title={`${a.name || a.email || "Attendee"}${
+                          status ? ` — ${status}` : ""
+                        }`}
+                        placement="top"
+                        arrow
+                      >
+                        <Avatar
+                          src={hasImg ? a.photoUrl : undefined}
+                          alt={a.name || a.email || "Attendee"}
+                          sx={{
+                            bgcolor: hasImg ? avatarFillBg : avatarFillBg,
+                            color: avatarFillText,
+                            border: `1px solid ${avatarRing}`,
+                            position: "relative",
+                          }}
+                        >
+                          {!hasImg &&
+                            (a.name?.[0]?.toUpperCase() ||
+                              a.email?.[0]?.toUpperCase() ||
+                              "?")}
+
+                          {status && (
+                            <Box
+                              sx={{
+                                position: "absolute",
+                                right: -2,
+                                bottom: -2,
+                                width: 14,
+                                height: 14,
+                                borderRadius: "50%",
+                                backgroundColor: "#fff",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                boxShadow: darkBg
+                                  ? "0 0 0 1px rgba(255,255,255,0.4)"
+                                  : "0 0 0 1px rgba(0,0,0,0.12)",
+                              }}
+                            >
+                              {/^(accepted|yes)$/.test(status) ? (
+                                <CheckCircleIcon
+                                  sx={{ fontSize: 12, color: "#2e7d32" }}
+                                />
+                              ) : /^(declined|no)$/.test(status) ? (
+                                <CancelIcon
+                                  sx={{ fontSize: 12, color: "#c62828" }}
+                                />
+                              ) : (
+                                <HourglassEmptyIcon
+                                  sx={{ fontSize: 12, color: "#6b7280" }}
+                                />
+                              )}
+                            </Box>
+                          )}
+                        </Avatar>
+                      </Tooltip>
+                    );
+                  })}
+                </AvatarGroup>
+              );
+            })()}
         </Box>
       </Box>
     );
@@ -819,6 +881,7 @@ const CalendarView = () => {
     console.log("🎯 Calendar selected:", calendarName, "ID:", calendarId);
     setSelectedCalendar(calendarName);
     setSelectedCalendarId(calendarId);
+    localStorage.setItem("lastSelectedCalendarId", calendarId);
   };
 
   // Handle Google Calendar reconnection when tokens are invalid
