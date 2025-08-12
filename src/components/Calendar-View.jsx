@@ -122,17 +122,10 @@ const formatDuration = (startISO, endISO) => {
   return `${hours}:${minutes}`;
 };
 
-// ============================================================================
-// MAIN COMPONENT
-// ============================================================================
 
 const CalendarView = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery("(max-width:600px)");
-
-  // ============================================================================
-  // STATE MANAGEMENT
-  // ============================================================================
 
   // Timezone state
   const [timezones, setTimezones] = useState([]);
@@ -184,13 +177,6 @@ const CalendarView = () => {
   // Toast notifications
   const { showToast } = useToast();
 
-
-
-  // ============================================================================
-  // EVENT HANDLERS
-  // ============================================================================
-
-  // Event management handlers
   const handleCreate = (date, options = {}) => {
     const localMidnight = new Date(date);
     localMidnight.setHours(0, 0, 0, 0);
@@ -580,7 +566,6 @@ const CalendarView = () => {
     fontSize: "0.72rem",
   });
 
-  // ========= DROP‑IN renderEventContent =========
   const renderEventContent = (eventInfo) => {
     const { title, start, end, extendedProps, backgroundColor } =
       eventInfo.event;
@@ -606,9 +591,6 @@ const CalendarView = () => {
     const safeBg = normalizeColor(backgroundColor, "#1976d2");
     const darkBg = isDarkColor(safeBg);
 
-    // Avatar theming for contrast
-    const avatarBg = darkBg ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.08)";
-    const avatarBorder = darkBg ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.12)";
 
     return (
       <Box
@@ -846,10 +828,6 @@ const CalendarView = () => {
     setCalendarType(type);
   };
 
-  const handleToggleDarkMode = () => {
-    setDarkMode(!darkMode);
-  };
-
   const handleAddEvent = () => {
     handleCreate(new Date());
   };
@@ -944,11 +922,6 @@ const CalendarView = () => {
     }
   };
 
-  // Utility function to check if a calendar is connected to Google
-  const isGoogleCalendarConnected = (calendar) => {
-    return calendar?.externalCalendarType === "GOOGLE";
-  };
-
   const handleCalendarSettings = useCallback((calendar, action) => {
     console.log("Calendar settings action:", action, "for calendar:", calendar);
     // This will be handled by CalendarSidebar now
@@ -1010,20 +983,6 @@ const CalendarView = () => {
     },
     [showToast]
   );
-
-  const [googleEvents, setGoogleEvents] = useState([]);
-
-  const handleGoogleEvents = (apiEvents) => {
-    const formatted = apiEvents.map((event) => ({
-      id: event.id,
-      title: event.summary || "Untitled",
-      start: event.start?.dateTime || event.start?.date,
-      end: event.end?.dateTime || event.end?.date,
-      allDay: !event.start?.dateTime,
-    }));
-
-    setGoogleEvents(formatted);
-  };
 
   const handleCalendarUpdate = useCallback(
     async (updatedCalendar) => {
