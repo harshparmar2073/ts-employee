@@ -122,7 +122,6 @@ const formatDuration = (startISO, endISO) => {
   return `${hours}:${minutes}`;
 };
 
-
 const CalendarView = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery("(max-width:600px)");
@@ -254,6 +253,7 @@ const CalendarView = () => {
           parseISO(event.endDateTime),
           parseISO(event.startDateTime)
         );
+      
 
         const calendarEvent = {
           id: event.id,
@@ -261,31 +261,34 @@ const CalendarView = () => {
           extendedProps: {
             description: event.description,
             location: event.location,
-            timezone: event.timezone,
             meetingUrl: event.meetingUrl,
+            timezone: event.timezone,
             recurrenceRule: event.recurrenceRule,
             attendees: event.attendees,
+            eventType: event.eventType, // e.g. "GOOGLE_IMPORT"
+            externalCalendarType: event.externalCalendarType, // e.g. "GOOGLE"
           },
         };
 
         if (event.recurrenceRule) {
           calendarEvent.rrule = {
             ...parseRRuleString(event.recurrenceRule, event.startDateTime),
-            dtstart: event.startDateTime, // ✅ Must be JS Date
+            dtstart: new Date(event.startDateTime),
           };
           calendarEvent.duration = formatDuration(
             event.startDateTime,
             event.endDateTime
           );
-          
+
           if (Array.isArray(event.exceptionDates) && event.exceptionDates.length) {
-            calendarEvent.exdate = event.exceptionDates;
+            calendarEvent.exdate = event.exceptionDates.map(d => new Date(d));
           }
-          
+
           calendarEvent.extendedProps.durationText = `${minutes} min`;
         } else {
-          calendarEvent.start = event.startDateTime;
-          calendarEvent.end = event.endDateTime;
+          calendarEvent.start = new Date(event.startDateTime);
+          calendarEvent.end = new Date(event.endDateTime);
+          
           calendarEvent.extendedProps.durationText = `${minutes} min`;
         }
 
@@ -335,17 +338,17 @@ const CalendarView = () => {
       const response = await axiosService.get("/calendar/getList/");
       console.log("📅 Calendars loaded:", response.data);
       setCreatedCalendars(response.data);
-  
+
       if (response.data && response.data.length > 0) {
         const storedId = localStorage.getItem("lastSelectedCalendarId");
-  
+
         // Try to find the stored one first
         let targetCalendar =
           (storedId &&
             response.data.find((cal) => String(cal.id) === String(storedId))) ||
           response.data.find((cal) => cal.isDefault) ||
           response.data[0];
-  
+
         if (targetCalendar) {
           console.log(
             "🎯 Setting calendar:",
@@ -594,7 +597,9 @@ const CalendarView = () => {
     // Safe bg + adaptive contrast
     const safeBg = normalizeColor(backgroundColor, "#1976d2");
     const darkBg = isDarkColor(safeBg);
-
+    const isGoogle =
+      (extendedProps?.eventType || "").toUpperCase() === "GOOGLE_IMPORT" ||
+      (extendedProps?.externalCalendarType || "").toUpperCase() === "GOOGLE";
 
     return (
       <Box
@@ -651,7 +656,6 @@ const CalendarView = () => {
               </Typography>
             </Box>
           )}
-
           {durationText && (
             <Box sx={chipSx(darkBg)} title={durationText}>
               <AccessTimeIcon sx={{ fontSize: 13, opacity: 0.9 }} />
@@ -663,7 +667,6 @@ const CalendarView = () => {
               </Typography>
             </Box>
           )}
-
           {extendedProps?.location && (
             <Box sx={chipSx(darkBg)} title={extendedProps.location}>
               <PlaceIcon sx={{ fontSize: 14, opacity: 0.9 }} />
@@ -682,7 +685,6 @@ const CalendarView = () => {
               </Typography>
             </Box>
           )}
-
           {extendedProps?.recurrenceRule && (
             <Box sx={chipSx(darkBg)} title="Repeats">
               <RepeatIcon sx={{ fontSize: 14, opacity: 0.9 }} />
@@ -695,25 +697,30 @@ const CalendarView = () => {
             </Box>
           )}
 
-          {extendedProps?.externalCalendarType === "GOOGLE" && (
-            <Box sx={chipSx(darkBg)} title="Synced from Google (read-only)">
-              <LinkIcon sx={{ fontSize: 14, opacity: 0.9 }} />
-              <Typography
-                component="span"
-                sx={{ fontSize: "0.72rem", fontWeight: 700 }}
-              >
-                Google
-              </Typography>
-            </Box>
-          )}
-          {extendedProps?.eventType === "GOOGLE_IMPORT" && (
-            <Box sx={chipSx(darkBg)} title="Imported from Google Calendar">
+          {isGoogle && (
+            <Box
+              sx={{
+                ...chipSx(darkBg),
+                backgroundColor: darkBg ? "#DB4437" : "#FDECEA", // red or pale red
+                color: darkBg ? "#fff" : "#B71C1C",
+                borderColor: darkBg ? "#B71C1C" : "#F8BBD0",
+              }}
+              title="Imported from Google Calendar"
+            >
               <GoogleIcon
-                sx={{ fontSize: 14, opacity: 0.9, color: "#4285F4" }}
+                sx={{
+                  fontSize: 14,
+                  opacity: 0.9,
+                  color: darkBg ? "#fff" : "#DB4437",
+                }}
               />
               <Typography
                 component="span"
-                sx={{ fontSize: "0.72rem", fontWeight: 700 }}
+                sx={{
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  ml: 0.5,
+                }}
               >
                 Google
               </Typography>
@@ -756,86 +763,96 @@ const CalendarView = () => {
                     const hasImg = Boolean(a.photoUrl);
                     return (
                       <Tooltip
-                      key={idx}
-                      placement="top"
-                      arrow
-                      title={
-                        <Box sx={{ p: 1 }}>
-                          <Typography sx={{ fontWeight: 600, fontSize: "0.95rem" }}>
-                            {a.name || "Unknown Name"}
-                          </Typography>
-                          <Typography sx={{ fontSize: "0.85rem", opacity: 0.8 }}>
-                            {a.email || "No Email"}
-                          </Typography>
-                          {status && (
-                            <Typography sx={{ fontSize: "0.8rem", mt: 0.5 }}>
-                              Status: {status}
+                        key={idx}
+                        placement="top"
+                        arrow
+                        title={
+                          <Box sx={{ p: 1 }}>
+                            <Typography
+                              sx={{ fontWeight: 600, fontSize: "0.95rem" }}
+                            >
+                              {a.name || "Unknown Name"}
                             </Typography>
-                          )}
-                        </Box>
-                      }
-                      componentsProps={{
-                        tooltip: {
-                          sx: {
-                            bgcolor: "#333",
-                            color: "#fff",
-                            fontSize: "0.9rem",
-                            maxWidth: 240,
-                            borderRadius: 1,
-                            boxShadow: "0px 4px 12px rgba(0,0,0,0.4)",
-                          },
-                        },
-                        arrow: {
-                          sx: {
-                            color: "#333",
-                          },
-                        },
-                      }}
-                    >
-                      <Avatar
-                        src={hasImg ? a.photoUrl : undefined}
-                        alt={a.name || a.email || "Attendee"}
-                        sx={{
-                          bgcolor: hasImg ? avatarFillBg : avatarFillBg,
-                          color: avatarFillText,
-                          border: `1px solid ${avatarRing}`,
-                          position: "relative",
-                        }}
-                      >
-                        {!hasImg &&
-                          (a.name?.[0]?.toUpperCase() ||
-                            a.email?.[0]?.toUpperCase() ||
-                            "?")}
-                    
-                        {status && (
-                          <Box
-                            sx={{
-                              position: "absolute",
-                              right: -2,
-                              bottom: -2,
-                              width: 14,
-                              height: 14,
-                              borderRadius: "50%",
-                              backgroundColor: "#fff",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              boxShadow: darkBg
-                                ? "0 0 0 1px rgba(255,255,255,0.4)"
-                                : "0 0 0 1px rgba(0,0,0,0.12)",
-                            }}
-                          >
-                            {/^(accepted|yes)$/.test(status) ? (
-                              <CheckCircleIcon sx={{ fontSize: 12, color: "#2e7d32" }} />
-                            ) : /^(declined|no)$/.test(status) ? (
-                              <CancelIcon sx={{ fontSize: 12, color: "#c62828" }} />
-                            ) : (
-                              <HourglassEmptyIcon sx={{ fontSize: 12, color: "#6b7280" }} />
+                            <Typography
+                              sx={{ fontSize: "0.85rem", opacity: 0.8 }}
+                            >
+                              {a.email || "No Email"}
+                            </Typography>
+                            {status && (
+                              <Typography sx={{ fontSize: "0.8rem", mt: 0.5 }}>
+                                Status: {status}
+                              </Typography>
                             )}
                           </Box>
-                        )}
-                      </Avatar>
-                    </Tooltip>
+                        }
+                        componentsProps={{
+                          tooltip: {
+                            sx: {
+                              bgcolor: "#333",
+                              color: "#fff",
+                              fontSize: "0.9rem",
+                              maxWidth: 240,
+                              borderRadius: 1,
+                              boxShadow: "0px 4px 12px rgba(0,0,0,0.4)",
+                            },
+                          },
+                          arrow: {
+                            sx: {
+                              color: "#333",
+                            },
+                          },
+                        }}
+                      >
+                        <Avatar
+                          src={hasImg ? a.photoUrl : undefined}
+                          alt={a.name || a.email || "Attendee"}
+                          sx={{
+                            bgcolor: hasImg ? avatarFillBg : avatarFillBg,
+                            color: avatarFillText,
+                            border: `1px solid ${avatarRing}`,
+                            position: "relative",
+                          }}
+                        >
+                          {!hasImg &&
+                            (a.name?.[0]?.toUpperCase() ||
+                              a.email?.[0]?.toUpperCase() ||
+                              "?")}
+
+                          {status && (
+                            <Box
+                              sx={{
+                                position: "absolute",
+                                right: -2,
+                                bottom: -2,
+                                width: 14,
+                                height: 14,
+                                borderRadius: "50%",
+                                backgroundColor: "#fff",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                boxShadow: darkBg
+                                  ? "0 0 0 1px rgba(255,255,255,0.4)"
+                                  : "0 0 0 1px rgba(0,0,0,0.12)",
+                              }}
+                            >
+                              {/^(accepted|yes)$/.test(status) ? (
+                                <CheckCircleIcon
+                                  sx={{ fontSize: 12, color: "#2e7d32" }}
+                                />
+                              ) : /^(declined|no)$/.test(status) ? (
+                                <CancelIcon
+                                  sx={{ fontSize: 12, color: "#c62828" }}
+                                />
+                              ) : (
+                                <HourglassEmptyIcon
+                                  sx={{ fontSize: 12, color: "#6b7280" }}
+                                />
+                              )}
+                            </Box>
+                          )}
+                        </Avatar>
+                      </Tooltip>
                     );
                   })}
                 </AvatarGroup>
@@ -1327,6 +1344,7 @@ const CalendarView = () => {
               </Box>
             </Box>
             <Divider sx={{ my: 1.5 }} />
+
             {/* Time */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
               <AccessTimeIcon color="primary" />
@@ -1334,21 +1352,28 @@ const CalendarView = () => {
                 <Typography variant="overline" color="text.secondary">
                   Time
                 </Typography>
-                <Typography
-                  fontWeight={500}
-                  color="text.primary"
-                  sx={{ mt: 0.2 }}
-                >
-                  {eventToView?.start
-                    ? new Date(eventToView?.start).toLocaleString()
-                    : ""}{" "}
-                  -{" "}
-                  {eventToView?.end
-                    ? new Date(eventToView?.end).toLocaleString()
-                    : ""}
-                </Typography>
+                {eventToView?.start && eventToView?.end && (
+                  <Typography
+                    fontWeight={500}
+                    color="text.primary"
+                    sx={{ mt: 0.5 }}
+                  >
+                    {format(new Date(eventToView.start), "EEE, MMM d")} ·{" "}
+                    {format(new Date(eventToView.start), "h:mm a")} –{" "}
+                    {format(new Date(eventToView.end), "h:mm a")}{" "}
+                    <Typography
+                      component="span"
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ ml: 1 }}
+                    >
+                      ({eventToView?.extendedProps?.timezone || "Local time"})
+                    </Typography>
+                  </Typography>
+                )}
               </Box>
             </Box>
+
             <Divider sx={{ my: 1.5 }} />
             {/* Recurrence */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
@@ -1374,31 +1399,53 @@ const CalendarView = () => {
             <Divider sx={{ my: 1.5 }} />
             {/* Meeting Link */}
             {eventToView?.extendedProps?.meetingUrl && (
-              <Box
-                sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}
-              >
-                <LinkIcon color="primary" />
-                <Box>
-                  <Typography variant="overline" color="text.secondary">
-                    Meeting
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    size="small"
-                    href={eventToView.extendedProps.meetingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    startIcon={<LinkIcon />}
-                    sx={{ mt: 0.5 }}
-                  >
-                    Join Meeting
-                  </Button>
+              <>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 2,
+                    mb: 2,
+                  }}
+                >
+                  <LinkIcon color="primary" sx={{ mt: 0.5 }} />
+                  <Box>
+                    <Typography
+                      variant="overline"
+                      color="text.secondary"
+                      sx={{ display: "block", mb: 0.5 }}
+                    >
+                      Meeting
+                    </Typography>
+
+                    {/* Show raw meeting link */}
+                    <Typography
+                      variant="body2"
+                      color="primary"
+                      sx={{
+                        wordBreak: "break-all", // ensures long URLs wrap
+                        mb: 1,
+                      }}
+                    >
+                      {eventToView.extendedProps.meetingUrl}
+                    </Typography>
+
+                    {/* Join button */}
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="small"
+                      href={eventToView.extendedProps.meetingUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      startIcon={<LinkIcon />}
+                    >
+                      Join Meeting
+                    </Button>
+                  </Box>
                 </Box>
-              </Box>
-            )}
-            {eventToView?.extendedProps?.meetingUrl && (
-              <Divider sx={{ my: 1.5 }} />
+                <Divider sx={{ my: 1.5 }} />
+              </>
             )}
             {/* Attendees */}
             {eventToView?.extendedProps?.attendees &&

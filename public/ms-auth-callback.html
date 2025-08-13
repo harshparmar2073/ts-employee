@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Microsoft OAuth Callback</title>
+  </head>
+  <body>
+    <script>
+      (function () {
+        try {
+          if (window.opener && window.opener !== window && window.opener.postMessage) {
+            window.opener.postMessage(
+              { type: "ms-oauth-code", urlWithCode: window.location.href },
+              window.location.origin
+            );
+          }
+        } catch (e) {
+          // ignore
+        } finally {
+          window.close();
+        }
+      })();
+    </script>
+  </body>
+</html>
