@@ -19,14 +19,6 @@ function LinkGoogleCalendarButton({ onSuccess, calendarId, calendarData, onDisco
     }
   }, [calendarData]);
   
-  // // Debug logging
-  // console.log('LinkGoogleCalendarButton props:', { calendarId, calendarData, onSuccess });
-  // console.log('Calendar data structure:', {
-  //   id: calendarData?.id,
-  //   name: calendarData?.name,
-  //   externalCalendarType: calendarData?.externalCalendarType,
-  //   isDefault: calendarData?.isDefault
-  // });
 
   useEffect(() => {
     // Bail if the Google Identity Services script hasn’t loaded yet
