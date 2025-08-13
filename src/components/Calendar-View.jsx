@@ -15,6 +15,8 @@ import {
   isValid,
 } from "date-fns";
 
+import { formatInTimeZone } from "date-fns-tz";
+
 // -----------------------------------------------------------------------------
 // Services & app context
 // -----------------------------------------------------------------------------
@@ -273,7 +275,7 @@ const CalendarView = () => {
         if (event.recurrenceRule) {
           calendarEvent.rrule = {
             ...parseRRuleString(event.recurrenceRule, event.startDateTime),
-            dtstart: new Date(event.startDateTime),
+            dtstart: event.startDateTime,
           };
           calendarEvent.duration = formatDuration(
             event.startDateTime,
@@ -281,13 +283,13 @@ const CalendarView = () => {
           );
 
           if (Array.isArray(event.exceptionDates) && event.exceptionDates.length) {
-            calendarEvent.exdate = event.exceptionDates.map(d => new Date(d));
+            calendarEvent.exdate = event.exceptionDates;
           }
 
           calendarEvent.extendedProps.durationText = `${minutes} min`;
         } else {
-          calendarEvent.start = new Date(event.startDateTime);
-          calendarEvent.end = new Date(event.endDateTime);
+          calendarEvent.start = event.startDateTime;
+          calendarEvent.end = event.endDateTime;
           
           calendarEvent.extendedProps.durationText = `${minutes} min`;
         }
@@ -1265,7 +1267,7 @@ const CalendarView = () => {
                 opacity: 0.85,
               }}
             >
-              Edit Event
+              View Event
             </Typography>
           </DialogTitle>
           <DialogContent
@@ -1350,7 +1352,7 @@ const CalendarView = () => {
               <AccessTimeIcon color="primary" />
               <Box>
                 <Typography variant="overline" color="text.secondary">
-                  Time
+                  Local Time
                 </Typography>
                 {eventToView?.start && eventToView?.end && (
                   <Typography
@@ -1361,6 +1363,36 @@ const CalendarView = () => {
                     {format(new Date(eventToView.start), "EEE, MMM d")} ·{" "}
                     {format(new Date(eventToView.start), "h:mm a")} –{" "}
                     {format(new Date(eventToView.end), "h:mm a")}{" "}
+                    <Typography
+                      component="span"
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ ml: 1 }}
+                    >
+                      ({Intl.DateTimeFormat().resolvedOptions().timeZone || "Local time"})
+                    </Typography>
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+
+             {/* Time */}
+             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+              <AccessTimeIcon color="primary" />
+              <Box>
+                <Typography variant="overline" color="text.secondary">
+                  Time
+                </Typography>
+                {eventToView?.start && eventToView?.end && (
+                  <Typography
+                    fontWeight={500}
+                    color="text.primary"
+                    sx={{ mt: 0.5 }}
+                  >
+                    
+                  {formatInTimeZone(new Date(eventToView.start), eventToView?.extendedProps?.timezone, "EEE, MMM d")} ·{" "}
+                  {formatInTimeZone(new Date(eventToView.start), eventToView?.extendedProps?.timezone, "h:mm a")} –{" "}
+                  {formatInTimeZone(new Date(eventToView.end), eventToView?.extendedProps?.timezone, "h:mm a")}{" "}
                     <Typography
                       component="span"
                       variant="body2"
