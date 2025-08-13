@@ -576,9 +576,15 @@ const CalendarView = () => {
   });
 
   const renderEventContent = (eventInfo) => {
-    const { title, start, end, extendedProps, backgroundColor } =
-      eventInfo.event;
-
+    const { title, start, end, extendedProps, backgroundColor } = eventInfo.event;
+  
+    // 🔎 Detect weekly/day time-grid and short events
+    const isTimeGrid =
+      eventInfo.view?.type === "timeGridWeek" || eventInfo.view?.type === "timeGridDay";
+    const durationMs = start && end ? end.getTime() - start.getTime() : 0;
+    const isShort = durationMs > 0 && durationMs <= 45 * 60 * 1000; // 45 min threshold
+    const compact = isTimeGrid && isShort; // <— compact only in week/day for short events
+  
     const fmt = new Intl.DateTimeFormat(undefined, {
       hour: "2-digit",
       minute: "2-digit",
@@ -589,20 +595,27 @@ const CalendarView = () => {
         : start
         ? fmt.format(start)
         : "";
-
+  
     // Uses your formatDurationHuman helper (multi‑day friendly)
     const durationText =
       start && end
         ? formatDurationHuman(start.toISOString(), end.toISOString())
         : "";
-
+  
     // Safe bg + adaptive contrast
     const safeBg = normalizeColor(backgroundColor, "#1976d2");
     const darkBg = isDarkColor(safeBg);
     const isGoogle =
       (extendedProps?.eventType || "").toUpperCase() === "GOOGLE_IMPORT" ||
       (extendedProps?.externalCalendarType || "").toUpperCase() === "GOOGLE";
-
+  
+    // 🔧 compact chip style tweaks
+    const chipCompactSx = {
+      padding: compact ? "1px 6px" : "2px 8px",
+      borderRadius: 10,
+      backgroundColor: darkBg ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.06)",
+    };
+  
     return (
       <Box
         sx={(theme) => ({
@@ -611,9 +624,9 @@ const CalendarView = () => {
           display: "flex",
           flexDirection: "column",
           alignItems: "flex-start",
-          gap: 0.5,
-          px: 1,
-          py: 0.75,
+          gap: compact ? 0.25 : 0.5,
+          px: compact ? 0.75 : 1,
+          py: compact ? 0.5 : 0.75,
           borderRadius: 1,
           backgroundColor: safeBg,
           color: theme.palette.getContrastText(safeBg),
@@ -621,22 +634,24 @@ const CalendarView = () => {
           overflow: "hidden",
         })}
       >
-        {/* Title */}
-        <Typography
-          title={title}
-          sx={{
-            fontWeight: 700,
-            fontSize: "0.92rem",
-            lineHeight: 1.2,
-            width: "100%",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {title}
-        </Typography>
-
+        {/* Title (hidden in compact to save vertical space) */}
+        {!compact && (
+          <Typography
+            title={title}
+            sx={{
+              fontWeight: 700,
+              fontSize: "0.92rem",
+              lineHeight: 1.2,
+              width: "100%",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {title}
+          </Typography>
+        )}
+  
         {/* Badges row (flat) */}
         <Box
           sx={{
@@ -645,32 +660,31 @@ const CalendarView = () => {
             gap: 0.5,
             flexWrap: "wrap",
             width: "100%",
+            overflow: "hidden",
           }}
         >
           {timeLabel && (
-            <Box sx={chipSx(darkBg)} title={timeLabel}>
-              <ScheduleIcon sx={{ fontSize: 14, opacity: 0.9 }} />
-              <Typography
-                component="span"
-                sx={{ fontSize: "0.72rem", fontWeight: 700 }}
-              >
+            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, ...chipCompactSx }} title={timeLabel}>
+              <ScheduleIcon sx={{ fontSize: compact ? 12 : 14, opacity: 0.9 }} />
+              <Typography component="span" sx={{ fontSize: compact ? "0.68rem" : "0.72rem", fontWeight: 700 }}>
                 {timeLabel}
               </Typography>
             </Box>
           )}
+  
           {durationText && (
-            <Box sx={chipSx(darkBg)} title={durationText}>
-              <AccessTimeIcon sx={{ fontSize: 13, opacity: 0.9 }} />
-              <Typography
-                component="span"
-                sx={{ fontSize: "0.72rem", fontWeight: 700 }}
-              >
+            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, ...chipCompactSx }} title={durationText}>
+              <AccessTimeIcon sx={{ fontSize: compact ? 11 : 13, opacity: 0.9 }} />
+              <Typography component="span" sx={{ fontSize: compact ? "0.68rem" : "0.72rem", fontWeight: 700 }}>
                 {durationText}
               </Typography>
             </Box>
           )}
-          {extendedProps?.location && (
-            <Box sx={chipSx(darkBg)} title={extendedProps.location}>
+  
+          {/* Hide extras in compact to prevent clipping */}
+          {!compact && extendedProps?.location && (
+            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, padding: "2px 8px", borderRadius: 10,
+              backgroundColor: darkBg ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.06)" }} title={extendedProps.location}>
               <PlaceIcon sx={{ fontSize: 14, opacity: 0.9 }} />
               <Typography
                 component="span"
@@ -687,23 +701,26 @@ const CalendarView = () => {
               </Typography>
             </Box>
           )}
-          {extendedProps?.recurrenceRule && (
-            <Box sx={chipSx(darkBg)} title="Repeats">
+  
+          {!compact && extendedProps?.recurrenceRule && (
+            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, padding: "2px 8px", borderRadius: 10,
+              backgroundColor: darkBg ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.06)" }} title="Repeats">
               <RepeatIcon sx={{ fontSize: 14, opacity: 0.9 }} />
-              <Typography
-                component="span"
-                sx={{ fontSize: "0.72rem", fontWeight: 700 }}
-              >
+              <Typography component="span" sx={{ fontSize: "0.72rem", fontWeight: 700 }}>
                 Repeats
               </Typography>
             </Box>
           )}
-
-          {isGoogle && (
+  
+          {!compact && isGoogle && (
             <Box
               sx={{
-                ...chipSx(darkBg),
-                backgroundColor: darkBg ? "#DB4437" : "#FDECEA", // red or pale red
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                padding: "2px 8px",
+                borderRadius: 10,
+                backgroundColor: darkBg ? "#DB4437" : "#FDECEA",
                 color: darkBg ? "#fff" : "#B71C1C",
                 borderColor: darkBg ? "#B71C1C" : "#F8BBD0",
               }}
@@ -716,151 +733,144 @@ const CalendarView = () => {
                   color: darkBg ? "#fff" : "#DB4437",
                 }}
               />
-              <Typography
-                component="span"
-                sx={{
-                  fontSize: "0.72rem",
-                  fontWeight: 700,
-                  ml: 0.5,
-                }}
-              >
+              <Typography component="span" sx={{ fontSize: "0.72rem", fontWeight: 700, ml: 0.5 }}>
                 Google
               </Typography>
             </Box>
           )}
-
-          {extendedProps?.attendees?.length > 0 &&
-            (() => {
-              const avatarFillBg = darkBg ? "#ffffff" : "#111827"; // white on dark bg, near-black on light bg
-              const avatarFillText = darkBg ? "#111827" : "#ffffff"; // opposite for text
-              const avatarRing = darkBg
-                ? "rgba(255,255,255,0.85)"
-                : "rgba(17,24,39,0.25)";
-
-              return (
-                <AvatarGroup
-                  max={3}
-                  sx={{
-                    "& .MuiAvatar-root": {
-                      width: 22,
-                      height: 22,
-                      fontSize: "0.7rem",
-                      bgcolor: avatarFillBg,
-                      color: avatarFillText,
-                      border: `1px solid ${avatarRing}`,
-                    },
-                    "& .MuiAvatarGroup-avatar": {
-                      bgcolor: avatarFillBg,
-                      color: avatarFillText,
-                      border: `1px solid ${avatarRing}`,
-                    },
-                  }}
-                >
-                  {extendedProps.attendees.map((a, idx) => {
-                    const status = (
-                      a.responseStatus ||
-                      a.status ||
-                      ""
-                    ).toLowerCase();
-                    const hasImg = Boolean(a.photoUrl);
-                    return (
-                      <Tooltip
-                        key={idx}
-                        placement="top"
-                        arrow
-                        title={
-                          <Box sx={{ p: 1 }}>
-                            <Typography
-                              sx={{ fontWeight: 600, fontSize: "0.95rem" }}
-                            >
-                              {a.name || "Unknown Name"}
+        </Box>
+  
+        {/* Tiny title row added in compact so you still see the subject */}
+        {compact && (
+          <Typography
+            title={title}
+            sx={{
+              mt: 0.25,
+              fontSize: "0.72rem",
+              fontWeight: 700,
+              lineHeight: 1.1,
+              width: "100%",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              opacity: 0.9,
+            }}
+          >
+            {title}
+          </Typography>
+        )}
+  
+        {/* Attendees block — keep your full logic, but hide in compact to avoid clipping */}
+        {!compact &&
+          extendedProps?.attendees?.length > 0 &&
+          (() => {
+            const avatarFillBg = darkBg ? "#ffffff" : "#111827";
+            const avatarFillText = darkBg ? "#111827" : "#ffffff";
+            const avatarRing = darkBg ? "rgba(255,255,255,0.85)" : "rgba(17,24,39,0.25)";
+  
+            return (
+              <AvatarGroup
+                max={3}
+                sx={{
+                  "& .MuiAvatar-root": {
+                    width: 22,
+                    height: 22,
+                    fontSize: "0.7rem",
+                    bgcolor: avatarFillBg,
+                    color: avatarFillText,
+                    border: `1px solid ${avatarRing}`,
+                  },
+                  "& .MuiAvatarGroup-avatar": {
+                    bgcolor: avatarFillBg,
+                    color: avatarFillText,
+                    border: `1px solid ${avatarRing}`,
+                  },
+                }}
+              >
+                {extendedProps.attendees.map((a, idx) => {
+                  const status = (a.responseStatus || a.status || "").toLowerCase();
+                  const hasImg = Boolean(a.photoUrl);
+                  return (
+                    <Tooltip
+                      key={idx}
+                      placement="top"
+                      arrow
+                      title={
+                        <Box sx={{ p: 1 }}>
+                          <Typography sx={{ fontWeight: 600, fontSize: "0.95rem" }}>
+                            {a.name || "Unknown Name"}
+                          </Typography>
+                          <Typography sx={{ fontSize: "0.85rem", opacity: 0.8 }}>
+                            {a.email || "No Email"}
+                          </Typography>
+                          {status && (
+                            <Typography sx={{ fontSize: "0.8rem", mt: 0.5 }}>
+                              Status: {status}
                             </Typography>
-                            <Typography
-                              sx={{ fontSize: "0.85rem", opacity: 0.8 }}
-                            >
-                              {a.email || "No Email"}
-                            </Typography>
-                            {status && (
-                              <Typography sx={{ fontSize: "0.8rem", mt: 0.5 }}>
-                                Status: {status}
-                              </Typography>
-                            )}
-                          </Box>
-                        }
-                        componentsProps={{
-                          tooltip: {
-                            sx: {
-                              bgcolor: "#333",
-                              color: "#fff",
-                              fontSize: "0.9rem",
-                              maxWidth: 240,
-                              borderRadius: 1,
-                              boxShadow: "0px 4px 12px rgba(0,0,0,0.4)",
-                            },
+                          )}
+                        </Box>
+                      }
+                      componentsProps={{
+                        tooltip: {
+                          sx: {
+                            bgcolor: "#333",
+                            color: "#fff",
+                            fontSize: "0.9rem",
+                            maxWidth: 240,
+                            borderRadius: 1,
+                            boxShadow: "0px 4px 12px rgba(0,0,0,0.4)",
                           },
-                          arrow: {
-                            sx: {
-                              color: "#333",
-                            },
-                          },
+                        },
+                        arrow: { sx: { color: "#333" } },
+                      }}
+                    >
+                      <Avatar
+                        src={hasImg ? a.photoUrl : undefined}
+                        alt={a.name || a.email || "Attendee"}
+                        sx={{
+                          bgcolor: hasImg ? avatarFillBg : avatarFillBg,
+                          color: avatarFillText,
+                          border: `1px solid ${avatarRing}`,
+                          position: "relative",
                         }}
                       >
-                        <Avatar
-                          src={hasImg ? a.photoUrl : undefined}
-                          alt={a.name || a.email || "Attendee"}
-                          sx={{
-                            bgcolor: hasImg ? avatarFillBg : avatarFillBg,
-                            color: avatarFillText,
-                            border: `1px solid ${avatarRing}`,
-                            position: "relative",
-                          }}
-                        >
-                          {!hasImg &&
-                            (a.name?.[0]?.toUpperCase() ||
-                              a.email?.[0]?.toUpperCase() ||
-                              "?")}
-
-                          {status && (
-                            <Box
-                              sx={{
-                                position: "absolute",
-                                right: -2,
-                                bottom: -2,
-                                width: 14,
-                                height: 14,
-                                borderRadius: "50%",
-                                backgroundColor: "#fff",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                boxShadow: darkBg
-                                  ? "0 0 0 1px rgba(255,255,255,0.4)"
-                                  : "0 0 0 1px rgba(0,0,0,0.12)",
-                              }}
-                            >
-                              {/^(accepted|yes)$/.test(status) ? (
-                                <CheckCircleIcon
-                                  sx={{ fontSize: 12, color: "#2e7d32" }}
-                                />
-                              ) : /^(declined|no)$/.test(status) ? (
-                                <CancelIcon
-                                  sx={{ fontSize: 12, color: "#c62828" }}
-                                />
-                              ) : (
-                                <HourglassEmptyIcon
-                                  sx={{ fontSize: 12, color: "#6b7280" }}
-                                />
-                              )}
-                            </Box>
-                          )}
-                        </Avatar>
-                      </Tooltip>
-                    );
-                  })}
-                </AvatarGroup>
-              );
-            })()}
-        </Box>
+                        {!hasImg &&
+                          (a.name?.[0]?.toUpperCase() || a.email?.[0]?.toUpperCase() || "?")}
+  
+                        {status && (
+                          <Box
+                            sx={{
+                              position: "absolute",
+                              right: -2,
+                              bottom: -2,
+                              width: 14,
+                              height: 14,
+                              borderRadius: "50%",
+                              backgroundColor: "#fff",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              boxShadow: darkBg
+                                ? "0 0 0 1px rgba(255,255,255,0.4)"
+                                : "0 0 0 1px rgba(0,0,0,0.12)",
+                            }}
+                          >
+                            {/^(accepted|yes)$/.test(status) ? (
+                              <CheckCircleIcon sx={{ fontSize: 12, color: "#2e7d32" }} />
+                            ) : /^(declined|no)$/.test(status) ? (
+                              <CancelIcon sx={{ fontSize: 12, color: "#c62828" }} />
+                            ) : (
+                              <HourglassEmptyIcon sx={{ fontSize: 12, color: "#6b7280" }} />
+                            )}
+                          </Box>
+                        )}
+                      </Avatar>
+                    </Tooltip>
+                  );
+                })}
+              </AvatarGroup>
+            );
+          })()}
       </Box>
     );
   };
