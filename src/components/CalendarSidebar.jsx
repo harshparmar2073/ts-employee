@@ -70,6 +70,8 @@ const CalendarSidebar = ({
   onCalendarDelete,
   onGoogleCalendarConnected,
   onGoogleCalendarDisconnected,
+  onMicrosoftCalendarConnected,
+  onMicrosoftCalendarDisconnected,
 }) => {
   // Calendar management state
   const [calendarFormOpen, setCalendarFormOpen] = useState(false);
@@ -1126,50 +1128,57 @@ const CalendarSidebar = ({
                       M
                     </Box>
                     <Box>
-                      <Typography
-                        variant="h6"
-                        sx={{ fontWeight: 600, color: "#1a1a1a", mb: 0.5 }}
-                      >
-                        Microsoft Outlook
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{ color: "#5f6368", fontWeight: 500 }}
-                      >
-                        Sync with your Outlook Calendar
-                      </Typography>
-                    </Box>
-                  </Box>
-
+                  <Typography
+                    variant="h6"
+                    sx={{ fontWeight: 600, color: "#1a1a1a", mb: 0.5 }}
+                  >
+                    Microsoft Outlook
+                  </Typography>
                   <Typography
                     variant="body2"
-                    sx={{ color: "#5f6368", mb: 3, lineHeight: 1.5 }}
+                    sx={{ color: "#5f6368", fontWeight: 500 }}
                   >
-                    Connect your Microsoft Outlook Calendar to sync events,
-                    meetings, and appointments. Perfect for enterprise users and
-                    Office 365 subscribers.
+                    Sync with your Outlook Calendar
                   </Typography>
+                </Box>
+              </Box>
 
-                  <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
-                    <LinkMicrosoftCalendarButton
-                      onSuccess={(calendar) => {
-                        console.log(
-                          ":white_check_mark: Linked Microsoft calendar:",
-                          calendar
-                        );
-                        // Optionally store the calendar or show a success message
-                        // You can later fetch events using a separate call
-                        // For now, don't try to .map()
-                      }}
-                      onDisconnect={(data) => {
-                        console.log(
-                          ":white_check_mark: Disconnected Microsoft calendar:",
-                          data
-                        );
-                        // Handle disconnect success
-                      }}
-                    />
-                  </Box>
+              <Typography
+                variant="body2"
+                sx={{ color: "#5f6368", mb: 3, lineHeight: 1.5 }}
+              >
+                Connect your Microsoft Outlook Calendar to sync events,
+                meetings, and appointments. Perfect for enterprise users and
+                Office 365 subscribers.
+              </Typography>
+
+              <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
+                <LinkMicrosoftCalendarButton
+                  calendarId={
+                    selectedCalendar?.id ||
+                    (createdCalendars?.length > 0
+                      ? createdCalendars[0]?.id
+                      : null)
+                  }
+                  calendarData={
+                    selectedCalendar ||
+                    (createdCalendars?.length > 0
+                      ? createdCalendars[0]
+                      : null)
+                  }
+                  onSuccess={onMicrosoftCalendarConnected}
+                  onDisconnect={onMicrosoftCalendarDisconnected}
+                />
+                {/* Debug info */}
+                {!selectedCalendar?.id && !createdCalendars?.length && (
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "red", ml: 1 }}
+                  >
+                    No calendar available
+                  </Typography>
+                )}
+              </Box>
                 </Box>
               </Box>
             )}

@@ -978,6 +978,39 @@ const CalendarView = () => {
     }
   };
 
+
+   const handleMicrosoftCalendarConnected = (calendarData) => {
+    console.log("✅ Microsoft Calendar connected successfully:", calendarData);
+    showToast(
+      "Microsoft Calendar connected successfully! Events will be loaded shortly.",
+      "success"
+    );
+
+    // Refresh the calendar list to get updated connection status
+    fetchCalendars();
+
+    // Retry fetching events after a short delay
+    setTimeout(() => {
+      if (selectedCalendarId) {
+        fetchEvents();
+      }
+    }, 1000);
+  };
+
+  // Handle Microsoft Calendar disconnection
+  const handleMicrosoftCalendarDisconnected = (calendarData) => {
+    console.log("🔌 Microsoft Calendar disconnected:", calendarData);
+    showToast("Microsoft Calendar disconnected successfully.", "info");
+
+    // Refresh the calendar list to get updated connection status
+    fetchCalendars();
+
+    // Clear events if the disconnected calendar was selected
+    if (selectedCalendarId === calendarData?.calendarId) {
+      setEvents([]);
+    }
+  };
+
   const handleCalendarSettings = useCallback((calendar, action) => {
     console.log("Calendar settings action:", action, "for calendar:", calendar);
     // This will be handled by CalendarSidebar now
@@ -1101,6 +1134,8 @@ const CalendarView = () => {
         onCalendarUpdate={handleCalendarUpdate}
         onGoogleCalendarConnected={handleGoogleCalendarConnected}
         onGoogleCalendarDisconnected={handleGoogleCalendarDisconnected}
+        onMicrosoftCalendarConnected={handleMicrosoftCalendarConnected}
+        onMicrosoftCalendarDisconnected={handleMicrosoftCalendarDisconnected}
       />
 
       {/* Expand/Collapse Button - Always Visible */}
