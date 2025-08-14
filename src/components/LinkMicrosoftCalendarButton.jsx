@@ -6,8 +6,8 @@ import axiosService from "../services/axiosService";
 import { useToast } from "../context/ToastContext";
 
 // -------------------- CONFIG (fill these) --------------------
-const MS_CLIENT_ID = "295776b6-545c-4dc8-b5e4-3985b0bb6a85";
-const TENANT = "66d3e84a-b7e7-4a59-af92-cd72c5620029"; // or your tenant id (e.g. "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+const MS_CLIENT_ID = "fa6cbbd3-6a9d-44fd-bb20-a6c06f52989e";
+const TENANT = "organizations"; // all org
 const REDIRECT_URI = `${window.location.origin}/ms-auth-callback.html`;
 const MS_SCOPES = [
   "offline_access",
@@ -54,18 +54,21 @@ function LinkMicrosoftCalendarButton({
     return base64Url(array.buffer).slice(0, 96); // 43–128 chars
   };
 
-  const openPopup = (url, title, w = 600, h = 700) => {
-    const y = window.top?.outerHeight
-      ? Math.max(0, (window.top.outerHeight - h) / 2 + (window.top.screenY || 0))
-      : 0;
-    const x = window.top?.outerWidth
-      ? Math.max(0, (window.top.outerWidth - w) / 2 + (window.top.screenX || 0))
-      : 0;
-    const features = `popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=${w},height=${h},top=${y},left=${x}`;
-    popupRef.current = window.open(url, title, features);
-    if (popupRef.current) popupRef.current.focus();
+  const openPopup = (_unused, title, width = 600, height = 700) => {
+    const top = window.top;
+    const y = top?.outerHeight ? Math.max(0, (top.outerHeight - height) / 2 + (top.screenY || 0)) : 0;
+    const x = top?.outerWidth ? Math.max(0, (top.outerWidth - width) / 2 + (top.screenX || 0)) : 0;
+    const features = `popup=yes,toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=${width},height=${height},top=${y},left=${x}`;
+  
+    const win = window.open("", title, features); // open immediately (sync with click)
+    if (win) {
+      win.document.write(`<html><body style="font-family:system-ui;padding:16px">Opening Microsoft sign-in…</body></html>`);
+      win.document.close();
+      win.focus();
+    }
+    popupRef.current = win;
+    return win;
   };
-
   // Listen for message from /ms-auth-callback.html
   useEffect(() => {
     const handler = async (event) => {
@@ -126,19 +129,23 @@ function LinkMicrosoftCalendarButton({
       showToast("Please select a valid calendar first.", "warning");
       return;
     }
-
+  
+    // Open placeholder popup synchronously on the click
+    const w = openPopup("about:blank", "Microsoft Sign-In");
+    const popupOpened = !!w;
+  
     try {
       setIsLoading(true);
-
+  
       // PKCE
       const verifier = generateVerifier();
       const challenge = await sha256(verifier);
-
+  
       sessionStorage.setItem(
         "ms_pkce",
         JSON.stringify({ verifier, calendarIdAtRequest: calendarId })
       );
-
+  
       const authUrl = new URL(
         `https://login.microsoftonline.com/${TENANT}/oauth2/v2.0/authorize`
       );
@@ -150,15 +157,23 @@ function LinkMicrosoftCalendarButton({
       authUrl.searchParams.set("code_challenge", challenge);
       authUrl.searchParams.set("code_challenge_method", "S256");
       authUrl.searchParams.set("prompt", "consent");
-
-      openPopup(authUrl.toString(), "Microsoft Sign-In");
+  
+      if (popupOpened) {
+        // Navigate the popup
+        w.location.href = authUrl.toString();
+      } else {
+        // Fallback: same-tab redirect (no popup)
+        window.location.assign(authUrl.toString());
+      }
     } catch (e) {
       console.error(e);
       showToast("Failed to start Microsoft authorization.", "error");
       setIsLoading(false);
       sessionStorage.removeItem("ms_pkce");
+      try { if (popupOpened) w.close(); } catch {}
     }
   }, [calendarId, showToast]);
+
 
   const disconnect = useCallback(async () => {
     if (!calendarId) {

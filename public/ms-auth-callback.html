@@ -1,24 +1,31 @@
+<!-- public/ms-auth-callback.html -->
 <!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>Microsoft OAuth Callback</title>
+    <title>Microsoft Auth Callback</title>
+    <meta name="robots" content="noindex" />
+    <style>
+      html,body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu;
+        height:100%;margin:0;display:flex;align-items:center;justify-content:center;color:#333}
+      .card{padding:16px 20px;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.06)}
+    </style>
   </head>
   <body>
+    <div class="card">Signing you in…</div>
     <script>
       (function () {
         try {
-          if (window.opener && window.opener !== window && window.opener.postMessage) {
-            window.opener.postMessage(
-              { type: "ms-oauth-code", urlWithCode: window.location.href },
-              window.location.origin
-            );
+          var payload = { type: "ms-oauth-code", urlWithCode: window.location.href };
+          // Prefer window.opener (popup), fallback to parent (iframe)
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage(payload, window.location.origin);
+          } else if (window.parent && window.parent !== window) {
+            window.parent.postMessage(payload, window.location.origin);
           }
-        } catch (e) {
-          // ignore
-        } finally {
-          window.close();
-        }
+        } catch (e) { /* ignore */ }
+        // give the opener time to receive the message, then close
+        setTimeout(function(){ window.close(); }, 300);
       })();
     </script>
   </body>

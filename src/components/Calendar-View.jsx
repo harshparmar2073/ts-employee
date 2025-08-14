@@ -91,6 +91,7 @@ import GoogleIcon from "@mui/icons-material/Google";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
+import DOMPurify from "dompurify";
 
 // -----------------------------------------------------------------------------
 // Other libraries
@@ -255,7 +256,6 @@ const CalendarView = () => {
           parseISO(event.endDateTime),
           parseISO(event.startDateTime)
         );
-      
 
         const calendarEvent = {
           id: event.id,
@@ -282,7 +282,10 @@ const CalendarView = () => {
             event.endDateTime
           );
 
-          if (Array.isArray(event.exceptionDates) && event.exceptionDates.length) {
+          if (
+            Array.isArray(event.exceptionDates) &&
+            event.exceptionDates.length
+          ) {
             calendarEvent.exdate = event.exceptionDates;
           }
 
@@ -290,7 +293,7 @@ const CalendarView = () => {
         } else {
           calendarEvent.start = event.startDateTime;
           calendarEvent.end = event.endDateTime;
-          
+
           calendarEvent.extendedProps.durationText = `${minutes} min`;
         }
 
@@ -576,15 +579,17 @@ const CalendarView = () => {
   });
 
   const renderEventContent = (eventInfo) => {
-    const { title, start, end, extendedProps, backgroundColor } = eventInfo.event;
-  
+    const { title, start, end, extendedProps, backgroundColor } =
+      eventInfo.event;
+
     // 🔎 Detect weekly/day time-grid and short events
     const isTimeGrid =
-      eventInfo.view?.type === "timeGridWeek" || eventInfo.view?.type === "timeGridDay";
+      eventInfo.view?.type === "timeGridWeek" ||
+      eventInfo.view?.type === "timeGridDay";
     const durationMs = start && end ? end.getTime() - start.getTime() : 0;
     const isShort = durationMs > 0 && durationMs <= 45 * 60 * 1000; // 45 min threshold
     const compact = isTimeGrid && isShort; // <— compact only in week/day for short events
-  
+
     const fmt = new Intl.DateTimeFormat(undefined, {
       hour: "2-digit",
       minute: "2-digit",
@@ -595,27 +600,27 @@ const CalendarView = () => {
         : start
         ? fmt.format(start)
         : "";
-  
+
     // Uses your formatDurationHuman helper (multi‑day friendly)
     const durationText =
       start && end
         ? formatDurationHuman(start.toISOString(), end.toISOString())
         : "";
-  
+
     // Safe bg + adaptive contrast
     const safeBg = normalizeColor(backgroundColor, "#1976d2");
     const darkBg = isDarkColor(safeBg);
     const isGoogle =
       (extendedProps?.eventType || "").toUpperCase() === "GOOGLE_IMPORT" ||
       (extendedProps?.externalCalendarType || "").toUpperCase() === "GOOGLE";
-  
+
     // 🔧 compact chip style tweaks
     const chipCompactSx = {
       padding: compact ? "1px 6px" : "2px 8px",
       borderRadius: 10,
       backgroundColor: darkBg ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.06)",
     };
-  
+
     return (
       <Box
         sx={(theme) => ({
@@ -651,7 +656,7 @@ const CalendarView = () => {
             {title}
           </Typography>
         )}
-  
+
         {/* Badges row (flat) */}
         <Box
           sx={{
@@ -664,27 +669,70 @@ const CalendarView = () => {
           }}
         >
           {timeLabel && (
-            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, ...chipCompactSx }} title={timeLabel}>
-              <ScheduleIcon sx={{ fontSize: compact ? 12 : 14, opacity: 0.9 }} />
-              <Typography component="span" sx={{ fontSize: compact ? "0.68rem" : "0.72rem", fontWeight: 700 }}>
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                ...chipCompactSx,
+              }}
+              title={timeLabel}
+            >
+              <ScheduleIcon
+                sx={{ fontSize: compact ? 12 : 14, opacity: 0.9 }}
+              />
+              <Typography
+                component="span"
+                sx={{
+                  fontSize: compact ? "0.68rem" : "0.72rem",
+                  fontWeight: 700,
+                }}
+              >
                 {timeLabel}
               </Typography>
             </Box>
           )}
-  
+
           {durationText && (
-            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, ...chipCompactSx }} title={durationText}>
-              <AccessTimeIcon sx={{ fontSize: compact ? 11 : 13, opacity: 0.9 }} />
-              <Typography component="span" sx={{ fontSize: compact ? "0.68rem" : "0.72rem", fontWeight: 700 }}>
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                ...chipCompactSx,
+              }}
+              title={durationText}
+            >
+              <AccessTimeIcon
+                sx={{ fontSize: compact ? 11 : 13, opacity: 0.9 }}
+              />
+              <Typography
+                component="span"
+                sx={{
+                  fontSize: compact ? "0.68rem" : "0.72rem",
+                  fontWeight: 700,
+                }}
+              >
                 {durationText}
               </Typography>
             </Box>
           )}
-  
+
           {/* Hide extras in compact to prevent clipping */}
           {!compact && extendedProps?.location && (
-            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, padding: "2px 8px", borderRadius: 10,
-              backgroundColor: darkBg ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.06)" }} title={extendedProps.location}>
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                padding: "2px 8px",
+                borderRadius: 10,
+                backgroundColor: darkBg
+                  ? "rgba(255,255,255,0.16)"
+                  : "rgba(0,0,0,0.06)",
+              }}
+              title={extendedProps.location}
+            >
               <PlaceIcon sx={{ fontSize: 14, opacity: 0.9 }} />
               <Typography
                 component="span"
@@ -701,17 +749,31 @@ const CalendarView = () => {
               </Typography>
             </Box>
           )}
-  
+
           {!compact && extendedProps?.recurrenceRule && (
-            <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, padding: "2px 8px", borderRadius: 10,
-              backgroundColor: darkBg ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.06)" }} title="Repeats">
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                padding: "2px 8px",
+                borderRadius: 10,
+                backgroundColor: darkBg
+                  ? "rgba(255,255,255,0.16)"
+                  : "rgba(0,0,0,0.06)",
+              }}
+              title="Repeats"
+            >
               <RepeatIcon sx={{ fontSize: 14, opacity: 0.9 }} />
-              <Typography component="span" sx={{ fontSize: "0.72rem", fontWeight: 700 }}>
+              <Typography
+                component="span"
+                sx={{ fontSize: "0.72rem", fontWeight: 700 }}
+              >
                 Repeats
               </Typography>
             </Box>
           )}
-  
+
           {!compact && isGoogle && (
             <Box
               sx={{
@@ -733,13 +795,16 @@ const CalendarView = () => {
                   color: darkBg ? "#fff" : "#DB4437",
                 }}
               />
-              <Typography component="span" sx={{ fontSize: "0.72rem", fontWeight: 700, ml: 0.5 }}>
+              <Typography
+                component="span"
+                sx={{ fontSize: "0.72rem", fontWeight: 700, ml: 0.5 }}
+              >
                 Google
               </Typography>
             </Box>
           )}
         </Box>
-  
+
         {/* Tiny title row added in compact so you still see the subject */}
         {compact && (
           <Typography
@@ -759,15 +824,17 @@ const CalendarView = () => {
             {title}
           </Typography>
         )}
-  
+
         {/* Attendees block — keep your full logic, but hide in compact to avoid clipping */}
         {!compact &&
           extendedProps?.attendees?.length > 0 &&
           (() => {
             const avatarFillBg = darkBg ? "#ffffff" : "#111827";
             const avatarFillText = darkBg ? "#111827" : "#ffffff";
-            const avatarRing = darkBg ? "rgba(255,255,255,0.85)" : "rgba(17,24,39,0.25)";
-  
+            const avatarRing = darkBg
+              ? "rgba(255,255,255,0.85)"
+              : "rgba(17,24,39,0.25)";
+
             return (
               <AvatarGroup
                 max={3}
@@ -788,7 +855,11 @@ const CalendarView = () => {
                 }}
               >
                 {extendedProps.attendees.map((a, idx) => {
-                  const status = (a.responseStatus || a.status || "").toLowerCase();
+                  const status = (
+                    a.responseStatus ||
+                    a.status ||
+                    ""
+                  ).toLowerCase();
                   const hasImg = Boolean(a.photoUrl);
                   return (
                     <Tooltip
@@ -797,10 +868,14 @@ const CalendarView = () => {
                       arrow
                       title={
                         <Box sx={{ p: 1 }}>
-                          <Typography sx={{ fontWeight: 600, fontSize: "0.95rem" }}>
+                          <Typography
+                            sx={{ fontWeight: 600, fontSize: "0.95rem" }}
+                          >
                             {a.name || "Unknown Name"}
                           </Typography>
-                          <Typography sx={{ fontSize: "0.85rem", opacity: 0.8 }}>
+                          <Typography
+                            sx={{ fontSize: "0.85rem", opacity: 0.8 }}
+                          >
                             {a.email || "No Email"}
                           </Typography>
                           {status && (
@@ -835,8 +910,10 @@ const CalendarView = () => {
                         }}
                       >
                         {!hasImg &&
-                          (a.name?.[0]?.toUpperCase() || a.email?.[0]?.toUpperCase() || "?")}
-  
+                          (a.name?.[0]?.toUpperCase() ||
+                            a.email?.[0]?.toUpperCase() ||
+                            "?")}
+
                         {status && (
                           <Box
                             sx={{
@@ -856,11 +933,17 @@ const CalendarView = () => {
                             }}
                           >
                             {/^(accepted|yes)$/.test(status) ? (
-                              <CheckCircleIcon sx={{ fontSize: 12, color: "#2e7d32" }} />
+                              <CheckCircleIcon
+                                sx={{ fontSize: 12, color: "#2e7d32" }}
+                              />
                             ) : /^(declined|no)$/.test(status) ? (
-                              <CancelIcon sx={{ fontSize: 12, color: "#c62828" }} />
+                              <CancelIcon
+                                sx={{ fontSize: 12, color: "#c62828" }}
+                              />
                             ) : (
-                              <HourglassEmptyIcon sx={{ fontSize: 12, color: "#6b7280" }} />
+                              <HourglassEmptyIcon
+                                sx={{ fontSize: 12, color: "#6b7280" }}
+                              />
                             )}
                           </Box>
                         )}
@@ -978,8 +1061,7 @@ const CalendarView = () => {
     }
   };
 
-
-   const handleMicrosoftCalendarConnected = (calendarData) => {
+  const handleMicrosoftCalendarConnected = (calendarData) => {
     console.log("✅ Microsoft Calendar connected successfully:", calendarData);
     showToast(
       "Microsoft Calendar connected successfully! Events will be loaded shortly.",
@@ -1105,7 +1187,7 @@ const CalendarView = () => {
     },
     [showToast]
   );
-
+  const desc = eventToView?.extendedProps?.description || ""; 
   return (
     <Box
       sx={{
@@ -1354,23 +1436,37 @@ const CalendarView = () => {
             </Box>
             <Divider sx={{ my: 1.5 }} />
             {/* Description */}
+            
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
               <DescriptionIcon color="primary" />
               <Box>
                 <Typography variant="overline" color="text.secondary">
                   Description
                 </Typography>
-                <Typography
-                  fontWeight={500}
-                  color="text.primary"
-                  sx={{ mt: 0.2 }}
-                >
-                  {eventToView?.extendedProps?.description || (
+
+                {desc ? (
+                  <Typography
+                    component="div"
+                    fontWeight={500}
+                    color="text.primary"
+                    sx={{ mt: 0.2 }}
+                    // NOTE: no children when using dangerouslySetInnerHTML
+                    dangerouslySetInnerHTML={{
+                      __html: DOMPurify.sanitize(desc),
+                    }}
+                  />
+                ) : (
+                  <Typography
+                    fontWeight={500}
+                    color="text.primary"
+                    sx={{ mt: 0.2 }}
+                  >
                     <span style={{ color: "#aaa" }}>No description</span>
-                  )}
-                </Typography>
+                  </Typography>
+                )}
               </Box>
             </Box>
+
             <Divider sx={{ my: 1.5 }} />
             {/* Location */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
@@ -1391,7 +1487,6 @@ const CalendarView = () => {
               </Box>
             </Box>
             <Divider sx={{ my: 1.5 }} />
-
             {/* Time */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
               <AccessTimeIcon color="primary" />
@@ -1414,15 +1509,17 @@ const CalendarView = () => {
                       color="text.secondary"
                       sx={{ ml: 1 }}
                     >
-                      ({Intl.DateTimeFormat().resolvedOptions().timeZone || "Local time"})
+                      (
+                      {Intl.DateTimeFormat().resolvedOptions().timeZone ||
+                        "Local time"}
+                      )
                     </Typography>
                   </Typography>
                 )}
               </Box>
             </Box>
-
-             {/* Time */}
-             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+            {/* Time */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
               <AccessTimeIcon color="primary" />
               <Box>
                 <Typography variant="overline" color="text.secondary">
@@ -1434,10 +1531,23 @@ const CalendarView = () => {
                     color="text.primary"
                     sx={{ mt: 0.5 }}
                   >
-                    
-                  {formatInTimeZone(new Date(eventToView.start), eventToView?.extendedProps?.timezone, "EEE, MMM d")} ·{" "}
-                  {formatInTimeZone(new Date(eventToView.start), eventToView?.extendedProps?.timezone, "h:mm a")} –{" "}
-                  {formatInTimeZone(new Date(eventToView.end), eventToView?.extendedProps?.timezone, "h:mm a")}{" "}
+                    {formatInTimeZone(
+                      new Date(eventToView.start),
+                      eventToView?.extendedProps?.timezone,
+                      "EEE, MMM d"
+                    )}{" "}
+                    ·{" "}
+                    {formatInTimeZone(
+                      new Date(eventToView.start),
+                      eventToView?.extendedProps?.timezone,
+                      "h:mm a"
+                    )}{" "}
+                    –{" "}
+                    {formatInTimeZone(
+                      new Date(eventToView.end),
+                      eventToView?.extendedProps?.timezone,
+                      "h:mm a"
+                    )}{" "}
                     <Typography
                       component="span"
                       variant="body2"
@@ -1450,7 +1560,6 @@ const CalendarView = () => {
                 )}
               </Box>
             </Box>
-
             <Divider sx={{ my: 1.5 }} />
             {/* Recurrence */}
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
