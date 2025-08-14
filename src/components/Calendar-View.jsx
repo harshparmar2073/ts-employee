@@ -65,6 +65,7 @@ import {
   CircularProgress,
   Backdrop,
 } from "@mui/material";
+import SvgIcon from "@mui/material/SvgIcon";
 
 // -----------------------------------------------------------------------------
 // MUI: Icons
@@ -110,6 +111,16 @@ const parseRRuleString = (ruleStr, dtstart) => {
   return rrulestr(ruleStr, { forceset: false, dtstart: new Date(dtstart) })
     .options;
 };
+
+const MicrosoftIcon = (props) => (
+  <SvgIcon viewBox="0 0 24 24" {...props}>
+    {/* four tiles */}
+    <path d="M3 3h9v9H3z" /> {/* orange-ish (we'll color via sx) */}
+    <path d="M12 3h9v9h-9z" /> {/* green */}
+    <path d="M3 12h9v9H3z" /> {/* blue */}
+    <path d="M12 12h9v9h-9z" /> {/* yellow */}
+  </SvgIcon>
+);
 
 // Duration formatting utility
 const formatDuration = (startISO, endISO) => {
@@ -610,9 +621,14 @@ const CalendarView = () => {
     // Safe bg + adaptive contrast
     const safeBg = normalizeColor(backgroundColor, "#1976d2");
     const darkBg = isDarkColor(safeBg);
+
     const isGoogle =
       (extendedProps?.eventType || "").toUpperCase() === "GOOGLE_IMPORT" ||
       (extendedProps?.externalCalendarType || "").toUpperCase() === "GOOGLE";
+
+    const isMicrosoft =
+      (extendedProps?.eventType || "").toUpperCase() === "MICROSOFT_IMPORT" ||
+      (extendedProps?.externalCalendarType || "").toUpperCase() === "MICROSOFT";
 
     // 🔧 compact chip style tweaks
     const chipCompactSx = {
@@ -800,6 +816,39 @@ const CalendarView = () => {
                 sx={{ fontSize: "0.72rem", fontWeight: 700, ml: 0.5 }}
               >
                 Google
+              </Typography>
+            </Box>
+          )}
+          {!compact && isMicrosoft && (
+            <Box
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 0.5,
+                padding: "2px 8px",
+                borderRadius: 10,
+                backgroundColor: darkBg ? "#0078D4" : "#E6F2FB", // MS blue family
+                color: darkBg ? "#fff" : "#0B5CAD",
+                borderColor: darkBg ? "#0B5CAD" : "#B3D7F2",
+              }}
+              title="Imported from Microsoft Outlook"
+            >
+              <MicrosoftIcon
+                sx={{
+                  fontSize: 14,
+                  opacity: 0.95,
+                  // give the four tiles MS brand-ish colors using <SvgIcon/> currentColor trick
+                  "& path:nth-of-type(1)": { fill: "#F25022" }, // orange
+                  "& path:nth-of-type(2)": { fill: "#7FBA00" }, // green
+                  "& path:nth-of-type(3)": { fill: "#00A4EF" }, // blue
+                  "& path:nth-of-type(4)": { fill: "#FFB900" }, // yellow
+                }}
+              />
+              <Typography
+                component="span"
+                sx={{ fontSize: "0.72rem", fontWeight: 700, ml: 0.5 }}
+              >
+                Microsoft
               </Typography>
             </Box>
           )}
@@ -1187,7 +1236,7 @@ const CalendarView = () => {
     },
     [showToast]
   );
-  const desc = eventToView?.extendedProps?.description || ""; 
+  const desc = eventToView?.extendedProps?.description || "";
   return (
     <Box
       sx={{
@@ -1436,7 +1485,7 @@ const CalendarView = () => {
             </Box>
             <Divider sx={{ my: 1.5 }} />
             {/* Description */}
-            
+
             <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
               <DescriptionIcon color="primary" />
               <Box>
