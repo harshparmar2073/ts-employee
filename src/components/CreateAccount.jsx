@@ -219,9 +219,9 @@ const Signup = () => {
       // Make API call
       let response;
       if (signupType === SIGNUP_TYPE_OAUTH) {
-        response = await axiosService.post("/oauth2/signup", payload);
+        response = await axiosService.post("/account/signup/oauth", payload);
       } else {
-        response = await axiosService.post("/account/signup", payload);
+        response = await axiosService.post("/account/signup/local", payload);
       }
 
       if (response.status === 200 || response.status === 201) {
