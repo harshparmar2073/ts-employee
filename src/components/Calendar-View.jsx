@@ -1242,7 +1242,7 @@ const CalendarView = () => {
       sx={{
         display: "flex",
         height: "100vh",
-        overflow: "hidden",
+        // overflow: "hidden",
         width: "100%",
         maxWidth: "100%",
         position: "relative",
@@ -1298,7 +1298,7 @@ const CalendarView = () => {
           display: "flex",
           flexDirection: "column",
           minWidth: 0,
-          overflow: "hidden",
+          // overflow: "hidden",
           width: "100%",
           maxWidth: "100%",
           position: "relative",

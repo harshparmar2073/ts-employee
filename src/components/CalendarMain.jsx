@@ -229,7 +229,7 @@ const CalendarMain = ({
         flexGrow: 1,
         display: "flex",
         flexDirection: "column",
-        height: "100vh",
+        // height: "100vh",
         overflow: "hidden",
         width: "100%",
         maxWidth: "100%",
@@ -241,7 +241,7 @@ const CalendarMain = ({
           flexGrow: 1,
           p: { xs: 1, sm: 2, md: 3 },
           background: "#f8f9fa",
-          height: "100vh",
+          // height: "100vh",
           overflow: "hidden",
           maxWidth: "100%",
           width: "100%",
@@ -448,6 +448,9 @@ const CalendarMain = ({
                   height: "100% !important",
                   width: "100% !important",
                   maxWidth: "100% !important",
+                },
+                "& .fc-media-screen": {
+                  height: "auto",
                 },
                 "& .fc-daygrid-body": {
                   width: "100% !important",
