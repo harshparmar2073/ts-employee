@@ -166,6 +166,7 @@ const Login = () => {
     try {
       const r = await axiosService.post("/oauth2/login", { code });
       const data = r.data.data;
+      console.log("OAuth login response:", data);
 
       if (data.type === "LOGIN") {
         const loginDetails = data.loginDetails;
@@ -180,10 +181,28 @@ const Login = () => {
         navigate("/signup?signupType="+SIGNUP_TYPE_OAUTH);
       }
     } catch (error) {
-      console.log(error);
-      showToast("Error logging in. Please try again later.", "error");
+      const msg = error?.response?.data?.message;
+      const code = error?.response?.data?.applicationErrorCode;
+      const status = error?.response?.status;
+  
+      // Prefer a machine-readable code if you add it on the backend (see section 2)
+      if (code === "ACCOUNT_EXISTS_NOT_LINKED" || msg?.includes("Account with this email already exists")) {
+        showToast(
+          "This email is already registered but not linked with Google. Please log in with your email & password, then link Google from settings.",
+          "error"
+        );
+        return; 
+      }
+  
+     
+      if (status === 401) {
+        showToast("Unauthorised. Please try again.", "error");
+        return;
+      }
+  
+      showToast(msg || "Error logging in. Please try again later.", "error");
     }
-  }
+}
 
   const loginGoogle = useGoogleLogin({
     flow: 'auth-code',
