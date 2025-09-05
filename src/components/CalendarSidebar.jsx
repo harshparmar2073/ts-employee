@@ -568,7 +568,6 @@ const handleConfirmDisconnect = () => {
         {/* Calendar Type Tabs */}
         <Box
           sx={{
-            display: "flex",
             gap: 1,
             mb: 3,
             display: sidebarCollapsed ? "none" : "flex",
