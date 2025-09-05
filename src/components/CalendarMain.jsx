@@ -549,16 +549,6 @@ const CalendarMain = ({
               >
                 <Typography variant="h6">Your Calendar</Typography>
 
-                <Box>
-                  <Button
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                    onClick={onAddEvent}
-                    sx={{ mr: 2 }}
-                  >
-                    Add Event
-                  </Button>
-                </Box>
               </Box>
 
               <FullCalendar
