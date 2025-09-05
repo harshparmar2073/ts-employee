@@ -88,6 +88,7 @@ import {
   ChevronRight as ChevronRightIcon,
   ChevronLeft as ChevronLeftIcon,
 } from "@mui/icons-material";
+import { Tooltip as MuiTooltip } from "@mui/material";
 import GoogleIcon from "@mui/icons-material/Google";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
@@ -190,6 +191,64 @@ const CalendarView = () => {
   // Toast notifications
   const { showToast } = useToast();
 
+const getDummyEvents = () => {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+
+  const nextWeek = new Date(today);
+  nextWeek.setDate(today.getDate() + 7);
+
+  return [
+    {
+      id: "dummy-1",
+      title: "Team Meeting (Google)",
+      start: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 0).toISOString(),
+      end: new Date(today.getFullYear(), today.getMonth(), today.getDate(), 11, 0).toISOString(),
+      backgroundColor: "#2196f3",
+      borderColor: "#2196f3",
+      extendedProps: {
+        description: "Weekly team sync meeting to discuss project progress",
+        location: "Conference Room A",
+        meetingUrl: "https://meet.google.com/dummy-link",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        recurrenceRule: null,
+        attendees: [
+          { name: "John Doe", email: "john@example.com", responseStatus: "accepted" },
+          { name: "Jane Smith", email: "jane@example.com", responseStatus: "tentative" }
+        ],
+        eventType: "GOOGLE_IMPORT",        // helps detection in renderEventContent
+        externalCalendarType: "GOOGLE",    // alternate detection path
+        durationText: "60 min"
+      }
+    },
+    {
+      id: "dummy-2",
+      title: "Client Presentation (Microsoft)",
+      start: new Date(nextWeek.getFullYear(), nextWeek.getMonth(), nextWeek.getDate(), 14, 30).toISOString(),
+      end: new Date(nextWeek.getFullYear(), nextWeek.getMonth(), nextWeek.getDate(), 16, 0).toISOString(),
+      backgroundColor: "#ff9800",
+      borderColor: "#ff9800",
+      extendedProps: {
+        description: "Quarterly business review presentation for key client",
+        location: "Client Office - Downtown",
+        meetingUrl: "",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        recurrenceRule: null,
+        attendees: [
+          { name: "Alice Johnson", email: "alice@client.com", responseStatus: "accepted" },
+          { name: "Bob Wilson", email: "bob@example.com", responseStatus: "accepted" },
+          { name: "Carol Brown", email: "carol@example.com", responseStatus: "declined" }
+        ],
+        eventType: "MICROSOFT_IMPORT",    // helps detection in renderEventContent
+        externalCalendarType: "MICROSOFT",// alternate detection path
+        durationText: "90 min"
+      }
+    }
+  ];
+};
+
+
   const handleCreate = (date, options = {}) => {
     const localMidnight = new Date(date);
     localMidnight.setHours(0, 0, 0, 0);
@@ -240,114 +299,110 @@ const CalendarView = () => {
     }
   };
 
-  const fetchEvents = async (retryCount = 0) => {
-    const from = startOfMonth(new Date()).toISOString();
-    const to = endOfMonth(new Date()).toISOString();
+ const fetchEvents = async (retryCount = 0) => {
+  const from = startOfMonth(new Date()).toISOString();
+  const to = endOfMonth(new Date()).toISOString();
 
-    // Don't fetch if no calendar is selected
-    if (!selectedCalendarId) {
-      console.log("No calendar selected, skipping event fetch");
-      setEvents([]);
-      return;
-    }
+  if (!selectedCalendarId) {
+    console.log("No calendar selected, showing dummy events");
+    setEvents(getDummyEvents());
+    setIsLoadingEvents(false);
+    return;
+  }
 
-    setIsLoadingEvents(true);
+  setIsLoadingEvents(true);
+  try {
+    const response = await axiosService.get("/calendar-events/load", {
+      params: {
+        from,
+        to,
+        calendarId: selectedCalendarId,
+      },
+    });
 
-    try {
-      const response = await axiosService.get("/calendar-events/load", {
-        params: {
-          from,
-          to,
-          calendarId: selectedCalendarId,
+    const fetchedEvents = response.data.map((event) => {
+      const minutes = differenceInMinutes(
+        parseISO(event.endDateTime),
+        parseISO(event.startDateTime)
+      );
+      const calendarEvent = {
+        id: event.id,
+        title: event.title,
+        extendedProps: {
+          description: event.description,
+          location: event.location,
+          meetingUrl: event.meetingUrl,
+          timezone: event.timezone,
+          recurrenceRule: event.recurrenceRule,
+          attendees: event.attendees,
+          eventType: event.eventType,
+          externalCalendarType: event.externalCalendarType,
         },
-      });
+      };
 
-      const fetchedEvents = response.data.map((event) => {
-        const minutes = differenceInMinutes(
-          parseISO(event.endDateTime),
-          parseISO(event.startDateTime)
-        );
-
-        const calendarEvent = {
-          id: event.id,
-          title: event.title,
-          extendedProps: {
-            description: event.description,
-            location: event.location,
-            meetingUrl: event.meetingUrl,
-            timezone: event.timezone,
-            recurrenceRule: event.recurrenceRule,
-            attendees: event.attendees,
-            eventType: event.eventType, // e.g. "GOOGLE_IMPORT"
-            externalCalendarType: event.externalCalendarType, // e.g. "GOOGLE"
-          },
+      if (event.recurrenceRule) {
+        calendarEvent.rrule = {
+          ...parseRRuleString(event.recurrenceRule, event.startDateTime),
+          dtstart: event.startDateTime,
         };
-
-        if (event.recurrenceRule) {
-          calendarEvent.rrule = {
-            ...parseRRuleString(event.recurrenceRule, event.startDateTime),
-            dtstart: event.startDateTime,
-          };
-          calendarEvent.duration = formatDuration(
-            event.startDateTime,
-            event.endDateTime
-          );
-
-          if (
-            Array.isArray(event.exceptionDates) &&
-            event.exceptionDates.length
-          ) {
-            calendarEvent.exdate = event.exceptionDates;
-          }
-
-          calendarEvent.extendedProps.durationText = `${minutes} min`;
-        } else {
-          calendarEvent.start = event.startDateTime;
-          calendarEvent.end = event.endDateTime;
-
-          calendarEvent.extendedProps.durationText = `${minutes} min`;
-        }
-
-        if (event.eventColour) {
-          calendarEvent.backgroundColor = event.eventColour;
-          calendarEvent.borderColor = event.eventColour;
-        }
-
-        return calendarEvent;
-      });
-
-      setEvents(fetchedEvents);
-      console.log("📅 Events fetched successfully:", fetchedEvents);
-    } catch (error) {
-      console.error("❌ Failed to fetch events:", error);
-
-      // Handle specific error cases
-      if (error.response?.status === 403) {
-        console.error("🔒 Forbidden error - likely OAuth token issue");
-        showToast(
-          "Calendar access denied. Please reconnect your Google Calendar.",
-          "error"
+        calendarEvent.duration = formatDuration(
+          event.startDateTime,
+          event.endDateTime
         );
-
-        // If this is a retry, don't retry again to avoid infinite loops
-        if (retryCount === 0) {
-          console.log("🔄 Attempting to refresh calendar connection...");
-          // You could trigger a reconnection flow here
-          // For now, just show the error
+        if (
+          Array.isArray(event.exceptionDates) &&
+          event.exceptionDates.length
+        ) {
+          calendarEvent.exdate = event.exceptionDates;
         }
-      } else if (error.response?.status === 401) {
-        console.error("🔑 Unauthorized - authentication issue");
-        showToast("Authentication failed. Please log in again.", "error");
-      } else if (error.response?.status >= 500) {
-        console.error("🌐 Server error");
-        showToast("Server error. Please try again later.", "error");
+        calendarEvent.extendedProps.durationText = `${minutes} min`;
       } else {
-        showToast("Failed to load events. Please try again.", "error");
+        calendarEvent.start = event.startDateTime;
+        calendarEvent.end = event.endDateTime;
+        calendarEvent.extendedProps.durationText = `${minutes} min`;
       }
-    } finally {
-      setIsLoadingEvents(false);
+
+      if (event.eventColour) {
+        calendarEvent.backgroundColor = event.eventColour;
+        calendarEvent.borderColor = event.eventColour;
+      }
+
+      return calendarEvent;
+    });
+
+    // If no real events are found, add dummy events for demonstration
+    const allEvents = fetchedEvents.length > 0 ? fetchedEvents : [...fetchedEvents, ...getDummyEvents()];
+    
+    setEvents(allEvents);
+    console.log("📅 Events fetched successfully:", allEvents);
+  } catch (error) {
+    console.error("❌ Failed to fetch events:", error);
+    
+    // On error, show dummy events so the calendar still has content
+    setEvents(getDummyEvents());
+    
+    if (error.response?.status === 403) {
+      console.error("🔒 Forbidden error - likely OAuth token issue");
+      showToast(
+        "Calendar access denied. Please reconnect your Google Calendar.",
+        "error"
+      );
+      if (retryCount === 0) {
+        console.log("🔄 Attempting to refresh calendar connection...");
+      }
+    } else if (error.response?.status === 401) {
+      console.error("🔑 Unauthorized - authentication issue");
+      showToast("Authentication failed. Please log in again.", "error");
+    } else if (error.response?.status >= 500) {
+      console.error("🌐 Server error");
+      showToast("Server error. Please try again later.", "error");
+    } else {
+      showToast("Failed to load events. Please try again.", "error");
     }
-  };
+  } finally {
+    setIsLoadingEvents(false);
+  }
+};
 
   const fetchCalendars = async () => {
     try {
@@ -588,424 +643,240 @@ const CalendarView = () => {
     fontWeight: 700,
     fontSize: "0.72rem",
   });
+ 
+  const pulseKeyframes = `
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.7;
+      transform: scale(1.1);
+    }
+  }
+`;
+  
+const renderEventContent = (eventInfo) => {
+  const { title, start, end, extendedProps, backgroundColor } = eventInfo.event;
+  // remove trailing provider markers like " (Google)" or " (Microsoft)" from display title
+  const displayTitle = String(title || "").replace(/\s*\((Google|Microsoft)\)\s*$/i, "").trim();
 
-  const renderEventContent = (eventInfo) => {
-    const { title, start, end, extendedProps, backgroundColor } =
-      eventInfo.event;
+  const safeBg = normalizeColor(backgroundColor, "#1976d2");
+  const darkBg = isDarkColor(safeBg);
+  const fmt = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
+  const timeLabel = start && end ? `${fmt.format(start)} – ${fmt.format(end)}` : start ? fmt.format(start) : "";
+  const durationText = start && end ? formatDurationHuman(start.toISOString(), end.toISOString()) : "";
+  const isGoogle = (extendedProps?.eventType || "").toUpperCase() === "GOOGLE_IMPORT" || (extendedProps?.externalCalendarType || "").toUpperCase() === "GOOGLE";
+  const isMicrosoft = (extendedProps?.eventType || "").toUpperCase() === "MICROSOFT_IMPORT" || (extendedProps?.externalCalendarType || "").toUpperCase() === "MICROSOFT";
+  const timeChipLabel = durationText ? `${timeLabel} • ${durationText}` : timeLabel;
 
-    // 🔎 Detect weekly/day time-grid and short events
-    const isTimeGrid =
-      eventInfo.view?.type === "timeGridWeek" ||
-      eventInfo.view?.type === "timeGridDay";
-    const durationMs = start && end ? end.getTime() - start.getTime() : 0;
-    const isShort = durationMs > 0 && durationMs <= 45 * 60 * 1000; // 45 min threshold
-    const compact = isTimeGrid && isShort; // <— compact only in week/day for short events
+  const tooltipContent = (
+    <Box sx={{ p: 0, maxWidth: 340 }}>
+      <Box
+        sx={{
+          p: 2.5,
+          background: `linear-gradient(135deg, ${safeBg} 0%, ${alpha(safeBg, 0.8)} 100%)`,
+          borderTopLeftRadius: 12,
+          borderTopRightRadius: 12,
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: 700,
+            color: "#fff",
+            fontSize: "1.1rem",
+            textShadow: "0 1px 2px rgba(0,0,0,0.2)",
+            mb: 1,
+          }}
+        >
+          {displayTitle}
+        </Typography>
 
-    const fmt = new Intl.DateTimeFormat(undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-    const timeLabel =
-      start && end
-        ? `${fmt.format(start)} – ${fmt.format(end)}`
-        : start
-        ? fmt.format(start)
-        : "";
+       {/* Time chip inside tooltip */}
+{timeChipLabel && (
+  <MuiChip
+    icon={<AccessTimeIcon sx={{ fontSize: 16 }} />}
+    label={timeChipLabel}
+    sx={{
+      height: 30,
+      fontWeight: 500,
+      borderRadius: "20px",
+      fontSize: "0.82rem",
+      px: 1.5,
+      bgcolor: "#ffffffcb", // solid white background
+      color: 'black',    // event accent color for text
+      border: `1px solid ${alpha(safeBg, 0.4)}`, // subtle border
+      "& .MuiChip-icon": {
+        color: 'black',
+        ml: 0.5,
+      },
+      boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+    }}
+  />
+)}
 
-    // Uses your formatDurationHuman helper (multi‑day friendly)
-    const durationText =
-      start && end
-        ? formatDurationHuman(start.toISOString(), end.toISOString())
-        : "";
+      </Box>
 
-    // Safe bg + adaptive contrast
-    const safeBg = normalizeColor(backgroundColor, "#1976d2");
-    const darkBg = isDarkColor(safeBg);
+      <Box sx={{ p: 2.5, pt: 2, bgcolor: "#fff" }}>
+        {extendedProps?.location && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+            <Box sx={{ p: 0.75, borderRadius: "50%", bgcolor: alpha(safeBg, 0.1), display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <PlaceIcon sx={{ fontSize: 16, color: safeBg }} />
+            </Box>
+            <Typography sx={{ fontSize: "0.9rem", color: "#374151", fontWeight: 500 }}>{extendedProps.location}</Typography>
+          </Box>
+        )}
 
-    const isGoogle =
-      (extendedProps?.eventType || "").toUpperCase() === "GOOGLE_IMPORT" ||
-      (extendedProps?.externalCalendarType || "").toUpperCase() === "GOOGLE";
+        {extendedProps?.description && (
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, mb: 1.5 }}>
+            <Box sx={{ p: 0.75, borderRadius: "50%", bgcolor: alpha(safeBg, 0.1), display: "flex", alignItems: "center", justifyContent: "center", mt: 0.2 }}>
+              <DescriptionIcon sx={{ fontSize: 16, color: safeBg }} />
+            </Box>
+            <Typography sx={{ fontSize: "0.85rem", color: "#6b7280", lineHeight: 1.5, maxHeight: "60px", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical" }}>
+              {extendedProps.description.replace(/<[^>]*>/g, "")}
+            </Typography>
+          </Box>
+        )}
 
-    const isMicrosoft =
-      (extendedProps?.eventType || "").toUpperCase() === "MICROSOFT_IMPORT" ||
-      (extendedProps?.externalCalendarType || "").toUpperCase() === "MICROSOFT";
+        {extendedProps?.meetingUrl && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+            <Box sx={{ p: 0.75, borderRadius: "50%", bgcolor: alpha("#10b981", 0.1), display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <LinkIcon sx={{ fontSize: 16, color: "#10b981" }} />
+            </Box>
+            <Typography sx={{ fontSize: "0.9rem", color: "#10b981", fontWeight: 500 }}>Video meeting available</Typography>
+          </Box>
+        )}
 
-    // 🔧 compact chip style tweaks
-    const chipCompactSx = {
-      padding: compact ? "1px 6px" : "2px 8px",
-      borderRadius: 10,
-      backgroundColor: darkBg ? "rgba(255,255,255,0.16)" : "rgba(0,0,0,0.06)",
-    };
+        {extendedProps?.attendees?.length > 0 && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+            <Box sx={{ p: 0.75, borderRadius: "50%", bgcolor: alpha("#8b5cf6", 0.1), display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <PeopleIcon sx={{ fontSize: 16, color: "#8b5cf6" }} />
+            </Box>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography sx={{ fontSize: "0.9rem", color: "#374151", fontWeight: 500 }}>{extendedProps.attendees.length} attendee{extendedProps.attendees.length > 1 ? "s" : ""}</Typography>
+              <Box sx={{ display: "flex", ml: 1 }}>
+                {extendedProps.attendees.slice(0, 3).map((attendee, idx) => (
+                  <Avatar key={idx} sx={{ width: 20, height: 20, fontSize: "0.7rem", bgcolor: safeBg, color: "#fff", ml: idx > 0 ? -0.5 : 0, border: "2px solid #fff", zIndex: 3 - idx }}>
+                    {attendee.name?.[0]?.toUpperCase() || attendee.email?.[0]?.toUpperCase() || "?"}
+                  </Avatar>
+                ))}
+                {extendedProps.attendees.length > 3 && <Typography sx={{ fontSize: "0.8rem", color: "#6b7280", ml: 1 }}>+{extendedProps.attendees.length - 3}</Typography>}
+              </Box>
+            </Box>
+          </Box>
+        )}
 
-    return (
+        {extendedProps?.recurrenceRule && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+            <Box sx={{ p: 0.75, borderRadius: "50%", bgcolor: alpha("#f59e0b", 0.1), display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <RepeatIcon sx={{ fontSize: 16, color: "#f59e0b" }} />
+            </Box>
+            <Typography sx={{ fontSize: "0.9rem", color: "#374151", fontWeight: 500 }}>Recurring event</Typography>
+          </Box>
+        )}
+
+        {/* Provider badge placed at the END after all details */}
+        {(isGoogle || isMicrosoft) && (
+          <Box sx={{ mt: 2, pt: 1.5, borderTop: "1px solid #f3f4f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                px: 2,
+                py: 0.75,
+                borderRadius: 6,
+                bgcolor: isGoogle ? alpha("#DB4437", 0.08) : alpha("#0078D4", 0.08),
+                border: `1px solid ${isGoogle ? alpha("#DB4437", 0.18) : alpha("#0078D4", 0.18)}`,
+              }}
+            >
+              {isGoogle && <GoogleIcon sx={{ fontSize: 16, color: "#DB4437" }} />}
+              {isMicrosoft && <MicrosoftIcon sx={{ fontSize: 16, color: "#0078D4" }} />}
+              <Typography sx={{ fontSize: "0.82rem", color: isGoogle ? "#DB4437" : "#0078D4", fontWeight: 600 }}>
+                {isGoogle ? "Google Calendar" : "Microsoft Outlook"}
+              </Typography>
+            </Box>
+          </Box>
+        )}
+      </Box>
+    </Box>
+  );
+
+  return (
+    <MuiTooltip
+      title={tooltipContent}
+      placement="top"
+      arrow
+      enterDelay={200}
+      leaveDelay={100}
+      PopperProps={{ modifiers: [{ name: "offset", options: { offset: [0, 12] } }] }}
+      componentsProps={{
+        tooltip: {
+          sx: {
+            bgcolor: "transparent",
+            color: "#fff",
+            fontSize: "0.875rem",
+            borderRadius: 3,
+            boxShadow: "0 20px 40px rgba(0,0,0,0.15), 0 8px 16px rgba(0,0,0,0.1)",
+            maxWidth: "none",
+            border: "none",
+            p: 0,
+          },
+        },
+        arrow: { sx: { color: "#fff", "&::before": { boxShadow: "0 8px 16px rgba(0,0,0,0.1)" } } },
+      }}
+    >
       <Box
         sx={(theme) => ({
           height: "100%",
           width: "100%",
           display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-start",
-          gap: compact ? 0.25 : 0.5,
-          px: compact ? 0.75 : 1,
-          py: compact ? 0.5 : 0.75,
-          borderRadius: 1,
-          backgroundColor: safeBg,
-          color: theme.palette.getContrastText(safeBg),
-          fontFamily: theme.typography.fontFamily,
+          alignItems: "center",
+          position: "relative",
+          borderRadius: 2,
           overflow: "hidden",
+          cursor: "pointer",
+          transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          background: `linear-gradient(135deg, ${safeBg} 0%, ${alpha(safeBg, 0.85)} 100%)`,
+          border: "1px solid rgba(255,255,255,0.2)",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          "&::before": { content: '""', position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "linear-gradient(45deg, rgba(255,255,255,0.15) 0%, transparent 50%, rgba(0,0,0,0.05) 100%)", opacity: 0, transition: "opacity 0.3s ease" },
+          "&:hover": { transform: "translateY(-2px) scale(1.02)", boxShadow: "0 8px 25px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.1)", border: "1px solid rgba(255,255,255,0.4)", "&::before": { opacity: 1 } },
         })}
       >
-        {/* Title (hidden in compact to save vertical space) */}
-        {!compact && (
+        <Box sx={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: `linear-gradient(180deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.4) 100%)`, borderTopLeftRadius: 2, borderBottomLeftRadius: 2 }} />
+
+        <Box sx={{ flex: 1, px: 2, py: 1, display: "flex", alignItems: "center", gap: 1.5, position: "relative", zIndex: 1 }}>
+          
+          {/* Compact preview: title only (no time chip here) */}
           <Typography
-            title={title}
             sx={{
               fontWeight: 700,
-              fontSize: "0.92rem",
-              lineHeight: 1.2,
-              width: "100%",
+              fontSize: "0.8rem",
+              lineHeight: 1.3,
+              color: (theme) => theme.palette.getContrastText(safeBg),
+              textShadow: "0 1px 2px rgba(0,0,0,0.1)",
+              flex: 1,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
+              letterSpacing: "0.01em",
             }}
           >
-            {title}
+            {displayTitle}
           </Typography>
-        )}
-
-        {/* Badges row (flat) */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 0.5,
-            flexWrap: "wrap",
-            width: "100%",
-            overflow: "hidden",
-          }}
-        >
-          {timeLabel && (
-            <Box
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.5,
-                ...chipCompactSx,
-              }}
-              title={timeLabel}
-            >
-              <ScheduleIcon
-                sx={{ fontSize: compact ? 12 : 14, opacity: 0.9 }}
-              />
-              <Typography
-                component="span"
-                sx={{
-                  fontSize: compact ? "0.68rem" : "0.72rem",
-                  fontWeight: 700,
-                }}
-              >
-                {timeLabel}
-              </Typography>
-            </Box>
-          )}
-
-          {durationText && (
-            <Box
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.5,
-                ...chipCompactSx,
-              }}
-              title={durationText}
-            >
-              <AccessTimeIcon
-                sx={{ fontSize: compact ? 11 : 13, opacity: 0.9 }}
-              />
-              <Typography
-                component="span"
-                sx={{
-                  fontSize: compact ? "0.68rem" : "0.72rem",
-                  fontWeight: 700,
-                }}
-              >
-                {durationText}
-              </Typography>
-            </Box>
-          )}
-
-          {/* Hide extras in compact to prevent clipping */}
-          {!compact && extendedProps?.location && (
-            <Box
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.5,
-                padding: "2px 8px",
-                borderRadius: 10,
-                backgroundColor: darkBg
-                  ? "rgba(255,255,255,0.16)"
-                  : "rgba(0,0,0,0.06)",
-              }}
-              title={extendedProps.location}
-            >
-              <PlaceIcon sx={{ fontSize: 14, opacity: 0.9 }} />
-              <Typography
-                component="span"
-                sx={{
-                  fontSize: "0.72rem",
-                  fontWeight: 700,
-                  maxWidth: "10rem",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {extendedProps.location}
-              </Typography>
-            </Box>
-          )}
-
-          {!compact && extendedProps?.recurrenceRule && (
-            <Box
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.5,
-                padding: "2px 8px",
-                borderRadius: 10,
-                backgroundColor: darkBg
-                  ? "rgba(255,255,255,0.16)"
-                  : "rgba(0,0,0,0.06)",
-              }}
-              title="Repeats"
-            >
-              <RepeatIcon sx={{ fontSize: 14, opacity: 0.9 }} />
-              <Typography
-                component="span"
-                sx={{ fontSize: "0.72rem", fontWeight: 700 }}
-              >
-                Repeats
-              </Typography>
-            </Box>
-          )}
-
-          {!compact && isGoogle && (
-            <Box
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.5,
-                padding: "2px 8px",
-                borderRadius: 10,
-                backgroundColor: darkBg ? "#DB4437" : "#FDECEA",
-                color: darkBg ? "#fff" : "#B71C1C",
-                borderColor: darkBg ? "#B71C1C" : "#F8BBD0",
-              }}
-              title="Imported from Google Calendar"
-            >
-              <GoogleIcon
-                sx={{
-                  fontSize: 14,
-                  opacity: 0.9,
-                  color: darkBg ? "#fff" : "#DB4437",
-                }}
-              />
-              <Typography
-                component="span"
-                sx={{ fontSize: "0.72rem", fontWeight: 700, ml: 0.5 }}
-              >
-                Google
-              </Typography>
-            </Box>
-          )}
-          {!compact && isMicrosoft && (
-            <Box
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 0.5,
-                padding: "2px 8px",
-                borderRadius: 10,
-                backgroundColor: darkBg ? "#0078D4" : "#E6F2FB", // MS blue family
-                color: darkBg ? "#fff" : "#0B5CAD",
-                borderColor: darkBg ? "#0B5CAD" : "#B3D7F2",
-              }}
-              title="Imported from Microsoft Outlook"
-            >
-              <MicrosoftIcon
-                sx={{
-                  fontSize: 14,
-                  opacity: 0.95,
-                  // give the four tiles MS brand-ish colors using <SvgIcon/> currentColor trick
-                  "& path:nth-of-type(1)": { fill: "#F25022" }, // orange
-                  "& path:nth-of-type(2)": { fill: "#7FBA00" }, // green
-                  "& path:nth-of-type(3)": { fill: "#00A4EF" }, // blue
-                  "& path:nth-of-type(4)": { fill: "#FFB900" }, // yellow
-                }}
-              />
-              <Typography
-                component="span"
-                sx={{ fontSize: "0.72rem", fontWeight: 700, ml: 0.5 }}
-              >
-                Microsoft
-              </Typography>
-            </Box>
-          )}
         </Box>
 
-        {/* Tiny title row added in compact so you still see the subject */}
-        {compact && (
-          <Typography
-            title={title}
-            sx={{
-              mt: 0.25,
-              fontSize: "0.72rem",
-              fontWeight: 700,
-              lineHeight: 1.1,
-              width: "100%",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              opacity: 0.9,
-            }}
-          >
-            {title}
-          </Typography>
-        )}
-
-        {/* Attendees block — keep your full logic, but hide in compact to avoid clipping */}
-        {!compact &&
-          extendedProps?.attendees?.length > 0 &&
-          (() => {
-            const avatarFillBg = darkBg ? "#ffffff" : "#111827";
-            const avatarFillText = darkBg ? "#111827" : "#ffffff";
-            const avatarRing = darkBg
-              ? "rgba(255,255,255,0.85)"
-              : "rgba(17,24,39,0.25)";
-
-            return (
-              <AvatarGroup
-                max={3}
-                sx={{
-                  "& .MuiAvatar-root": {
-                    width: 22,
-                    height: 22,
-                    fontSize: "0.7rem",
-                    bgcolor: avatarFillBg,
-                    color: avatarFillText,
-                    border: `1px solid ${avatarRing}`,
-                  },
-                  "& .MuiAvatarGroup-avatar": {
-                    bgcolor: avatarFillBg,
-                    color: avatarFillText,
-                    border: `1px solid ${avatarRing}`,
-                  },
-                }}
-              >
-                {extendedProps.attendees.map((a, idx) => {
-                  const status = (
-                    a.responseStatus ||
-                    a.status ||
-                    ""
-                  ).toLowerCase();
-                  const hasImg = Boolean(a.photoUrl);
-                  return (
-                    <Tooltip
-                      key={idx}
-                      placement="top"
-                      arrow
-                      title={
-                        <Box sx={{ p: 1 }}>
-                          <Typography
-                            sx={{ fontWeight: 600, fontSize: "0.95rem" }}
-                          >
-                            {a.name || "Unknown Name"}
-                          </Typography>
-                          <Typography
-                            sx={{ fontSize: "0.85rem", opacity: 0.8 }}
-                          >
-                            {a.email || "No Email"}
-                          </Typography>
-                          {status && (
-                            <Typography sx={{ fontSize: "0.8rem", mt: 0.5 }}>
-                              Status: {status}
-                            </Typography>
-                          )}
-                        </Box>
-                      }
-                      componentsProps={{
-                        tooltip: {
-                          sx: {
-                            bgcolor: "#333",
-                            color: "#fff",
-                            fontSize: "0.9rem",
-                            maxWidth: 240,
-                            borderRadius: 1,
-                            boxShadow: "0px 4px 12px rgba(0,0,0,0.4)",
-                          },
-                        },
-                        arrow: { sx: { color: "#333" } },
-                      }}
-                    >
-                      <Avatar
-                        src={hasImg ? a.photoUrl : undefined}
-                        alt={a.name || a.email || "Attendee"}
-                        sx={{
-                          bgcolor: hasImg ? avatarFillBg : avatarFillBg,
-                          color: avatarFillText,
-                          border: `1px solid ${avatarRing}`,
-                          position: "relative",
-                        }}
-                      >
-                        {!hasImg &&
-                          (a.name?.[0]?.toUpperCase() ||
-                            a.email?.[0]?.toUpperCase() ||
-                            "?")}
-
-                        {status && (
-                          <Box
-                            sx={{
-                              position: "absolute",
-                              right: -2,
-                              bottom: -2,
-                              width: 14,
-                              height: 14,
-                              borderRadius: "50%",
-                              backgroundColor: "#fff",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              boxShadow: darkBg
-                                ? "0 0 0 1px rgba(255,255,255,0.4)"
-                                : "0 0 0 1px rgba(0,0,0,0.12)",
-                            }}
-                          >
-                            {/^(accepted|yes)$/.test(status) ? (
-                              <CheckCircleIcon
-                                sx={{ fontSize: 12, color: "#2e7d32" }}
-                              />
-                            ) : /^(declined|no)$/.test(status) ? (
-                              <CancelIcon
-                                sx={{ fontSize: 12, color: "#c62828" }}
-                              />
-                            ) : (
-                              <HourglassEmptyIcon
-                                sx={{ fontSize: 12, color: "#6b7280" }}
-                              />
-                            )}
-                          </Box>
-                        )}
-                      </Avatar>
-                    </Tooltip>
-                  );
-                })}
-              </AvatarGroup>
-            );
-          })()}
+        <Box sx={{ position: "absolute", top: 0, left: "-100%", width: "100%", height: "100%", background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%)", transform: "skewX(-15deg)", transition: "left 0.6s ease", ".MuiBox-root:hover &": { left: "100%" } }} />
       </Box>
-    );
-  };
+    </MuiTooltip>
+  );
+};
+
 
   // Event handlers
   const handleToggleSidebar = () => {

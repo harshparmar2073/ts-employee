@@ -26,6 +26,8 @@ import {
   Popover,
   Menu,
   MenuItem,
+  Avatar,
+  Stack,
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -85,6 +87,15 @@ const CalendarSidebar = ({
 
   // Color picker state
   const [colorPickerAnchorEl, setColorPickerAnchorEl] = useState(null);
+
+  const [showConnectionPrompt, setShowConnectionPrompt] = useState(true);
+
+// shape: { google: [], microsoft: [] }
+const [connectedAccounts, setConnectedAccounts] = useState({ google: [], microsoft: [] });
+const [accountActionAnchorEl, setAccountActionAnchorEl] = useState(null); // anchor for per-account menu
+const [accountActionTarget, setAccountActionTarget] = useState(null); // the account object for the menu actions
+const [confirmDisconnectOpen, setConfirmDisconnectOpen] = useState(false);
+const [accountToDisconnect, setAccountToDisconnect] = useState(null);
 
   // React Hook Form setup for calendar form
   const {
@@ -158,6 +169,195 @@ const CalendarSidebar = ({
       });
     }
   }, [selectedCalendarForDetails, reset]);
+
+  useEffect(() => {
+  const source =
+    selectedCalendarForDetails ||
+    selectedCalendar ||
+    (createdCalendars?.length ? createdCalendars[0] : null);
+
+  const google = [];
+  const microsoft = [];
+
+  if (source) {
+    // Try a few shapes your API might use:
+    if (Array.isArray(source.externalAccounts)) {
+      source.externalAccounts.forEach(acc => {
+        const provider = (acc.provider || "").toLowerCase();
+        if (provider === "google") google.push(acc);
+        else if (provider === "microsoft" || provider === "outlook") microsoft.push(acc);
+      });
+    } else {
+      if (Array.isArray(source.googleAccounts)) google.push(...source.googleAccounts);
+      if (Array.isArray(source.microsoftAccounts)) microsoft.push(...source.microsoftAccounts);
+
+      if (Array.isArray(source.connectedAccounts)) {
+        source.connectedAccounts.forEach(acc => {
+          const provider = (acc.provider || "").toLowerCase();
+          if (provider === "google") google.push(acc);
+          else if (provider === "microsoft" || provider === "outlook") microsoft.push(acc);
+        });
+      }
+    }
+  }
+
+  // Merge from source only when it actually has accounts; otherwise preserve the local state
+  setConnectedAccounts(prev => {
+    const mergeUnique = (oldList = [], newList = []) => {
+      if (!newList || newList.length === 0) return oldList;
+      const out = [...oldList];
+      newList.forEach(n => {
+        const keyN = n?.id || n?.accountId || n?.email;
+        const idx = out.findIndex(o => (o?.id || o?.accountId || o?.email) === keyN);
+        if (idx >= 0) out[idx] = { ...out[idx], ...n };
+        else out.push(n);
+      });
+      return out;
+    };
+
+    const nextGoogle = mergeUnique(prev.google, google);
+    const nextMicrosoft = mergeUnique(prev.microsoft, microsoft);
+    return { google: nextGoogle, microsoft: nextMicrosoft };
+  });
+
+  if ((google && google.length) || (microsoft && microsoft.length)) {
+    setShowConnectionPrompt(false);
+  }
+}, [selectedCalendarForDetails, selectedCalendar, createdCalendars]);
+
+
+  const providerLabel = (p) => (p === "google" ? "Google" : p === "microsoft" ? "Microsoft" : p);
+
+ // --- Replace existing handleExternalConnectSuccess with this more robust version ---
+const handleExternalConnectSuccess = (provider, accountData) => {
+  const root = accountData?.data || accountData?.result || accountData?.payload || accountData;
+  const upsert = (raw) => {
+    if (!raw) return;
+    const normalized = {
+      ...raw,
+      provider,
+      id: raw.id || raw.accountId || raw.googleAccountId || raw.microsoftAccountId || raw.userId || raw.sub,
+      accountId: raw.accountId || raw.id || raw.googleAccountId || raw.microsoftAccountId || raw.userId || raw.sub,
+      email: raw.email || raw.accountEmail || raw.user?.email || raw.profile?.email || raw.mail,
+      name: raw.name || raw.user?.name || raw.profile?.name || raw.displayName,
+    };
+
+    setConnectedAccounts((prev) => {
+      const list = prev[provider] ? [...prev[provider]] : [];
+      const idx = list.findIndex(
+        (a) =>
+          (a.id && normalized.id && a.id === normalized.id) ||
+          (a.accountId && normalized.accountId && a.accountId === normalized.accountId) ||
+          (a.email && normalized.email && a.email === normalized.email)
+      );
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...normalized };
+      } else {
+        const isPrimary = list.length === 0 || normalized.isPrimary;
+        list.push({ ...normalized, isPrimary: !!isPrimary });
+        if (isPrimary) {
+          list.forEach((a, i) => {
+            if (i !== list.length - 1) a.isPrimary = false;
+          });
+        }
+      }
+      return { ...prev, [provider]: list };
+    });
+  };
+
+  if (Array.isArray(root)) {
+    root.forEach(upsert);
+  } else if (Array.isArray(root?.externalAccounts)) {
+    root.externalAccounts
+      .filter((a) => (a.provider || "").toLowerCase() === provider)
+      .forEach(upsert);
+  } else if (Array.isArray(root?.accounts)) {
+    root.accounts.forEach(upsert);
+  } else if (root?.account) {
+    upsert(root.account);
+  } else if (root?.user) {
+    upsert(root.user);
+  } else if (root) {
+    upsert(root);
+  }
+
+  setShowConnectionPrompt(false);
+
+  if (provider === "google" && onGoogleCalendarConnected) onGoogleCalendarConnected(accountData);
+  if (provider === "microsoft" && onMicrosoftCalendarConnected) onMicrosoftCalendarConnected(accountData);
+};
+
+// --- New helper: open actions menu for a given account ---
+const handleAccountActionOpen = (event, account) => {
+  event.stopPropagation();
+  setAccountActionAnchorEl(event.currentTarget);
+  setAccountActionTarget(account);
+};
+
+// --- Close per-account menu ---
+const handleAccountActionClose = () => {
+  setAccountActionAnchorEl(null);
+  setAccountActionTarget(null);
+};
+
+// --- Set selected account as primary for provider ---
+const handleSetPrimaryAccount = (provider, accountIdOrEmail) => {
+  setConnectedAccounts(prev => {
+    const list = (prev[provider] || []).map(acc => {
+      const match = acc.id === accountIdOrEmail || acc.accountId === accountIdOrEmail || acc.email === accountIdOrEmail;
+      return { ...acc, isPrimary: match };
+    });
+    return { ...prev, [provider]: list };
+  });
+  handleAccountActionClose();
+};
+
+// --- Remove account locally (no API) ---
+const handleRemoveAccount = (provider, account) => {
+  const key = account?.id || account?.accountId || account?.email;
+  if (!key) return;
+  if (!window.confirm(`Remove ${account?.email || account?.name || account?.id} from this calendar?`)) return;
+  setConnectedAccounts(prev => ({
+    ...prev,
+    [provider]: (prev[provider] || []).filter(a => (a.id || a.accountId || a.email) !== key),
+  }));
+};
+
+// --- Disconnect a specific external account ---
+const handleExternalDisconnect = (provider, accountOrId) => {
+  const key = typeof accountOrId === "object" ? accountOrId.id || accountOrId.accountId || accountOrId.email : accountOrId;
+  if (!key) return;
+
+  setConnectedAccounts(prev => ({
+    ...prev,
+    [provider]: (prev[provider] || []).filter(a => (a.id || a.accountId || a.email) !== key)
+  }));
+
+  if (provider === "google" && onGoogleCalendarDisconnected) onGoogleCalendarDisconnected(accountOrId);
+  if (provider === "microsoft" && onMicrosoftCalendarDisconnected) onMicrosoftCalendarDisconnected(accountOrId);
+};
+
+// --- Show disconnect confirmation dialog (do not immediately remove) ---
+const handleRequestDisconnect = (provider, account) => {
+  setAccountToDisconnect({ provider, account });
+  setConfirmDisconnectOpen(true);
+  handleAccountActionClose();
+};
+
+// --- Confirm disconnect action ---
+const handleConfirmDisconnect = () => {
+  if (!accountToDisconnect) {
+    setConfirmDisconnectOpen(false);
+    return;
+  }
+
+  const { provider, account } = accountToDisconnect;
+  handleExternalDisconnect(provider, account);
+
+  setConfirmDisconnectOpen(false);
+  setAccountToDisconnect(null);
+};
+
 
   const handleCalendarSettings = useCallback((calendar) => {
     // Open the same calendar form dialog but with existing data
@@ -368,7 +568,6 @@ const CalendarSidebar = ({
         {/* Calendar Type Tabs */}
         <Box
           sx={{
-            display: "flex",
             gap: 1,
             mb: 3,
             display: sidebarCollapsed ? "none" : "flex",
@@ -461,7 +660,7 @@ const CalendarSidebar = ({
 
                   return mappedCalendarType?.toLowerCase() === normalizedType;
                 })
-                .map((calendar) => (
+                 .map((calendar) => (
                   <Box
                     key={calendar.id}
                     sx={{
@@ -471,53 +670,67 @@ const CalendarSidebar = ({
                       py: 0.5,
                       px: 1,
                       cursor: "pointer",
-                      borderRadius: 1,
+                      borderRadius: 2,
+                      background:
+                        selectedCalendar && selectedCalendar.id === calendar.id
+                          ? "linear-gradient(90deg, #ede7f6 60%, #d1c4e9 100%)"
+                          : "inherit",
+                      boxShadow:
+                        selectedCalendar && selectedCalendar.id === calendar.id
+                          ? "0 2px 8px rgba(111, 66, 193, 0.10)"
+                          : "none",
+                      borderLeft:
+                        selectedCalendar && selectedCalendar.id === calendar.id
+                          ? "3px solid #6f42c1"
+                          : "3px solid transparent",
+                      transform:
+                        selectedCalendar && selectedCalendar.id === calendar.id
+                          ? "scale(1.03)"
+                          : "scale(1)",
+                      transition: "all 0.2s cubic-bezier(.4,2,.6,1)",
                       "&:hover": {
-                        backgroundColor: "#f8f9fa",
+                        backgroundColor: selectedCalendar && selectedCalendar.id === calendar.id ? "#ede7f6" : "#f8f9fa",
+                        boxShadow: selectedCalendar && selectedCalendar.id === calendar.id ? "0 4px 16px rgba(111, 66, 193, 0.13)" : "0 2px 8px rgba(111, 66, 193, 0.06)",
+                        borderLeft: selectedCalendar && selectedCalendar.id === calendar.id ? "4px solid #6f42c1" : "4px solid #b39ddb",
+                        transform: "scale(1.04)",
                       },
                     }}
-                    onClick={() =>
-                      onCalendarSelect &&
-                      onCalendarSelect(calendar.name, calendar.id)
-                    }
+                    onClick={() => onCalendarSelect && onCalendarSelect(calendar.name, calendar.id)}
                   >
-                    <Box
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 1.5,
-                      }}
-                    >
-                      <Box
+                   <Box
+                     sx={{
+                       display: "flex",
+                       alignItems: "center",
+                       gap: 1.5,
+                     }}
+                   >
+                     <Box
                         sx={{
                           width: 8,
                           height: 8,
                           borderRadius: "50%",
-                          backgroundColor:
-                            calendar.colour || calendar.color || "#4285f4",
+                          backgroundColor: calendar.colour || calendar.color || "#4285f4",
                         }}
                       />
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 0.5,
-                        }}
-                      >
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            color:
-                              selectedCalendar === calendar.name
-                                ? "#6f42c1"
-                                : "#495057",
-                            fontSize: "0.875rem",
-                            fontWeight:
-                              selectedCalendar === calendar.name ? 600 : 400,
-                          }}
-                        >
-                          {calendar.name}
-                        </Typography>
+                     <Box
+                       sx={{
+                         display: "flex",
+                         alignItems: "center",
+                         gap: 0.5,
+                       }}
+                     >
+                       <Typography
+                         variant="body2"
+                         sx={{
+                           color: selectedCalendar && selectedCalendar.id === calendar.id ? "#6f42c1" : "#495057",
+                           fontSize: "0.95rem",
+                           fontWeight: selectedCalendar && selectedCalendar.id === calendar.id ? 700 : 400,
+                           letterSpacing: selectedCalendar && selectedCalendar.id === calendar.id ? "0.02em" : "normal",
+                           textShadow: selectedCalendar && selectedCalendar.id === calendar.id ? "0 1px 4px #ede7f6" : "none",
+                         }}
+                       >
+                         {calendar.name}
+                       </Typography>
                         {calendar.isDefault && (
                           <PushPinIcon
                             sx={{
@@ -924,264 +1137,333 @@ const CalendarSidebar = ({
                 />
               </Box>
             )}
+{activeSection === "external" && (
+  <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+    <Typography variant="h6" sx={{ fontWeight: 600, color: "#333", mb: 1 }}>
+      External Calendar Connections
+    </Typography>
 
-            {/* External Calendar Connection Section */}
-            {activeSection === "external" && (
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <Typography
-                  variant="h6"
-                  sx={{ fontWeight: 600, color: "#333", mb: 1 }}
-                >
-                  External Calendar Connections
-                </Typography>
+    {showConnectionPrompt ? (
+      <Box
+        sx={{
+          p: 4,
+          border: "2px dashed #e0e0e0",
+          borderRadius: 3,
+          backgroundColor: "#fafafa",
+          textAlign: "center",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 2,
+        }}
+      >
+        <Box
+          sx={{
+            width: 64,
+            height: 64,
+            borderRadius: "50%",
+            backgroundColor: "#6f42c1",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "white",
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7"></path>
+            <line x1="16" y1="2" x2="16" y2="8"></line>
+            <line x1="8" y1="2" x2="8" y2="8"></line>
+            <path d="M3 10h18"></path>
+            <path d="M15 16l3 3 3-3"></path>
+            <path d="M18 13v9"></path>
+          </svg>
+        </Box>
 
-                {/* Google Calendar Connection */}
-                <Box
-                  sx={{
-                    p: 3,
-                    border: "2px solid #e8f0fe",
-                    borderRadius: 3,
-                    background:
-                      "linear-gradient(135deg, #f8faff 0%, #ffffff 100%)",
-                    boxShadow: "0 4px 16px rgba(66, 133, 244, 0.08)",
-                    position: "relative",
-                    overflow: "hidden",
-                    transition: "all 0.3s ease",
-                    "&:hover": {
-                      transform: "translateY(-1px)",
-                      boxShadow: "0 8px 24px rgba(66, 133, 244, 0.12)",
-                      borderColor: "#4285f4",
-                    },
-                    "&::before": {
-                      content: '""',
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: "3px",
-                      background:
-                        "linear-gradient(90deg, #4285f4 0%, #34a853 50%, #fbbc04 100%)",
-                    },
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 2,
-                      mb: 2,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: "12px",
-                        background:
-                          "linear-gradient(135deg, #4285f4 0%, #34a853 100%)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "white",
-                        fontWeight: "bold",
-                        fontSize: "20px",
-                        boxShadow: "0 4px 12px rgba(66, 133, 244, 0.3)",
-                        position: "relative",
-                        "&::after": {
-                          content: '""',
-                          position: "absolute",
-                          top: "-1px",
-                          left: "-1px",
-                          right: "-1px",
-                          bottom: "-1px",
-                          borderRadius: "13px",
-                          background:
-                            "linear-gradient(135deg, #4285f4, #34a853)",
-                          zIndex: -1,
-                          opacity: 0.2,
-                        },
-                      }}
-                    >
-                      G
-                    </Box>
-                    <Box>
-                      <Typography
-                        variant="h6"
-                        sx={{ fontWeight: 600, color: "#1a1a1a", mb: 0.5 }}
-                      >
-                        Google Calendar
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        sx={{ color: "#5f6368", fontWeight: 500 }}
-                      >
-                        Sync with your Google Calendar
-                      </Typography>
-                    </Box>
-                  </Box>
+        <Box>
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+            Connect External Calendars
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#5f6368", maxWidth: "480px", lineHeight: 1.6 }}>
+            Sync events from your Google Calendar or Microsoft Outlook to automatically keep all your schedules in one place.
+            Connect multiple accounts and manage them individually (set primary, disconnect).
+          </Typography>
+        </Box>
 
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "#5f6368", mb: 3, lineHeight: 1.5 }}
-                  >
-                    Connect your Google Calendar to automatically sync events,
-                    meetings, and appointments. Changes made in either calendar
-                    will be reflected in both.
-                  </Typography>
+        <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={() => setCalendarFormOpen(false)}
+            sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600 }}
+          >
+            Maybe Later
+          </Button>
 
-                  <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
-                    <LinkGoogleCalendarButton
-                      calendarId={
-                        selectedCalendar?.id ||
-                        (createdCalendars?.length > 0
-                          ? createdCalendars[0]?.id
-                          : null)
-                      }
-                      calendarData={
-                        selectedCalendar ||
-                        (createdCalendars?.length > 0
-                          ? createdCalendars[0]
-                          : null)
-                      }
-                      onSuccess={onGoogleCalendarConnected}
-                      onDisconnect={onGoogleCalendarDisconnected}
-                    />
-                    {/* Debug info */}
-                    {!selectedCalendar?.id && !createdCalendars?.length && (
-                      <Typography
-                        variant="caption"
-                        sx={{ color: "red", ml: 1 }}
-                      >
-                        No calendar available
-                      </Typography>
-                    )}
-                  </Box>
-                </Box>
+          <Button
+            variant="contained"
+            onClick={() => setShowConnectionPrompt(false)}
+            sx={{ borderRadius: 2, textTransform: "none", fontWeight: 600 }}
+          >
+            Connect Calendar
+          </Button>
+        </Box>
+      </Box>
+    ) : (
+      <>
+        <Typography variant="body2" sx={{ color: "#5f6368", mb: 2 }}>
+          Connect multiple external calendars to sync events across all your accounts. Changes made in any connected calendar will be reflected here.
+        </Typography>
 
-                {/* Microsoft Calendar Connection */}
-                <Box
-                  sx={{
-                    p: 3,
-                    border: "2px solid #f0f8ff",
-                    borderRadius: 3,
-                    background:
-                      "linear-gradient(135deg, #f8fbff 0%, #ffffff 100%)",
-                    boxShadow: "0 4px 16px rgba(0, 120, 212, 0.08)",
-                    position: "relative",
-                    overflow: "hidden",
-                    transition: "all 0.3s ease",
-                    "&:hover": {
-                      transform: "translateY(-1px)",
-                      boxShadow: "0 8px 24px rgba(0, 120, 212, 0.12)",
-                      borderColor: "#0078d4",
-                    },
-                    "&::before": {
-                      content: '""',
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: "3px",
-                      background:
-                        "linear-gradient(90deg, #0078d4 0%, #00a1f1 50%, #7fba00 100%)",
-                    },
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 2,
-                      mb: 2,
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: "12px",
-                        background:
-                          "linear-gradient(135deg, #0078d4 0%, #00a1f1 100%)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "white",
-                        fontWeight: "bold",
-                        fontSize: "20px",
-                        boxShadow: "0 4px 12px rgba(0, 120, 212, 0.3)",
-                        position: "relative",
-                        "&::after": {
-                          content: '""',
-                          position: "absolute",
-                          top: "-1px",
-                          left: "-1px",
-                          right: "-1px",
-                          bottom: "-1px",
-                          borderRadius: "13px",
-                          background:
-                            "linear-gradient(135deg, #0078d4, #00a1f1)",
-                          zIndex: -1,
-                          opacity: 0.2,
-                        },
-                      }}
-                    >
-                      M
-                    </Box>
-                    <Box>
-                  <Typography
-                    variant="h6"
-                    sx={{ fontWeight: 600, color: "#1a1a1a", mb: 0.5 }}
-                  >
-                    Microsoft Outlook
-                  </Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "#5f6368", fontWeight: 500 }}
-                  >
-                    Sync with your Outlook Calendar
-                  </Typography>
+        {/* Google block */}
+        <Card variant="outlined" sx={{ borderRadius: 3, overflow: "visible" }}>
+          <CardContent sx={{ display: "flex", gap: 2, alignItems: "flex-start", flexDirection: "column" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, width: "100%", justifyContent: "space-between" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <Box sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2,
+                  background: "linear-gradient(135deg,#4285f4 0%,#34a853 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#fff",
+                  fontWeight: 700,
+                }}>G</Box>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>Google Calendar</Typography>
+                  <Typography variant="caption" sx={{ color: "#6c757d" }}>Sync multiple Google accounts</Typography>
                 </Box>
               </Box>
 
-              <Typography
-                variant="body2"
-                sx={{ color: "#5f6368", mb: 3, lineHeight: 1.5 }}
-              >
-                Connect your Microsoft Outlook Calendar to sync events,
-                meetings, and appointments. Perfect for enterprise users and
-                Office 365 subscribers.
-              </Typography>
-
-              <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
-                <LinkMicrosoftCalendarButton
-                  calendarId={
-                    selectedCalendar?.id ||
-                    (createdCalendars?.length > 0
-                      ? createdCalendars[0]?.id
-                      : null)
-                  }
-                  calendarData={
-                    selectedCalendar ||
-                    (createdCalendars?.length > 0
-                      ? createdCalendars[0]
-                      : null)
-                  }
-                  onSuccess={onMicrosoftCalendarConnected}
-                  onDisconnect={onMicrosoftCalendarDisconnected}
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <LinkGoogleCalendarButton
+                  calendarId={selectedCalendarForDetails?.id || selectedCalendar?.id || (createdCalendars?.length > 0 ? createdCalendars[0]?.id : null)}
+                  calendarData={selectedCalendarForDetails || selectedCalendar || (createdCalendars?.length > 0 ? createdCalendars[0] : null)}
+                  hasAnyAccounts={(connectedAccounts.google || []).length > 0}
+                  connectedCount={(connectedAccounts.google || []).length}
+                  onSuccess={(accountData) => handleExternalConnectSuccess("google", accountData)}
+                  onDisconnect={() => {
+                    // Bulk disconnect from Google for this calendar: clear local list
+                    setConnectedAccounts(prev => ({ ...prev, google: [] }));
+                    if (onGoogleCalendarDisconnected) onGoogleCalendarDisconnected({ all: true });
+                  }}
                 />
-                {/* Debug info */}
-                {!selectedCalendar?.id && !createdCalendars?.length && (
-                  <Typography
-                    variant="caption"
-                    sx={{ color: "red", ml: 1 }}
-                  >
-                    No calendar available
-                  </Typography>
-                )}
               </Box>
+            </Box>
+
+            {/* List of connected google accounts */}
+            <Box sx={{ width: "100%", display: "flex", flexDirection: "column", gap: 1 }}>
+              {(connectedAccounts.google || []).length === 0 ? (
+                <Typography variant="body2" sx={{ color: "#6c757d" }}>No Google accounts connected yet.</Typography>
+              ) : (
+                (connectedAccounts.google || []).map((acc) => (
+                  <Box
+                    key={acc.id || acc.email || acc.accountId}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      p: 1.25,
+                      borderRadius: 2,
+                      background: "#fff",
+                      border: "1px solid #eef2ff",
+                      boxShadow: "0 2px 8px rgba(66,133,244,0.04)",
+                    }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <Avatar sx={{ bgcolor: "#eaf2ff", color: "#1967d2", width: 40, height: 40 }}>
+                        {acc.email ? acc.email.charAt(0).toUpperCase() : "G"}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {acc.email || acc.name || acc.id}
+                        </Typography>
+                        <Box sx={{ display: "flex", gap: 1, alignItems: "center", mt: 0.25 }}>
+                          <Typography variant="caption" sx={{ color: "#6c757d" }}>
+                            {acc.isPrimary ? "Primary" : "Connected"}
+                          </Typography>
+                          {acc.isPrimary && <Chip label="Primary" size="small" sx={{ ml: 0.5, bgcolor: "#f3e8ff", color: "#6f42c1", fontWeight: 700 }} />}
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      {/* Make primary */}
+                      {!acc.isPrimary && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => handleSetPrimaryAccount("google", acc.id || acc.email || acc.accountId)}
+                          sx={{ textTransform: "none" }}
+                        >
+                          Make primary
+                        </Button>
+                      )}
+
+                      {/* Remove locally */}
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="warning"
+                        onClick={() => handleRemoveAccount("google", acc)}
+                        sx={{ textTransform: "none" }}
+                      >
+                        Remove
+                      </Button>
+
+                      {/* Disconnect individual */}
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color="error"
+                        onClick={() => handleRequestDisconnect("google", acc)}
+                        sx={{ textTransform: "none" }}
+                      >
+                        Disconnect
+                      </Button>
+                    </Stack>
+                  </Box>
+                ))
+              )}
+            </Box>
+          </CardContent>
+        </Card>
+
+        {/* Microsoft block */}
+        <Card variant="outlined" sx={{ borderRadius: 3 }}>
+          <CardContent sx={{ display: "flex", gap: 2, alignItems: "flex-start", flexDirection: "column" }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, width: "100%", justifyContent: "space-between" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <Box sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: 2,
+                  background: "linear-gradient(135deg,#0078d4 0%,#00a1f1 100%)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#fff",
+                  fontWeight: 700,
+                }}>M</Box>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>Microsoft Outlook</Typography>
+                  <Typography variant="caption" sx={{ color: "#6c757d" }}>Sync multiple Outlook / Microsoft accounts</Typography>
                 </Box>
               </Box>
-            )}
+
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <LinkMicrosoftCalendarButton
+                  calendarId={selectedCalendarForDetails?.id || selectedCalendar?.id || (createdCalendars?.length > 0 ? createdCalendars[0]?.id : null)}
+                  calendarData={selectedCalendarForDetails || selectedCalendar || (createdCalendars?.length > 0 ? createdCalendars[0] : null)}
+                  onSuccess={(accountData) => handleExternalConnectSuccess("microsoft", accountData)}
+                  onDisconnect={(payload) => {
+                    const id = typeof payload === "object" ? payload.id || payload.accountId || payload.email : payload;
+                    handleExternalDisconnect("microsoft", id || payload);
+                  }}
+                />
+              </Box>
+            </Box>
+
+            {/* List of connected microsoft accounts */}
+            <Box sx={{ width: "100%", display: "flex", flexDirection: "column", gap: 1 }}>
+              {(connectedAccounts.microsoft || []).length === 0 ? (
+                <Typography variant="body2" sx={{ color: "#6c757d" }}>No Microsoft accounts connected yet.</Typography>
+              ) : (
+                (connectedAccounts.microsoft || []).map((acc) => (
+                  <Box
+                    key={acc.id || acc.email || acc.accountId}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      p: 1.25,
+                      borderRadius: 2,
+                      background: "#fff",
+                      border: "1px solid #eef7ff",
+                      boxShadow: "0 2px 8px rgba(0,120,212,0.03)",
+                    }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                      <Avatar sx={{ bgcolor: "#eef8ff", color: "#0078d4", width: 40, height: 40 }}>
+                        {acc.email ? acc.email.charAt(0).toUpperCase() : "M"}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {acc.email || acc.name || acc.id}
+                        </Typography>
+                        <Box sx={{ display: "flex", gap: 1, alignItems: "center", mt: 0.25 }}>
+                          <Typography variant="caption" sx={{ color: "#6c757d" }}>
+                            {acc.isPrimary ? "Primary" : "Connected"}
+                          </Typography>
+                          {acc.isPrimary && <Chip label="Primary" size="small" sx={{ ml: 0.5, bgcolor: "#f3e8ff", color: "#6f42c1", fontWeight: 700 }} />}
+                        </Box>
+                      </Box>
+                    </Box>
+
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      {!acc.isPrimary && (
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => handleSetPrimaryAccount("microsoft", acc.id || acc.email || acc.accountId)}
+                          sx={{ textTransform: "none" }}
+                        >
+                          Make primary
+                        </Button>
+                      )}
+
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        color="warning"
+                        onClick={() => handleRemoveAccount("microsoft", acc)}
+                        sx={{ textTransform: "none" }}
+                      >
+                        Remove
+                      </Button>
+
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color="error"
+                        onClick={() => handleRequestDisconnect("microsoft", acc)}
+                        sx={{ textTransform: "none" }}
+                      >
+                        Disconnect
+                      </Button>
+                    </Stack>
+                  </Box>
+                ))
+              )}
+            </Box>
+          </CardContent>
+        </Card>
+
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
+          <Button variant="text" onClick={() => setShowConnectionPrompt(true)} sx={{ textTransform: "none", fontWeight: 500 }}>
+            Back to connection options
+          </Button>
+        </Box>
+      </>
+    )}
+
+    {/* Confirm disconnect dialog */}
+    <Dialog open={confirmDisconnectOpen} onClose={() => setConfirmDisconnectOpen(false)}>
+      <DialogTitle>Disconnect account</DialogTitle>
+      <DialogContent>
+        <Typography>
+          Are you sure you want to disconnect{" "}
+          <strong>{accountToDisconnect?.account?.email || accountToDisconnect?.account?.name || accountToDisconnect?.account?.id}</strong>{" "}
+          from <strong>{providerLabel(accountToDisconnect?.provider)}</strong>?
+        </Typography>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setConfirmDisconnectOpen(false)} variant="outlined">Cancel</Button>
+        <Button onClick={handleConfirmDisconnect} variant="contained" color="error">Disconnect</Button>
+      </DialogActions>
+    </Dialog>
+  </Box>
+)}
 
             {/* Settings Sections - Only show when editing existing calendar */}
             {selectedCalendarForDetails &&
