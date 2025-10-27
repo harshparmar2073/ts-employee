@@ -33,46 +33,16 @@ import {
   Message,
   Lock,
   CalendarMonth,
+  Assignment,
 } from '@mui/icons-material';
 import PersonIcon from '@mui/icons-material/Person';
 import { useNavigate } from 'react-router-dom';
 import LogoutDialog from '../components/LogoutDialog';
 
 const SidebarItems = [
-  { text: 'Dashboard', icon: <Dashboard />, expandable: false },
-  { text: 'Calendar', icon: <CalendarMonth/>, expandable: false },
-  { text: 'Workspace', icon: <Workspaces />, expandable: false },
-  {
-    text: 'Datahub',
-    icon: <DataUsage />,
-    expandable: true,
-    subItems: [
-      {text:'Employee',icon:<PersonIcon/>},
-      { text: 'CRM', icon: <People /> },
-      { text: 'Vendors', icon: <Business /> },
-      { text: 'Users', icon: <PersonAdd /> },
-      { text: 'Token Sessions', icon: <Lock /> },
-    ],
-  },
-  {
-    text: 'Chatbot/Assistance',
-    icon: <Chat />,
-    expandable: true,
-    subItems: [
-      { text: 'AI Assistant', icon: <SmartToy /> },
-      { text: 'Help Center', icon: <Help /> },
-      { text: 'Smart Suggestions', icon: <AutoAwesome /> },
-      { text: 'Chat History', icon: <Message /> },
-    ],
-  },
-  {
-    text: 'Settings',
-    icon: <Settings />,
-    expandable: true,
-    subItems: [{ text: 'Security', icon: <Lock /> }],
-  },
-  { text: 'Logout', icon: <Logout />, expandable: false },
-  { text: 'Sprint', icon: <RocketLaunch />, expandable: false },
+  { text: 'Employee Form', icon: <PersonAdd />, expandable: false, path: '/dashboard/employee-form' },
+  { text: 'Task Sheet', icon: <Assignment />, expandable: false, path: '/dashboard/task-sheet' },
+  { text: 'Logout', icon: <Logout />, expandable: false, path: '/logout' },
 ];
 
 export default function Sidebar({
@@ -105,18 +75,8 @@ export default function Sidebar({
       setLogoutDialogOpen(true);
     } else {
       setSelectedSection(item.text);
-      if (item.text === 'Dashboard') {
-        navigate('/dashboard/dashboard-content');
-      } else if (item.text === 'Calendar') {
-        navigate('/dashboard/calendar-view');
-      } else if (item.text === 'Security') {
-        navigate('/dashboard/security');
-      } else if (item.text === 'Token Sessions') {
-        navigate('/dashboard/member-table');
-      } else if (item.text === 'Employee') {
-        navigate('/dashboard/employee-contract-form');
-      } else if (item.text === 'Users') {
-        navigate('/dashboard/user');
+      if (item.path) {
+        navigate(item.path);
       }
     }
   };

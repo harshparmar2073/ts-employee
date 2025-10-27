@@ -4,18 +4,13 @@ import Login from './pages/Login';
 import ResetPassword from './components/ResetPassword';
 import Signup from './components/CreateAccount';
 import VerificationCodePage from './pages/VerificationCodePage';
-import DashboardPage from './pages/DashboardPage';
-import Membertable from './components/Member';
-import Security from './components/Security';
 import Layout from './theme/Layout';
 import Logout from './pages/auth/Logout';
 import AccountInfo from './components/AccontInfo';
 import ProfileInfo from './components/ProfileInfo';
 import EmployeeContractorForm from './components/EmployeeContractForm';
-import CalendarView from './components/Calendar-View';
+import TaskSheet from './components/TaskSheet';
 import './App.css';
-import User from './components/User';
-import AddUser from './components/AddUser';
 
 const userData = {
   name: 'John Doe',
@@ -32,23 +27,14 @@ export default function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/verification-code" element={<VerificationCodePage />} />
       <Route path="/dashboard" element={<Layout userData={userData} />}>
-        <Route path="dashboard-content" element={<DashboardPage />} />
-        <Route path="security" element={<Security />} />
-        <Route path="member-table" element={<Membertable />} />
+        <Route path="employee-form" element={<EmployeeContractorForm />} />
+        <Route path="task-sheet" element={<TaskSheet />} />
         <Route path="account-info" element={<AccountInfo/>}/>
         <Route path="profile-info" element={<ProfileInfo/>}/>
-        <Route path="employee-contract-form" element={<EmployeeContractorForm/>}/>
-        <Route path="calendar-view" element={<CalendarView/>}/>
-        <Route path="user" element={<User/>}/>
-        <Route path="add-user" element={<AddUser/>}/>
-
-
-        {/* Optionally, redirect /dashboard to /dashboard/dashboard-content */}
-        {/* <Route index element={<Navigate to="dashboard-content" replace />} /> */}
+        <Route index element={<Navigate to="employee-form" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" />} />
       <Route path="/logout" element={<Logout />} />
-
     </Routes>
   );
 }
