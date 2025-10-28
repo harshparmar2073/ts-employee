@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -29,7 +29,6 @@ import {
   Checkbox,
   FormControlLabel,
 } from '@mui/material';
-import { useRef } from 'react';
 import {
   Search as SearchIcon,
   FilterList as FilterListIcon,
@@ -47,18 +46,18 @@ import {
   CalendarToday,
   DateRange,
   AssignmentOutlined,
-  Archive, // Add this import
+  Archive,
 } from '@mui/icons-material';
 import MuiAlert from '@mui/material/Alert';
 import { styled } from '@mui/material/styles';
-import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, differenceInHours } from 'date-fns';
 import JoditEditor from 'jodit-react';
 import { CSSTransition, TransitionGroup } from 'react-transition-group';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 
 // Daily hour target for progress indicator
-const DAILY_HOUR_TARGET = 8; // Example target of 8 hours per day
+const DAILY_HOUR_TARGET = 8;
 
 const ItemTypes = {
   TASK: 'task',
@@ -69,7 +68,7 @@ const StyledTab = styled(Tab)(({ theme }) => ({
   fontWeight: theme.typography.fontWeightMedium,
   fontSize: theme.typography.pxToRem(15),
   marginRight: theme.spacing(1),
-  color: theme.palette.text.secondary,
+  color: theme.typography.pxToRem(15),
   '&.Mui-selected': {
     color: theme.palette.primary.main,
     fontWeight: theme.typography.fontWeightBold,
@@ -111,7 +110,6 @@ const joditEditorConfig = {
   buttonsXS: 'bold,italic,underline,strikethrough,|,ul,ol,|,undo,redo',
 };
 
-// Custom JoditEditor Wrapper to prevent re-initialization issues
 const JoditEditorWrapper = ({ initialValue, onChange, config }) => {
   const editorRef = useRef(null);
   const [content, setContent] = useState(initialValue);
@@ -130,15 +128,13 @@ const JoditEditorWrapper = ({ initialValue, onChange, config }) => {
       ref={editorRef}
       value={content}
       config={config}
-      onBlur={newContent => handleUpdate(newContent)} // Use onBlur to update parent state less frequently
-      onChange={newContent => {}} // onChange handled by onBlur, or more finely if needed
+      onBlur={newContent => handleUpdate(newContent)}
+      onChange={newContent => {}}
     />
   );
 };
 
-// DraggableTask Component
-const DraggableTask = ({ task, index, moveTask, children }) => {
-  const ref = useRef(null);
+const DraggableTask = ({ task, index, moveTask, children, nodeRef }) => {
   const [{ handlerId }, drop] = useDrop({
     accept: ItemTypes.TASK,
     collect(monitor) {
@@ -147,49 +143,30 @@ const DraggableTask = ({ task, index, moveTask, children }) => {
       };
     },
     hover(item, monitor) {
-      if (!ref.current) {
+      if (!nodeRef.current) {
         return;
       }
       const dragIndex = item.index;
       const hoverIndex = index;
 
-      // Don't replace items with themselves
       if (dragIndex === hoverIndex) {
         return;
       }
 
-      // Determine rectangle on screen
-      const hoverBoundingRect = ref.current?.getBoundingClientRect();
-
-      // Get vertical middle
+      const hoverBoundingRect = nodeRef.current?.getBoundingClientRect();
       const hoverMiddleY = (hoverBoundingRect.bottom - hoverBoundingRect.top) / 2;
-
-      // Determine mouse position
       const clientOffset = monitor.getClientOffset();
-
-      // Get pixels to the top
       const hoverClientY = clientOffset.y - hoverBoundingRect.top;
 
-      // Only perform the move when the mouse has crossed half of the items height
-      // When dragging downwards, only move when the cursor is below 50%
-      // When dragging upwards, only move when the cursor is above 50%
-
-      // Dragging downwards
       if (dragIndex < hoverIndex && hoverClientY < hoverMiddleY) {
         return;
       }
 
-      // Dragging upwards
       if (dragIndex > hoverIndex && hoverClientY > hoverMiddleY) {
         return;
       }
 
-      // Time to actually perform the action
       moveTask(dragIndex, hoverIndex);
-
-      // Note: we're mutating the monitor item here!
-      // Generally it's better to avoid mutations, but it's accepted here to optimize the flowchart
-      // after an item has been dropped to avoid re-render for all the items
       item.index = hoverIndex;
     },
   });
@@ -204,30 +181,26 @@ const DraggableTask = ({ task, index, moveTask, children }) => {
 
   const opacity = isDragging ? 0 : 1;
 
-  drag(drop(ref));
+  drag(drop(nodeRef));
 
   return (
-    <div ref={ref} style={{ opacity }} data-handler-id={handlerId}>
+    <div ref={nodeRef} style={{ opacity }} data-handler-id={handlerId}>
       {children}
     </div>
   );
 };
 
-// TaskFormDialog Component
 const TaskFormDialog = ({ open, handleClose, handleSave }) => {
-  const editorDescription = useRef(null);
-  const editorChallenges = useRef(null);
-
-  const config = useMemo(() => ({ ...joditEditorConfig }), []); // Use the global config
+  const config = useMemo(() => ({ ...joditEditorConfig }), []);
 
   const [formData, setFormData] = useState({
     taskName: '',
     projectName: '',
-    ticketNumber: [], // Changed to an array for multiple tickets
+    ticketNumber: [],
     description: '',
     hoursSpent: '',
     challenges: '',
-    isRecurring: false, // New field for recurring tasks
+    isRecurring: false,
   });
 
   const handleChange = (e) => {
@@ -244,15 +217,16 @@ const TaskFormDialog = ({ open, handleClose, handleSave }) => {
     setFormData({
       taskName: '',
       projectName: '',
-      ticketNumber: [], // Reset to empty array
+      ticketNumber: [],
       description: '',
       hoursSpent: '',
       challenges: '',
-    }); // Reset form after save
+      isRecurring: false,
+    });
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md"> {/* Changed to md */}
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md">
       <DialogTitle>Add New Task</DialogTitle>
       <DialogContent>
         <TextField
@@ -307,7 +281,7 @@ const TaskFormDialog = ({ open, handleClose, handleSave }) => {
           onChange={(newContent) => setFormData({ ...formData, description: newContent })}
           config={config}
         />
-        <Box sx={{ mb: 2 }} /> {/* Spacing after editor */}
+        <Box sx={{ mb: 2 }} />
         <Typography variant="subtitle2" sx={{ mb: 1, color: 'black', fontWeight: 'bold' }}>Challenges</Typography>
         <JoditEditorWrapper
           initialValue={formData.challenges}
@@ -342,26 +316,31 @@ const TaskSheet = () => {
   const openMenu = Boolean(anchorEl);
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const [isNewTaskDialogOpen, setIsNewTaskDialogOpen] = useState(false);
-  const handleNewTaskDialogOpen = useCallback(() => {
-    setIsNewTaskDialogOpen(true);
-  }, []);
-
-  const handleNewTaskDialogClose = useCallback(() => {
-    setIsNewTaskDialogOpen(false);
-  }, []);
-
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('All'); // 'All', 'Unsubmitted', 'Overtime', 'Completed', 'Archived'
-  const [sortOrder, setSortOrder] = useState('Newest First'); // 'Newest First', 'Oldest First', 'Project A-Z'
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [sortOrder, setSortOrder] = useState('Newest First');
   const [filterAnchorEl, setFilterAnchorEl] = useState(null);
   const [sortAnchorEl, setSortAnchorEl] = useState(null);
   const [settingsAnchorEl, setSettingsAnchorEl] = useState(null);
   const [dateRangeAnchorEl, setDateRangeAnchorEl] = useState(null);
   const [selectedDateRange, setSelectedDateRange] = useState('This Week');
 
-  const editorDescriptionRef = useRef(null);
-  const editorChallengesRef = useRef(null);
-  const itemRefs = useRef({}); // New: Ref for individual task items
+  const itemRefs = useRef(new Map());
+
+  const getTaskRef = useCallback((taskId) => {
+    if (!itemRefs.current.has(taskId)) {
+      itemRefs.current.set(taskId, React.createRef());
+    }
+    return itemRefs.current.get(taskId);
+  }, []);
+
+  useEffect(() => {
+    itemRefs.current.forEach((_value, key) => {
+      if (!tasks.some(task => task.id === key)) {
+        itemRefs.current.delete(key);
+      }
+    });
+  }, [tasks]);
 
   const joditConfig = useMemo(() => ({
     readonly: false,
@@ -379,6 +358,14 @@ const TaskSheet = () => {
     buttonsXS: 'bold,italic,underline,strikethrough,|,ul,ol,|,undo,redo',
   }), []);
 
+  const handleNewTaskDialogOpen = useCallback(() => {
+    setIsNewTaskDialogOpen(true);
+  }, []);
+
+  const handleNewTaskDialogClose = useCallback(() => {
+    setIsNewTaskDialogOpen(false);
+  }, []);
+
   const handleTabChange = (event, newValue) => {
     setCurrentTab(newValue);
   };
@@ -395,27 +382,25 @@ const TaskSheet = () => {
 
   useEffect(() => {
     const handleKeyDown = (event) => {
-      // Check for Ctrl/Cmd + Alt + N
       if ((event.ctrlKey || event.metaKey) && event.altKey && event.key === 'n') {
-        event.preventDefault(); // Prevent default browser behavior (e.g., opening new window)
+        event.preventDefault();
         handleNewTaskDialogOpen();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handleNewTaskDialogOpen]); // Dependency array to ensure the effect reruns if handleNewTaskDialogOpen changes
+  }, [handleNewTaskDialogOpen]);
 
   const handleSaveNewTask = (newTaskData) => {
     const newTask = {
-      id: tasks.length + 1,
+      id: Date.now(),
       ...newTaskData,
       startTime: null,
       endTime: null,
-      status: 'Unsubmitted', // Default status for new tasks
+      status: 'Unsubmitted',
       isEditing: false,
       isRecurring: newTaskData.isRecurring || false,
     };
@@ -434,9 +419,21 @@ const TaskSheet = () => {
   };
 
   const endTask = (id) => {
-    setTasks(tasks.map(task =>
-      task.id === id && task.startTime && !task.endTime ? { ...task, endTime: new Date().toISOString() } : task
-    ));
+    setTasks(tasks.map(task => {
+      if (task.id === id) {
+        const start = new Date(task.startTime);
+        const end = new Date();
+        const duration = differenceInHours(end, start);
+        let newStatus = 'Submitted';
+
+        if (duration > 8) {
+          newStatus = 'Overtime';
+        }
+
+        return { ...task, endTime: end.toISOString(), status: newStatus };
+      }
+      return task;
+    }));
   };
 
   const toggleEditMode = (id) => {
@@ -481,7 +478,7 @@ const TaskSheet = () => {
         end = endOfDay(today);
         break;
       case 'This Week':
-        start = startOfWeek(today, { weekStartsOn: 1 }); // Monday as first day of week
+        start = startOfWeek(today, { weekStartsOn: 1 });
         end = endOfWeek(today, { weekStartsOn: 1 });
         break;
       case 'This Month':
@@ -489,15 +486,14 @@ const TaskSheet = () => {
         end = endOfMonth(today);
         break;
       default:
-        start = new Date(0); // Very old date
-        end = new Date(); // Today
+        start = new Date(0);
+        end = new Date();
     }
     return { start, end };
   };
 
   const { start: rangeStart, end: rangeEnd } = getDateRange();
 
-  // Filtered and Sorted Tasks
   const filteredTasks = tasks.filter(task => {
     const taskDate = task.startTime ? new Date(task.startTime) : null;
     const withinDateRange = taskDate ? (taskDate >= rangeStart && taskDate <= rangeEnd) : true;
@@ -509,9 +505,9 @@ const TaskSheet = () => {
     return matchesSearch && matchesFilter && withinDateRange;
   }).sort((a, b) => {
     if (sortOrder === 'Newest First') {
-      return new Date(b.startTime) - new Date(a.startTime);
+      return new Date(b.startTime || 0) - new Date(a.startTime || 0);
     } else if (sortOrder === 'Oldest First') {
-      return new Date(a.startTime) - new Date(b.startTime);
+      return new Date(a.startTime || 0) - new Date(b.startTime || 0);
     } else if (sortOrder === 'Project A-Z') {
       return a.projectName.localeCompare(b.projectName);
     }
@@ -528,10 +524,9 @@ const TaskSheet = () => {
     return acc;
   }, {});
 
-  // Function to calculate daily progress for LinearProgress
   const calculateDailyProgress = (totalHours) => {
     const progress = (totalHours / DAILY_HOUR_TARGET) * 100;
-    return Math.min(progress, 100); // Cap progress at 100%
+    return Math.min(progress, 100);
   };
 
   const handleFilterMenuClick = (event) => {
@@ -603,7 +598,6 @@ const TaskSheet = () => {
             <MenuItem onClick={() => { setFilterStatus('Overtime'); handleFilterMenuClose(); }}>Overtime</MenuItem>
             <MenuItem onClick={() => { setFilterStatus('Completed'); handleFilterMenuClose(); }}>Completed</MenuItem>
             <MenuItem onClick={() => { setFilterStatus('Archived'); handleFilterMenuClose(); }}>Archived</MenuItem>
-            {/* Add more filter options here */}
           </Menu>
           <IconButton size="small" onClick={handleSortMenuClick}><SortIcon /></IconButton>
           <Menu
@@ -612,9 +606,8 @@ const TaskSheet = () => {
             onClose={handleSortMenuClose}
           >
             <MenuItem onClick={() => { setSortOrder('Newest First'); handleSortMenuClose(); }}>Date (Newest First)</MenuItem>
-            <MenuItem onClick={() => { setSortOrder('Oldest First'); setSortOrder('Oldest First'); handleSortMenuClose(); }}>Date (Oldest First)</MenuItem>
+            <MenuItem onClick={() => { setSortOrder('Oldest First'); handleSortMenuClose(); }}>Date (Oldest First)</MenuItem>
             <MenuItem onClick={() => { setSortOrder('Project A-Z'); handleSortMenuClose(); }}>Project Name (A-Z)</MenuItem>
-            {/* Add more sort options here */}
           </Menu>
           <IconButton size="small" onClick={handleSettingsMenuClick}><SettingsIcon /></IconButton>
           <Menu
@@ -624,7 +617,6 @@ const TaskSheet = () => {
           >
             <MenuItem onClick={() => { console.log('Exporting data...'); handleSettingsMenuClose(); }}>Export</MenuItem>
             <MenuItem onClick={() => { console.log('Customizing columns...'); handleSettingsMenuClose(); }}>Customize Columns</MenuItem>
-            {/* Add more settings options here */}
           </Menu>
           <Button variant="contained" startIcon={<AddIcon />} sx={{ textTransform: 'none' }} onClick={handleNewTaskDialogOpen}>
             Create New
@@ -685,13 +677,14 @@ const TaskSheet = () => {
             />
             <TransitionGroup component={null}>
               {groupedTasks[date].tasks.map((task, index) => {
+                const taskRef = getTaskRef(task.id);
                 return (
-                  <CSSTransition key={task.id} timeout={300} classNames="task-item" nodeRef={itemRefs.current[task.id]}>
+                  <CSSTransition key={task.id} timeout={300} classNames="task-item" nodeRef={taskRef}>
                     <DraggableTask
                       task={task}
                       index={index}
+                      nodeRef={taskRef}
                       moveTask={(dragIndex, hoverIndex) => {
-                        // Logic to move task within the same day group
                         const dayTasks = groupedTasks[date].tasks;
                         const draggedTask = dayTasks[dragIndex];
                         const newDayTasks = [...dayTasks];
@@ -706,14 +699,12 @@ const TaskSheet = () => {
                             return t;
                           });
 
-                          // Ensure that the order in the overall tasks array reflects the new dayTasks order
                           const tasksNotInDay = updatedTasks.filter(t => !dayTasks.some(dt => dt.id === t.id));
                           return [...tasksNotInDay, ...newDayTasks];
                         });
                       }}
                     >
                       <Paper
-                        ref={el => (itemRefs.current[task.id] = el)}
                         elevation={0}
                         sx={{
                           mb: 1.5,
@@ -721,13 +712,13 @@ const TaskSheet = () => {
                           borderRadius: 2,
                           overflow: 'hidden',
                           border: '1px solid #e0e0e0',
-                          boxShadow: '0 2px 10px rgba(0,0,0,0.05)', // Default subtle shadow
+                          boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
                           borderLeft: task.status === 'Overtime' ? '4px solid #ef5350' : '1px solid #e0e0e0',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
                           flexWrap: 'wrap',
-                          transition: 'all 0.2s ease-in-out', // Add transition for smooth effects
+                          transition: 'all 0.2s ease-in-out',
                           '&:hover': {
                             transform: 'translateY(-3px)',
                             boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
@@ -862,7 +853,7 @@ const TaskSheet = () => {
                               onChange={(newContent) => handleTaskChange(task.id, 'description', newContent)}
                               config={joditConfig}
                             />
-                            <Box sx={{ mb: 1 }} /> {/* Spacing after editor */}
+                            <Box sx={{ mb: 1 }} />
                             <TextField
                               fullWidth
                               label="Hours Spent"
@@ -885,7 +876,7 @@ const TaskSheet = () => {
                               onChange={(newContent) => handleTaskChange(task.id, 'challenges', newContent)}
                               config={joditConfig}
                             />
-                            <Box sx={{ mb: 1 }} /> {/* Spacing after editor */}
+                            <Box sx={{ mb: 1 }} />
                             <FormControlLabel
                               control={
                                 <Checkbox
@@ -925,8 +916,6 @@ const TaskSheet = () => {
           Task options for task {selectedTaskId}
         </MuiAlert>
       </Snackbar>
-
-      <LinearProgress variant="determinate" value={calculateDailyProgress()} />
     </Box>
   );
 };
