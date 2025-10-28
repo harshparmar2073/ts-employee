@@ -45,3 +45,25 @@ margin-right: 8px !important;
 margin-right: 0 !important;
 }
 
+.task-item-enter {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.task-item-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 300ms ease-in, transform 300ms ease-in;
+}
+
+.task-item-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.task-item-exit-active {
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
