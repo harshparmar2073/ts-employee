@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import axiosService from "../services/axiosService";
+import axios from "axios"; // Changed from axiosService
+axios.defaults.baseURL = 'https://api.antalyze.uk/v1'; // Set base URL for axios
+import { v4 as uuidv4 } from 'uuid'; // Import uuid
 import PasswordStrengthBar from "react-password-strength-bar";
 import { useToast } from "../context/ToastContext";
 import {
@@ -167,14 +169,21 @@ function getValidationSchema({ signupType }) {
           return !dateOfJoining || !value || value >= dateOfJoining;
         }
       ),
-    workLocation: yup.string().required("Work Location is required"),
-    accountStatus: yup.string().required("Account Status is required"),
+    workLocation: yup.string().oneOf(workLocationOptions, "Invalid work location").required("Work Location is required"),
+    accountStatus: yup.string().oneOf(["Active"], "Account Status can only be 'Active'").required("Account Status is required"),
     salaryCurrency: yup.string().required("Salary Currency is required"),
-    salaryAmount: yup.string().required("Salary Amount is required"),
+    salaryAmount: yup.number().required("Salary Amount is required").typeError("Salary Amount must be a number"), // Changed to number
     paymentFrequency: yup.string().required("Payment Frequency is required"),
     bankName: yup.string().required("Bank Name is required"),
     bankAccountNumber: yup.string().matches(/^[0-9]{9,17}$/, "Bank Account Number must be 9-17 digits").optional(),
-    bankRoutingNumber: yup.string().matches(/^[0-9]{9}$/, "Bank Routing Number must be 9 digits").optional(),
+    bankRoutingNumber: yup.string()
+      .nullable()
+      .notRequired()
+      .test(
+        'is-9-digits',
+        "Bank Routing Number must be 9 digits",
+        (value) => !value || /^[0-9]{9}$/.test(value) // Only validate if value exists
+      ),
     // Address fields validation
     addressLine1: yup.string().required("Address line 1 is required"),
     addressLine2: yup.string().optional(),
@@ -183,8 +192,8 @@ function getValidationSchema({ signupType }) {
     state: yup.string().required("State is required"),
     postcode: yup.string().required("Postcode is required"),
     country: yup.string().required("Country is required"),
-    latitude: yup.number().nullable().optional(),
-    longitude: yup.number().nullable().optional(),
+    latitude: yup.number().required("Latitude is required").nullable(),
+    longitude: yup.number().required("Longitude is required").nullable(),
     createdAt: yup.date().nullable().optional(), // Auto-filled by backend, read-only
     updatedAt: yup.date().nullable().optional(), // Auto-updated by backend, read-only
   });
@@ -194,6 +203,8 @@ const contractTypeOptions = ["Employed", "Contractor", "Intern"];
 const accountStatusOptions = ["Active", "Inactive", "Suspended"];
 const salaryCurrencyOptions = ["USD", "GBP", "EUR", "INR"];
 const paymentFrequencyOptions = ["Monthly", "Bi-Weekly", "Weekly"];
+
+const workLocationOptions = ["London Office", "India Office", "Remote - work from home"];
 
 const Signup = () => {
   const [params] = useSearchParams();
@@ -248,8 +259,8 @@ const Signup = () => {
       country: "IN",
       emergencyContacts: [{ name: "", phone: "" }],
       identificationDocuments: [
-        { documentType: "", documentNumber: "", documentFile: null }, // Added documentFile default
-        { documentType: "", documentNumber: "", documentFile: null }, // Added documentFile default
+        { documentType: "Aadhaar Card", documentNumber: "", documentFile: null }, // Default to Aadhaar Card
+        { documentType: "PAN Card", documentNumber: "", documentFile: null }, // Default to PAN Card
       ],
       customFields: [],
       dateOfBirth: null,
@@ -261,9 +272,9 @@ const Signup = () => {
       workEndTime: null,
       dateOfJoining: null,
       dateOfExit: null,
-      workLocation: "",
-      accountStatus: "",
-      salaryCurrency: "USD", // Default value
+      workLocation: "", // Set default to empty string, or first option if desired
+      accountStatus: "Active", // Default to 'Active'
+      salaryCurrency: "INR", // Default value changed to INR
       salaryAmount: "",
       paymentFrequency: "Monthly", // Default value
       bankName: "",
@@ -271,8 +282,8 @@ const Signup = () => {
       bankRoutingNumber: "",
       latitude: null,
       longitude: null,
-      createdAt: null, // Added default value
-      updatedAt: null, // Added default value
+      // createdAt: null, // Added default value
+      // updatedAt: null, // Added default value
     },
   });
 
@@ -323,46 +334,37 @@ const Signup = () => {
         data.timezone === "auto" ? defaultTimezone : data.timezone;
 
       const payload = {
-        invitationCode: data.invitationCode,
+        employeeCode: 1, // Generate UUID for employeeCode
         firstName: data.firstName,
         middleName: data.middleName || "", // Optional field
         lastName: data.lastName,
-        accountStatus: "active", // Default status
-        // for signupType = oauth
-        signupToken: oauthSignupDetails?.signupToken,
-        auth: {
-          authName: `${data.firstName} ${data.lastName}`,
-          authUserName: signupType === SIGNUP_TYPE_OAUTH
-          ? oauthSignupDetails.email
-          : data.email,
-          authPassword: signupType !== SIGNUP_TYPE_OAUTH && data.password,
-          authStatus: "active", // Default status
-          timeZone: timezoneValue,
-        },
+        jobTitle: data.jobTitle,
+        contractType: data.contractType,
+        workStartTime: data.workStartTime ? new Date(data.workStartTime).toTimeString().slice(0, 8) : null, // Format as HH:MM:SS
+        workEndTime: data.workEndTime ? new Date(data.workEndTime).toTimeString().slice(0, 8) : null, // Format as HH:MM:SS
+        dateOfBirth: data.dateOfBirth ? data.dateOfBirth.toISOString().split('T')[0] : null, // Format as YYYY-MM-DD
+        privateMobile: data.privateMobile,
+        photoUrl: data.photoUrl,
+        dateOfJoining: data.dateOfJoining ? data.dateOfJoining.toISOString().split('T')[0] : null, // Format as YYYY-MM-DD
+        dateOfExit: data.dateOfExit ? data.dateOfExit.toISOString().split('T')[0] : null, // Format as YYYY-MM-DD
+        workLocation: data.workLocation,
+        salaryCurrency: data.salaryCurrency,
+        salaryAmount: data.salaryAmount,
+        paymentFrequency: data.paymentFrequency,
+        bankAccountNumber: data.bankAccountNumber,
+        bankName: data.bankName,
+        bankRoutingNumber: data.bankRoutingNumber,
+        accountStatus: data.accountStatus,
+        address: `${data.addressLine1}, ${data.addressLine2 || ''}, ${data.addressLine3 || ''}, ${data.city}, ${data.state}, ${data.postcode}, ${data.country}, Latitude: ${data.latitude}, Longitude: ${data.longitude}`.trim(),
+        emergencyContact: data.emergencyContacts.map(contact => `${contact.name}: ${contact.phone}`).join('; '),
+        identityDocuments: data.identificationDocuments.map(doc => `${doc.documentType}: ${doc.documentNumber} ${doc.documentFile ? '(File Attached)' : ''}`).join('; '),
+        // createdAt: data.createdAt ? data.createdAt.toISOString() : new Date().toISOString(), // Use current date if not provided
+        // updatedAt: data.updatedAt ? data.updatedAt.toISOString() : new Date().toISOString(), // Use current date if not provided
       };
-
-      // Add address only if showAddress is true
-        payload.address = {
-          addressLine1: data.addressLine1,
-        addressLine2: data.addressLine2,
-          city: data.city,
-        state: data.state,
-          postcode: data.postcode,
-          country: data.country,
-          addressType: "primary", // Default address type
-        };
-
-      payload.emergencyContacts = data.emergencyContacts.map(({ relationship, ...contact }) => contact);
-      payload.identificationDocuments = data.identificationDocuments;
-      payload.customFields = data.customFields;
 
       // Make API call
       let response;
-      if (signupType === SIGNUP_TYPE_OAUTH) {
-        response = await axiosService.post("/account/signup/oauth", payload);
-      } else {
-        response = await axiosService.post("/account/signup/local", payload);
-      }
+      response = await axios.post("/employees", payload); // Changed to axios.post
 
       if (response.status === 200 || response.status === 201) {
         showToast(
@@ -640,6 +642,7 @@ const Signup = () => {
                           <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
                             <DatePicker
                               {...field}
+                              value={field.value || null} // Ensure value is always Date object or null
                               label="Date of Birth"
                               format="dd/MM/yyyy"
                               slotProps={{
@@ -663,8 +666,8 @@ const Signup = () => {
                           <TextField
                             {...field}
                             fullWidth
-                            label="Private Mobile"
-                            placeholder="Private Mobile"
+                            label=" Mobile Number"
+                            placeholder=" Mobile Number"
                             error={!!errors.privateMobile}
                             helperText={errors.privateMobile?.message}
                             inputProps={{ maxLength: 10 }}
@@ -692,7 +695,7 @@ const Signup = () => {
                                   };
                                   reader.readAsDataURL(e.target.files[0]);
                                 } else {
-                                  field.onChange(null);
+                                  field.onChange(""); // Change null to empty string
                                 }
                               }}
                             />
@@ -711,7 +714,7 @@ const Signup = () => {
                                   </IconButton>
                                   <IconButton
                                     size="small"
-                                    onClick={(e) => { e.preventDefault(); field.onChange(null); }}
+                                    onClick={(e) => { e.preventDefault(); field.onChange(""); }}
                                     sx={{ color: theme.palette.error.main }}
                                   >
                                     <CancelOutlinedIcon fontSize="small" />
@@ -1008,7 +1011,7 @@ const Signup = () => {
                             helperText={errors.workStartTime?.message}
                             sx={{ '& .MuiInputBase-root': { height: 56 } }}
                             value={field.value ? new Date(field.value).toTimeString().slice(0, 5) : ''}
-                            onChange={(e) => field.onChange(new Date(`2000-01-01T${e.target.value}`))} // Convert time string to Date object
+                            onChange={(e) => field.onChange(e.target.value ? new Date(`2000-01-01T${e.target.value}`) : null)} // Convert time string to Date object or null
                           />
                         )}
                       />
@@ -1030,7 +1033,7 @@ const Signup = () => {
                             helperText={errors.workEndTime?.message}
                             sx={{ '& .MuiInputBase-root': { height: 56 } }}
                             value={field.value ? new Date(field.value).toTimeString().slice(0, 5) : ''}
-                            onChange={(e) => field.onChange(new Date(`2000-01-01T${e.target.value}`))} // Convert time string to Date object
+                            onChange={(e) => field.onChange(e.target.value ? new Date(`2000-01-01T${e.target.value}`) : null)} // Convert time string to Date object or null
                           />
                         )}
                       />
@@ -1043,6 +1046,7 @@ const Signup = () => {
                           <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
                             <DatePicker
                               {...field}
+                              value={field.value || null} // Ensure value is always Date object or null
                               label="Date of Joining"
                               format="dd/MM/yyyy"
                               slotProps={{
@@ -1066,6 +1070,7 @@ const Signup = () => {
                           <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
                             <DatePicker
                               {...field}
+                              value={field.value || null} // Ensure value is always Date object or null
                               label="Date of Exit"
                               format="dd/MM/yyyy"
                               slotProps={{
@@ -1086,15 +1091,19 @@ const Signup = () => {
                         name="workLocation"
                         control={control}
                         render={({ field }) => (
-                          <TextField
-                            {...field}
-                            fullWidth
-                            label="Work Location"
-                            placeholder="e.g., Remote / London Office"
-                            error={!!errors.workLocation}
-                            helperText={errors.workLocation?.message}
-                            sx={{ '& .MuiInputBase-root': { height: 56 } }}
-                          />
+                          <FormControl fullWidth error={!!errors.workLocation} sx={{ '& .MuiOutlinedInput-root': { height: 56 } }}>
+                            <InputLabel>Work Location</InputLabel>
+                            <Select
+                              {...field}
+                              label="Work Location"
+                              MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
+                            >
+                              {workLocationOptions.map((option) => (
+                                <MenuItem key={option} value={option}>{option}</MenuItem>
+                              ))}
+                            </Select>
+                            {errors.workLocation && <FormHelperText>{errors.workLocation?.message}</FormHelperText>}
+                          </FormControl>
                         )}
                       />
                     </Box>
@@ -1110,9 +1119,8 @@ const Signup = () => {
                               label="Account Status"
                               MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
                             >
-                              {accountStatusOptions.map((option) => (
-                                <MenuItem key={option} value={option}>{option}</MenuItem>
-                              ))}
+                              {/* Only 'Active' option available as per new requirement */}
+                              <MenuItem value="Active">Active</MenuItem>
                             </Select>
                             {errors.accountStatus && <FormHelperText>{errors.accountStatus?.message}</FormHelperText>}
                           </FormControl>
@@ -1302,6 +1310,7 @@ const Signup = () => {
                             label="Bank Routing Number (Optional)"
                             placeholder="e.g., 123456789"
                             type="number"
+                            required={false} // Explicitly set to false to avoid automatic asterisk
                             error={!!errors.bankRoutingNumber}
                             helperText={errors.bankRoutingNumber?.message}
                             sx={{ '& .MuiInputBase-root': { height: 56 } }}
@@ -1407,6 +1416,8 @@ const Signup = () => {
                             {...field}
                             options={indianStates}
                             onChange={(e, newValue) => field.onChange(newValue)}
+                            disableClearable
+                            PopperProps={{ placement: "bottom-start" }} // Moved here
                             renderInput={(params) => (
                               <TextField
                                 {...params}
@@ -1416,8 +1427,6 @@ const Signup = () => {
                                 helperText={errors.state?.message}
                               />
                             )}
-                            disableClearable
-                            PopperProps={{ placement: "bottom-start" }}
                             sx={{ mb: 1.5 }}
                           />
                         )}
@@ -1530,7 +1539,7 @@ const Signup = () => {
                             <TextField
                               {...field}
                               fullWidth
-                              label="Latitude (Optional)"
+                              label="Latitude"
                               placeholder="e.g., 34.0522"
                               type="number"
                               error={!!errors.latitude}
@@ -1547,7 +1556,7 @@ const Signup = () => {
                             <TextField
                               {...field}
                               fullWidth
-                              label="Longitude (Optional)"
+                              label="Longitude"
                               placeholder="e.g., -118.2437"
                               type="number"
                               error={!!errors.longitude}
@@ -1673,7 +1682,7 @@ const Signup = () => {
                                           };
                                           reader.readAsDataURL(e.target.files[0]);
                                         } else {
-                                          field.onChange(null);
+                                          field.onChange(""); // Change null to empty string
                                         }
                                       }}
                                     />
@@ -1692,7 +1701,7 @@ const Signup = () => {
                                           </IconButton>
                                           <IconButton
                                             size="small"
-                                            onClick={(e) => { e.preventDefault(); field.onChange(null); }}
+                                            onClick={(e) => { e.preventDefault(); field.onChange(""); }}
                                             sx={{ color: theme.palette.error.main }}
                                           >
                                             <CancelOutlinedIcon fontSize="small" />
@@ -1817,55 +1826,60 @@ const Signup = () => {
               </Box>
 
                     {/* Documents & Audit Info Section */}
-                    <Box sx={{ mb: 2 }}>
-                      <Typography
-                        sx={{
-                          fontWeight: theme.typography.fontWeightBold,
-                          fontFamily: theme.typography.fontFamily,
-                          color: theme.palette.text.primary,
-                          mb: 1.5,
-                          fontSize: { xs: 12, sm: 14 } // Changed to subheading font size
-                        }}
-                      >
-                        Documents & Audit Info
-                      </Typography>
-                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, mb: 3 }}>
-                        <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
-                          <Controller
-                            name="createdAt"
-                            control={control}
-                            render={({ field }) => (
-                              <TextField
-                                {...field}
-                                fullWidth
-                                label="Created At"
-                                InputProps={{ readOnly: true }}
-                                value={field.value ? new Date(field.value).toLocaleString() : ''}
-                                sx={{ '& .MuiInputBase-root': { height: 56 } }}
-                              />
-                            )}
-                          />
-                        </Box>
-                        <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
-                          <Controller
-                            name="updatedAt"
-                            control={control}
-                            render={({ field }) => (
-                              <TextField
-                                {...field}
-                                fullWidth
-                                label="Updated At"
-                                InputProps={{ readOnly: true }}
-                                value={field.value ? new Date(field.value).toLocaleString() : ''}
-                                sx={{ '& .MuiInputBase-root': { height: 56 } }}
-                              />
-                            )}
-                          />
+                    {/* Hidden as per user request */}
+                    {false && (
+                      <Box sx={{ mb: 2 }}>
+                        <Typography
+                          sx={{
+                            fontWeight: theme.typography.fontWeightBold,
+                            fontFamily: theme.typography.fontFamily,
+                            color: theme.palette.text.primary,
+                            mb: 1.5,
+                            fontSize: { xs: 12, sm: 14 } // Changed to subheading font size
+                          }}
+                        >
+                          Documents & Audit Info
+                        </Typography>
+                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, mb: 3 }}>
+                          <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+                            <Controller
+                              name="createdAt"
+                              control={control}
+                              render={({ field }) => (
+                                <TextField
+                                  {...field}
+                                  fullWidth
+                                  label="Created At"
+                                  InputProps={{ readOnly: true }}
+                                  value={field.value ? new Date(field.value).toLocaleString() : ''}
+                                  sx={{ '& .MuiInputBase-root': { height: 56 } }}
+                                />
+                              )}
+                            />
+                          </Box>
+                          <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+                            <Controller
+                              name="updatedAt"
+                              control={control}
+                              render={({ field }) => (
+                                <TextField
+                                  {...field}
+                                  fullWidth
+                                  label="Updated At"
+                                  InputProps={{ readOnly: true }}
+                                  value={field.value ? new Date(field.value).toLocaleString() : ''}
+                                  sx={{ '& .MuiInputBase-root': { height: 56 } }}
+                                />
+                              )}
+                            />
+                          </Box>
                         </Box>
                       </Box>
-              </Box>
+                    )}
 
               {/* Custom Fields */}
+                    {/* Hidden as per user request */}
+                    {false && (
               <Box sx={{ mb: 2 }}>
                 <Typography
                   sx={{
@@ -1943,6 +1957,7 @@ const Signup = () => {
                   Add Custom Field
                 </Button>
               </Box>
+                    )}
                   </Box>
                 </AccordionDetails>
               </Accordion>
