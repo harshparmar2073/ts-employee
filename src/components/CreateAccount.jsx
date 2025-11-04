@@ -67,6 +67,9 @@ import AccordionDetails from '@mui/material/AccordionDetails';
 import Divider from '@mui/material/Divider';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
+import "react-phone-number-input/style.css"; // Keep this for PhoneInput styling from ControlledPhoneInput
+import ControlledPhoneInput from "../components/forms/ControlledPhoneInput"; // Import ControlledPhoneInput
+
 const indianStates = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
   "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
@@ -100,7 +103,18 @@ function getValidationSchema({ signupType }) {
       .min(2, "Last name must be at least 2 characters")
       .matches(/^[a-zA-Z\s]+$/, "Last name can only contain letters and spaces"),
     dateOfBirth: yup.date().required("Date of birth is required").nullable(),
-    privateMobile: yup.string().matches(/^[0-9]+$/, "Mobile number must be digits only").length(10, "Mobile number must be exactly 10 digits").required("Private Mobile is required"),
+    privateMobile: yup
+    .string()
+    .required("Private Mobile is required")
+    .test('is-valid-mobile', 'Mobile number must be exactly 10 digits', function(value) {
+      if (!value) return false;
+      // Remove all non-digit characters (including country code, spaces, etc.)
+      const digitsOnly = value.replace(/\D/g, '');
+      // For Indian numbers, after country code +91, should be exactly 10 digits
+      // The phone input will include country code, so we need to handle that
+      return digitsOnly.length >= 10 && digitsOnly.length <= 13; // Allows country code + 10 digits
+    }),
+  
     photoUrl: yup.string().nullable(), // Changed to nullable string for file input
     email: yup
       .string()
@@ -206,7 +220,7 @@ const paymentFrequencyOptions = ["Monthly", "Bi-Weekly", "Weekly"];
 
 const workLocationOptions = ["London Office", "India Office", "Remote - work from home"];
 
-const Signup = () => {
+const Signup = ({ readOnly = false, initialData = null }) => {
   const [params] = useSearchParams();
   const signupType = params.get("signupType");
 
@@ -287,6 +301,8 @@ const Signup = () => {
     },
   });
 
+  const formData = watch(); // Add this line to define formData
+
   const { fields: emergencyContactsFields, append: appendEmergencyContact, remove: removeEmergencyContact } = useFieldArray({
     control,
     name: "emergencyContacts",
@@ -334,7 +350,9 @@ const Signup = () => {
         data.timezone === "auto" ? defaultTimezone : data.timezone;
 
       const payload = {
-        employeeCode: 1, // Generate UUID for employeeCode
+        invitationCode: data.invitationCode,
+        authUser: data.email,
+        authPassword: data.password,
         firstName: data.firstName,
         middleName: data.middleName || "", // Optional field
         lastName: data.lastName,
@@ -343,6 +361,7 @@ const Signup = () => {
         workStartTime: data.workStartTime ? new Date(data.workStartTime).toTimeString().slice(0, 8) : null, // Format as HH:MM:SS
         workEndTime: data.workEndTime ? new Date(data.workEndTime).toTimeString().slice(0, 8) : null, // Format as HH:MM:SS
         dateOfBirth: data.dateOfBirth ? data.dateOfBirth.toISOString().split('T')[0] : null, // Format as YYYY-MM-DD
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         privateMobile: data.privateMobile,
         photoUrl: data.photoUrl,
         dateOfJoining: data.dateOfJoining ? data.dateOfJoining.toISOString().split('T')[0] : null, // Format as YYYY-MM-DD
@@ -364,7 +383,85 @@ const Signup = () => {
 
       // Make API call
       let response;
-      response = await axios.post("/employees", payload); // Changed to axios.post
+      response = await axios.post("/account/signup/employee", payload); // Changed to axios.post
+
+      if (response.status === 200 || response.status === 201) {
+        showToast(
+          "Account created successfully! Redirecting to login page...",
+          "success"
+        );
+
+        // Redirect to login page after 2 seconds
+        setTimeout(() => {
+          navigate("/");
+        }, 2000);
+      }
+    } catch (error) {
+      console.error("Signup error:", error);
+
+      let errorMessage = "An unexpected error occurred. Please try again.";
+
+      if (error.response) {
+        // Server responded with error status
+        errorMessage =
+          error.response.data?.message ||
+          error.response.data?.error ||
+          `Error: ${error.response.status}`;
+      } else if (error.request) {
+        // Request made but no response received
+        errorMessage =
+          "Network error. Please check your connection and try again.";
+      }
+
+      showToast(errorMessage, "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleSignupSubmit = async (data) => {
+    setIsSubmitting(true);
+
+    try {
+      // Prepare the payload according to API requirements
+      const timezoneValue =
+        data.timezone === "auto" ? defaultTimezone : data.timezone;
+
+      const payload = {
+        invitationCode: data.invitationCode,
+        authUser: data.email,
+        authPassword: data.password,
+        firstName: data.firstName,
+        middleName: data.middleName || "", // Optional field
+        lastName: data.lastName,
+        jobTitle: data.jobTitle,
+        contractType: data.contractType,
+        workStartTime: data.workStartTime ? new Date(data.workStartTime).toTimeString().slice(0, 8) : null, // Format as HH:MM:SS
+        workEndTime: data.workEndTime ? new Date(data.workEndTime).toTimeString().slice(0, 8) : null, // Format as HH:MM:SS
+        dateOfBirth: data.dateOfBirth ? data.dateOfBirth.toISOString().split('T')[0] : null, // Format as YYYY-MM-DD
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        privateMobile: data.privateMobile,
+        photoUrl: data.photoUrl,
+        dateOfJoining: data.dateOfJoining ? data.dateOfJoining.toISOString().split('T')[0] : null, // Format as YYYY-MM-DD
+        dateOfExit: data.dateOfExit ? data.dateOfExit.toISOString().split('T')[0] : null, // Format as YYYY-MM-DD
+        workLocation: data.workLocation,
+        salaryCurrency: data.salaryCurrency,
+        salaryAmount: data.salaryAmount,
+        paymentFrequency: data.paymentFrequency,
+        bankAccountNumber: data.bankAccountNumber,
+        bankName: data.bankName,
+        bankRoutingNumber: data.bankRoutingNumber,
+        accountStatus: data.accountStatus,
+        address: `${data.addressLine1}, ${data.addressLine2 || ''}, ${data.addressLine3 || ''}, ${data.city}, ${data.state}, ${data.postcode}, ${data.country}, Latitude: ${data.latitude}, Longitude: ${data.longitude}`.trim(),
+        emergencyContact: data.emergencyContacts.map(contact => `${contact.name}: ${contact.phone}`).join('; '),
+        identityDocuments: data.identificationDocuments.map(doc => `${doc.documentType}: ${doc.documentNumber} ${doc.documentFile ? '(File Attached)' : ''}`).join('; '),
+        // createdAt: data.createdAt ? data.createdAt.toISOString() : new Date().toISOString(), // Use current date if not provided
+        // updatedAt: data.updatedAt ? data.updatedAt.toISOString() : new Date().toISOString(), // Use current date if not provided
+      };
+
+      // Make API call
+      let response;
+      response = await axios.post("/account/signup/employee", payload); // Changed to axios.post
 
       if (response.status === 200 || response.status === 201) {
         showToast(
@@ -420,19 +517,75 @@ const Signup = () => {
     }
   }, [signupType]);
 
+  useEffect(() => {
+    if (!initialData) return;
+    try {
+      const mapped = {
+        invitationCode: initialData.invitationCode ?? "",
+        firstName: initialData.firstName ?? "",
+        middleName: initialData.middleName ?? "",
+        lastName: initialData.lastName ?? "",
+        email: initialData.email ?? initialData.authUser ?? "",
+        timezone: initialData.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+        addressLine1: initialData.addressLine1 ?? initialData.address?.line1 ?? "",
+        addressLine2: initialData.addressLine2 ?? initialData.address?.line2 ?? "",
+        addressLine3: initialData.addressLine3 ?? initialData.address?.line3 ?? "",
+        state: initialData.state ?? initialData.address?.state ?? "",
+        city: initialData.city ?? initialData.address?.city ?? "",
+        postcode: initialData.postcode ?? initialData.address?.postcode ?? "",
+        country: initialData.country ?? initialData.address?.country ?? "IN",
+        dateOfBirth: initialData.dateOfBirth ? new Date(initialData.dateOfBirth) : null,
+        privateMobile: initialData.privateMobile ?? initialData.mobileNumber ?? "",
+        photoUrl: initialData.photoUrl ?? "",
+        jobTitle: initialData.jobTitle ?? "",
+        contractType: initialData.contractType ?? "",
+        workStartTime: initialData.workStartTime ? new Date(`2000-01-01T${initialData.workStartTime}`) : null,
+        workEndTime: initialData.workEndTime ? new Date(`2000-01-01T${initialData.workEndTime}`) : null,
+        dateOfJoining: initialData.dateOfJoining ? new Date(initialData.dateOfJoining) : null,
+        dateOfExit: initialData.dateOfExit ? new Date(initialData.dateOfExit) : null,
+        workLocation: initialData.workLocation ?? "",
+        accountStatus: initialData.accountStatus ?? "Active",
+        salaryCurrency: initialData.salaryCurrency ?? "INR",
+        salaryAmount: initialData.salaryAmount ?? "",
+        paymentFrequency: initialData.paymentFrequency ?? "Monthly",
+        bankName: initialData.bankName ?? "",
+        bankAccountNumber: initialData.bankAccountNumber ?? "",
+        bankRoutingNumber: initialData.bankRoutingNumber ?? "",
+        latitude: initialData.latitude ?? null,
+        longitude: initialData.longitude ?? null,
+        emergencyContacts: Array.isArray(initialData.emergencyContacts) && initialData.emergencyContacts.length
+          ? initialData.emergencyContacts.map(c => ({ name: c.name ?? "", phone: c.phone ?? "" }))
+          : [{ name: "", phone: "" }],
+        identificationDocuments: Array.isArray(initialData.identificationDocuments) && initialData.identificationDocuments.length
+          ? initialData.identificationDocuments.map(d => ({
+              documentType: d.documentType ?? "Aadhaar Card",
+              documentNumber: d.documentNumber ?? "",
+              documentFile: d.documentFile ?? null
+            }))
+          : [
+              { documentType: "Aadhaar Card", documentNumber: "", documentFile: null },
+              { documentType: "PAN Card", documentNumber: "", documentFile: null }
+            ],
+      };
+      reset(mapped, { keepDefaultValues: true });
+    } catch (e) {
+      // swallow mapping errors to avoid breaking view in read-only
+    }
+  }, [initialData, reset]);
+
   return (
     <Box
       sx={{
-        minHeight: "100vh",
+        minHeight: readOnly ? 'auto' : "100vh",
         width: "100%",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: theme.palette.background.gradientBackground,
+        background: readOnly ? 'transparent' : theme.palette.background.gradientBackground,
         padding: { xs: 1, sm: 2 }, // Responsive padding
-        position: "relative",
-        overflow: "auto",
-        "&::before": {
+        position: readOnly ? 'relative' : "relative",
+        overflow: readOnly ? 'visible' : "auto",
+        "&::before": readOnly ? { display: 'none' } : {
           content: '""',
           position: "absolute",
           top: 0,
@@ -446,6 +599,7 @@ const Signup = () => {
       }}
     >
       {/* Back arrow */}
+      {!readOnly && (
       <IconButton
         onClick={handleBack}
         sx={{
@@ -463,6 +617,7 @@ const Signup = () => {
       >
         <ArrowBack />
       </IconButton>
+      )}
 
       <Container
         maxWidth="md"
@@ -480,59 +635,62 @@ const Signup = () => {
             backgroundColor: theme.palette.background.paper,
           }}
         >
-          <CardContent sx={{ p: { xs: 2, sm: 3 } }}> {/* Responsive padding */}
-            {/* Logo & Title */}
-            <Box sx={{ textAlign: "center", mb: 3 }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  mb: 2,
-                  width: "100%",
-                }}
-              >
-                <Box
-                  component="img"
-                  src={logo}
-                  alt="logo"
-                  sx={{
-                    height: { xs: 60, sm: 80 }, // Responsive height
-                    maxWidth: "60%",
-                    objectFit: "contain",
-                    mx: "auto",
-                    display: "block",
-                    boxShadow: "0 4px 24px rgba(102,126,234,0.10)",
-                    borderRadius: 2,
-                    background: "rgba(255,255,255,0.9)",
-                    p: 1,
-                  }}
-                />
-              </Box>
-              <Typography
-                variant={isMobile ? "h6" : "h5"}
-                sx={{
-                  mt: 1,
-                  fontWeight: theme.typography.fontWeightBold,
-                  fontFamily: theme.typography.fontFamily,
-                  color: theme.palette.text.primary,
-                  mb: 0.5
-                }}
-              >
-                Employee Signup
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: theme.palette.text.secondary,
-                  fontFamily: theme.typography.fontFamily,
-                }}
-              >
-                Account Signup
-              </Typography>
-            </Box>
+          {readOnly && (
+        <Box sx={{ position: 'absolute', inset: 0, zIndex: 3, bgcolor: 'rgba(0,0,0,0.02)', pointerEvents: 'none' }} />
+      )}
+      <CardContent sx={{ p: { xs: 2, sm: 3 } }}> {/* Responsive padding */}
+        {/* Logo & Title */}
+        <Box sx={{ textAlign: "center", mb: 3 }}>
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              mb: 2,
+              width: "100%",
+            }}
+          >
+            <Box
+              component="img"
+              src={logo}
+              alt="logo"
+              sx={{
+                height: { xs: 60, sm: 80 }, // Responsive height
+                maxWidth: "60%",
+                objectFit: "contain",
+                mx: "auto",
+                display: "block",
+                boxShadow: "0 4px 24px rgba(102,126,234,0.10)",
+                borderRadius: 2,
+                background: "rgba(255,255,255,0.9)",
+                p: 1,
+              }}
+            />
+          </Box>
+          <Typography
+            variant={isMobile ? "h6" : "h5"}
+            sx={{
+              mt: 1,
+              fontWeight: theme.typography.fontWeightBold,
+              fontFamily: theme.typography.fontFamily,
+              color: theme.palette.text.primary,
+              mb: 0.5
+            }}
+          >
+            Employee Signup
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              color: theme.palette.text.secondary,
+              fontFamily: theme.typography.fontFamily,
+            }}
+          >
+            Account Signup
+          </Typography>
+        </Box>
 
-            <form onSubmit={handleSubmit(onSubmit)}>
+            <form onSubmit={readOnly ? (e) => e.preventDefault() : handleSubmit(handleSignupSubmit)}>
               {/* Invitation Code */}
               <Controller
                 name="invitationCode"
@@ -658,24 +816,38 @@ const Signup = () => {
                         )}
                       />
                     </Box>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}> {/* Private Mobile */}
-                      <Controller
-                        name="privateMobile"
-                        control={control}
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            fullWidth
-                            label=" Mobile Number"
-                            placeholder=" Mobile Number"
-                            error={!!errors.privateMobile}
-                            helperText={errors.privateMobile?.message}
-                            inputProps={{ maxLength: 10 }}
-                            sx={{ '& .MuiInputBase-root': { height: 56 } }}
-                          />
-                        )}
-                      />
-                    </Box>
+                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+  <Controller
+    name="privateMobile"
+    control={control}
+    render={({ field: { onChange, value, ...field } }) => (
+      <ControlledPhoneInput
+        {...field}
+        name="privateMobile"
+        label="Mobile Number"
+            control={control}
+            errors={errors}
+        defaultCountry={formData.country || 'IN'}
+        value={value}
+        onChange={(val) => {
+          // Remove all non-digit characters
+          const digitsOnly = val ? val.replace(/\D/g, '') : '';
+          
+          // For Indian numbers: country code (91) + 10 digits = 12 digits total
+          // For US numbers: country code (1) + 10 digits = 11 digits total
+          const countryCode = formData.country || 'IN';
+          const maxLength = countryCode === 'IN' ? 12 : 
+                           countryCode === 'US' ? 11 : 13;
+          
+          // Limit to max length
+          if (digitsOnly.length <= maxLength) {
+            onChange(val);
+          }
+        }}
+      />
+    )}
+  />
+</Box>
                     <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}> {/* Photo URL */}
                       <Controller
                         name="photoUrl"
@@ -929,80 +1101,80 @@ const Signup = () => {
               </Accordion>
               {/* Removed redundant Divider */}
 
-              {/* Employment Details */}
-              <Accordion defaultExpanded sx={{ mb: 2, boxShadow: 'none', '&::before': { display: 'none' } }}>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
-                  aria-controls="employment-details-content"
-                  id="employment-details-header"
-                  sx={{
-                    padding: 0,
-                    backgroundColor: 'transparent',
-                    flexDirection: 'row-reverse',
-                    '& .MuiAccordionSummary-expandIconWrapper.Mui-expanded': { transform: 'rotate(180deg)' },
-                    '& .MuiAccordionSummary-content': { marginLeft: theme.spacing(1) },
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontWeight: theme.typography.fontWeightBold,
-                      fontFamily: theme.typography.fontFamily,
-                      color: theme.palette.text.primary,
-                      fontSize: { xs: 16, sm: 18 } // Responsive font size
-                    }}
-                  >
-                    Employment Details
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails sx={{ padding: 0 }}>
+          {/* Employment Details */}
+          <Accordion defaultExpanded sx={{ mb: 2, boxShadow: 'none', '&::before': { display: 'none' } }}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
+              aria-controls="employment-details-content"
+              id="employment-details-header"
+              sx={{
+                padding: 0,
+                backgroundColor: 'transparent',
+                flexDirection: 'row-reverse',
+                '& .MuiAccordionSummary-expandIconWrapper.Mui-expanded': { transform: 'rotate(180deg)' },
+                '& .MuiAccordionSummary-content': { marginLeft: theme.spacing(1) },
+              }}
+            >
+              <Typography
+                sx={{
+                  fontWeight: theme.typography.fontWeightBold,
+                  fontFamily: theme.typography.fontFamily,
+                  color: theme.palette.text.primary,
+                  fontSize: { xs: 16, sm: 18 } // Responsive font size
+                }}
+              >
+                Employment Details
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ padding: 0 }}>
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
-              <Controller
-                        name="jobTitle"
-                control={control}
-                render={({ field }) => (
-                        <TextField
-                            {...field}
-                            fullWidth
-                            label="Job Title"
+                <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+                  <Controller
+                    name="jobTitle"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        label="Job Title"
                             placeholder="e.g., Sr. Software Engineer"
-                            error={!!errors.jobTitle}
-                            helperText={errors.jobTitle?.message}
-                            sx={{ '& .MuiInputBase-root': { height: 56 } }}
-                          />
-                        )}
+                        error={!!errors.jobTitle}
+                        helperText={errors.jobTitle?.message}
+                        sx={{ '& .MuiInputBase-root': { height: 56 } }}
                       />
-                    </Box>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
-                      <Controller
-                        name="contractType"
-                        control={control}
-                        render={({ field }) => (
-                          <FormControl fullWidth error={!!errors.contractType} sx={{ '& .MuiOutlinedInput-root': { height: 56 } }}>
-                            <InputLabel>Contract Type</InputLabel>
+                    )}
+                  />
+                </Box>
+                <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+                  <Controller
+                    name="contractType"
+                    control={control}
+                    render={({ field }) => (
+                      <FormControl fullWidth error={!!errors.contractType} sx={{ '& .MuiOutlinedInput-root': { height: 56 } }}>
+                        <InputLabel>Contract Type</InputLabel>
                             <Select
                               {...field}
                               label="Contract Type"
                               MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
                             >
-                              {contractTypeOptions.map((option) => (
+                          {contractTypeOptions.map((option) => (
                                 <MenuItem key={option} value={option}>{option}</MenuItem>
-                              ))}
-                            </Select>
-                            {errors.contractType && <FormHelperText>{errors.contractType?.message}</FormHelperText>}
-                          </FormControl>
-                        )}
-                      />
-                    </Box>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
-                      <Controller
-                        name="workStartTime"
-                        control={control}
-                        render={({ field }) => (
+                          ))}
+                        </Select>
+                        {errors.contractType && <FormHelperText>{errors.contractType?.message}</FormHelperText>}
+                      </FormControl>
+                    )}
+                  />
+                </Box>
+                <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+                  <Controller
+                    name="workStartTime"
+                    control={control}
+                    render={({ field }) => (
                           <TextField
-                            {...field}
+                          {...field}
                             fullWidth
-                            label="Work Start Time"
+                          label="Work Start Time"
                             type="time"
                             InputLabelProps={{
                               shrink: true,
@@ -1013,18 +1185,18 @@ const Signup = () => {
                             value={field.value ? new Date(field.value).toTimeString().slice(0, 5) : ''}
                             onChange={(e) => field.onChange(e.target.value ? new Date(`2000-01-01T${e.target.value}`) : null)} // Convert time string to Date object or null
                           />
-                        )}
-                      />
-                    </Box>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
-                      <Controller
-                        name="workEndTime"
-                        control={control}
-                        render={({ field }) => (
+                    )}
+                  />
+                </Box>
+                <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+                  <Controller
+                    name="workEndTime"
+                    control={control}
+                    render={({ field }) => (
                           <TextField
-                            {...field}
+                          {...field}
                             fullWidth
-                            label="Work End Time"
+                          label="Work End Time"
                             type="time"
                             InputLabelProps={{
                               shrink: true,
@@ -1035,85 +1207,85 @@ const Signup = () => {
                             value={field.value ? new Date(field.value).toTimeString().slice(0, 5) : ''}
                             onChange={(e) => field.onChange(e.target.value ? new Date(`2000-01-01T${e.target.value}`) : null)} // Convert time string to Date object or null
                           />
-                        )}
-                      />
-                    </Box>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
-                      <Controller
-                        name="dateOfJoining"
-                        control={control}
-                        render={({ field }) => (
-                          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
-                            <DatePicker
-                              {...field}
+                    )}
+                  />
+                </Box>
+                <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+                  <Controller
+                    name="dateOfJoining"
+                    control={control}
+                    render={({ field }) => (
+                      <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
+                        <DatePicker
+                          {...field}
                               value={field.value || null} // Ensure value is always Date object or null
-                              label="Date of Joining"
-                              format="dd/MM/yyyy"
-                              slotProps={{
-                                textField: {
-                                  error: !!errors.dateOfJoining,
-                                  helperText: errors.dateOfJoining?.message,
-                                  sx: { '& .MuiOutlinedInput-root': { height: 56 } },
-                                  fullWidth: true,
-                                },
-                              }}
-                            />
-                          </LocalizationProvider>
-                        )}
-                      />
-                    </Box>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
-                      <Controller
-                        name="dateOfExit"
-                        control={control}
-                        render={({ field }) => (
-                          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
-                            <DatePicker
-                              {...field}
+                          label="Date of Joining"
+                          format="dd/MM/yyyy"
+                          slotProps={{
+                            textField: {
+                              error: !!errors.dateOfJoining,
+                              helperText: errors.dateOfJoining?.message,
+                              sx: { '& .MuiOutlinedInput-root': { height: 56 } },
+                              fullWidth: true,
+                            },
+                          }}
+                        />
+                      </LocalizationProvider>
+                    )}
+                  />
+                </Box>
+                <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+                  <Controller
+                    name="dateOfExit"
+                    control={control}
+                    render={({ field }) => (
+                      <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enGB}>
+                        <DatePicker
+                          {...field}
                               value={field.value || null} // Ensure value is always Date object or null
-                              label="Date of Exit"
-                              format="dd/MM/yyyy"
-                              slotProps={{
-                                textField: {
-                                  error: !!errors.dateOfExit,
-                                  helperText: errors.dateOfExit?.message,
-                                  sx: { '& .MuiOutlinedInput-root': { height: 56 } },
-                                  fullWidth: true,
-                                },
-                              }}
-                            />
-                          </LocalizationProvider>
-                        )}
-                      />
-                    </Box>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
-                      <Controller
-                        name="workLocation"
-                        control={control}
-                        render={({ field }) => (
-                          <FormControl fullWidth error={!!errors.workLocation} sx={{ '& .MuiOutlinedInput-root': { height: 56 } }}>
-                            <InputLabel>Work Location</InputLabel>
+                          label="Date of Exit"
+                          format="dd/MM/yyyy"
+                          slotProps={{
+                            textField: {
+                              error: !!errors.dateOfExit,
+                              helperText: errors.dateOfExit?.message,
+                              sx: { '& .MuiOutlinedInput-root': { height: 56 } },
+                              fullWidth: true,
+                            },
+                          }}
+                        />
+                      </LocalizationProvider>
+                    )}
+                  />
+                </Box>
+                <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+                  <Controller
+                    name="workLocation"
+                    control={control}
+                    render={({ field }) => (
+                      <FormControl fullWidth error={!!errors.workLocation} sx={{ '& .MuiOutlinedInput-root': { height: 56 } }}>
+                        <InputLabel>Work Location</InputLabel>
                             <Select
                               {...field}
                               label="Work Location"
                               MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
                             >
-                              {workLocationOptions.map((option) => (
+                          {workLocationOptions.map((option) => (
                                 <MenuItem key={option} value={option}>{option}</MenuItem>
-                              ))}
-                            </Select>
-                            {errors.workLocation && <FormHelperText>{errors.workLocation?.message}</FormHelperText>}
-                          </FormControl>
-                        )}
-                      />
-                    </Box>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
-                      <Controller
-                        name="accountStatus"
-                        control={control}
-                        render={({ field }) => (
-                          <FormControl fullWidth error={!!errors.accountStatus} sx={{ '& .MuiOutlinedInput-root': { height: 56 } }}>
-                            <InputLabel>Account Status</InputLabel>
+                          ))}
+                        </Select>
+                        {errors.workLocation && <FormHelperText>{errors.workLocation?.message}</FormHelperText>}
+                      </FormControl>
+                    )}
+                  />
+                </Box>
+                <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+                  <Controller
+                    name="accountStatus"
+                    control={control}
+                    render={({ field }) => (
+                      <FormControl fullWidth error={!!errors.accountStatus} sx={{ '& .MuiOutlinedInput-root': { height: 56 } }}>
+                        <InputLabel>Account Status</InputLabel>
                             <Select
                               {...field}
                               label="Account Status"
@@ -1121,43 +1293,43 @@ const Signup = () => {
                             >
                               {/* Only 'Active' option available as per new requirement */}
                               <MenuItem value="Active">Active</MenuItem>
-                            </Select>
-                            {errors.accountStatus && <FormHelperText>{errors.accountStatus?.message}</FormHelperText>}
-                          </FormControl>
-                        )}
-                      />
-                    </Box>
-                  </Box>
-                </AccordionDetails>
-              </Accordion>
+                        </Select>
+                        {errors.accountStatus && <FormHelperText>{errors.accountStatus?.message}</FormHelperText>}
+                      </FormControl>
+                    )}
+                  />
+                </Box>
+              </Box>
+            </AccordionDetails>
+          </Accordion>
               {/* Removed redundant Divider */}
 
               {/* Salary & Bank Details */}
-              <Accordion defaultExpanded sx={{ mb: 2, boxShadow: 'none', '&::before': { display: 'none' } }}>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
+          <Accordion defaultExpanded sx={{ mb: 2, boxShadow: 'none', '&::before': { display: 'none' } }}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
                   aria-controls="salary-bank-details-content"
                   id="salary-bank-details-header"
-                      sx={{
-                    padding: 0,
-                    backgroundColor: 'transparent',
-                    flexDirection: 'row-reverse',
-                    '& .MuiAccordionSummary-expandIconWrapper.Mui-expanded': { transform: 'rotate(180deg)' },
-                    '& .MuiAccordionSummary-content': { marginLeft: theme.spacing(1) },
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontWeight: theme.typography.fontWeightBold,
-                          fontFamily: theme.typography.fontFamily,
-                      color: theme.palette.text.primary,
-                      fontSize: { xs: 16, sm: 18 } // Responsive font size
-                    }}
-                  >
+              sx={{
+                padding: 0,
+                backgroundColor: 'transparent',
+                flexDirection: 'row-reverse',
+                '& .MuiAccordionSummary-expandIconWrapper.Mui-expanded': { transform: 'rotate(180deg)' },
+                '& .MuiAccordionSummary-content': { marginLeft: theme.spacing(1) },
+              }}
+            >
+              <Typography
+                sx={{
+                  fontWeight: theme.typography.fontWeightBold,
+                  fontFamily: theme.typography.fontFamily,
+                  color: theme.palette.text.primary,
+                  fontSize: { xs: 16, sm: 18 } // Responsive font size
+                }}
+              >
                     Salary & Bank Details
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails sx={{ padding: 0 }}>
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ padding: 0 }}>
 
                   {/* Compensation Section */}
                   <Typography
@@ -1173,185 +1345,185 @@ const Signup = () => {
                   >
                     Compensation
                   </Typography>
-                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, mb: 3 }}>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
-                      <Controller
-                        name="salaryCurrency"
-                        control={control}
-                        render={({ field }) => (
-                          <FormControl fullWidth error={!!errors.salaryCurrency} sx={{ '& .MuiOutlinedInput-root': { height: 56 } }}>
-                            <InputLabel>Salary Currency</InputLabel>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, mb: 3 }}>
+                <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+                  <Controller
+                    name="salaryCurrency"
+                    control={control}
+                    render={({ field }) => (
+                      <FormControl fullWidth error={!!errors.salaryCurrency} sx={{ '& .MuiOutlinedInput-root': { height: 56 } }}>
+                        <InputLabel>Salary Currency</InputLabel>
                             <Select
                               {...field}
                               label="Salary Currency"
                               MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
                             >
-                              {salaryCurrencyOptions.map((option) => (
+                          {salaryCurrencyOptions.map((option) => (
                                 <MenuItem key={option} value={option}>{option}</MenuItem>
-                              ))}
-                            </Select>
-                            {errors.salaryCurrency && <FormHelperText>{errors.salaryCurrency?.message}</FormHelperText>}
-                          </FormControl>
-                        )}
-                    />
-                  </Box>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
-                      <Controller
-                        name="salaryAmount"
-                        control={control}
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            fullWidth
-                            label="Salary Amount"
+                          ))}
+                        </Select>
+                        {errors.salaryCurrency && <FormHelperText>{errors.salaryCurrency?.message}</FormHelperText>}
+                      </FormControl>
+                    )}
+                  />
+                </Box>
+                <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+                  <Controller
+                    name="salaryAmount"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        label="Salary Amount"
                             placeholder="e.g., 100000"
-                            type="number"
-                            InputProps={{
+                        type="number"
+                        InputProps={{
                               startAdornment: currentSalaryCurrency ? (
                                 <Typography variant="body1" sx={{ mr: 1 }}>
                                   {new Intl.NumberFormat('en-US', { style: 'currency', currency: currentSalaryCurrency }).formatToParts(1).find(part => part.type === 'currency').value}
-                                </Typography>
+                            </Typography>
                               ) : null,
-                            }}
+                        }}
                             error={!!errors.salaryAmount}
                             helperText={errors.salaryAmount?.message}
-                            sx={{ '& .MuiInputBase-root': { height: 56 } }}
-                          />
-                        )}
+                        sx={{ '& .MuiInputBase-root': { height: 56 } }}
                       />
-                    </Box>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
-                      <Controller
-                        name="paymentFrequency"
-                        control={control}
-                        render={({ field }) => (
-                          <FormControl fullWidth error={!!errors.paymentFrequency} sx={{ '& .MuiOutlinedInput-root': { height: 56 } }}>
-                            <InputLabel>Payment Frequency</InputLabel>
+                    )}
+                  />
+                </Box>
+                <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+                  <Controller
+                    name="paymentFrequency"
+                    control={control}
+                    render={({ field }) => (
+                      <FormControl fullWidth error={!!errors.paymentFrequency} sx={{ '& .MuiOutlinedInput-root': { height: 56 } }}>
+                        <InputLabel>Payment Frequency</InputLabel>
                             <Select
                               {...field}
                               label="Payment Frequency"
                               MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
                             >
-                              {paymentFrequencyOptions.map((option) => (
+                          {paymentFrequencyOptions.map((option) => (
                                 <MenuItem key={option} value={option}>{option}</MenuItem>
-                              ))}
-                            </Select>
-                            {errors.paymentFrequency && <FormHelperText>{errors.paymentFrequency?.message}</FormHelperText>}
-                          </FormControl>
-                        )}
-                      />
-                    </Box>
-                  </Box>
+                          ))}
+                        </Select>
+                        {errors.paymentFrequency && <FormHelperText>{errors.paymentFrequency?.message}</FormHelperText>}
+                      </FormControl>
+                    )}
+                  />
+                </Box>
+              </Box>
 
                   {/* Bank Info Section */}
-                  <Typography
+              <Typography
                     variant="subtitle1"
-                    sx={{
-                      fontWeight: theme.typography.fontWeightBold,
-                      fontFamily: theme.typography.fontFamily,
-                      color: theme.palette.text.primary,
+                sx={{
+                  fontWeight: theme.typography.fontWeightBold,
+                  fontFamily: theme.typography.fontFamily,
+                  color: theme.palette.text.primary,
                       mt: 2,
                       mb: 1,
                       fontSize: { xs: 12, sm: 14 },
-                    }}
-                  >
+                }}
+              >
                     Bank Information
-                  </Typography>
-                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, mb: 3 }}>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
-                      <Controller
-                        name="bankName"
-                        control={control}
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            fullWidth
-                            label="Bank Name"
+              </Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, mb: 3 }}>
+                <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+                  <Controller
+                    name="bankName"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        label="Bank Name"
                             placeholder="e.g., Bank of America"
-                            error={!!errors.bankName}
-                            helperText={errors.bankName?.message}
-                            sx={{ '& .MuiInputBase-root': { height: 56 } }}
-                          />
-                        )}
+                        error={!!errors.bankName}
+                        helperText={errors.bankName?.message}
+                        sx={{ '& .MuiInputBase-root': { height: 56 } }}
                       />
-                    </Box>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
-                      <Controller
-                        name="bankAccountNumber"
-                        control={control}
+                    )}
+                  />
+                </Box>
+                <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+                  <Controller
+                    name="bankAccountNumber"
+                    control={control}
                         render={({ field }) => {
                           const { ref } = useMask({
                             mask: '00000000000000000', // Max 17 digits, all numbers
                             replacement: { '0': /\d/ },
                           });
                           return (
-                            <TextField
-                              {...field}
+                      <TextField
+                        {...field}
                               inputRef={ref} // Pass the ref to the input element
-                              fullWidth
-                              label="Bank Account Number"
+                        fullWidth
+                        label="Bank Account Number"
                               placeholder="e.g., 123456789"
-                              error={!!errors.bankAccountNumber}
-                              helperText={errors.bankAccountNumber?.message}
-                              sx={{ '& .MuiInputBase-root': { height: 56 } }}
-                            />
+                        error={!!errors.bankAccountNumber}
+                        helperText={errors.bankAccountNumber?.message}
+                        sx={{ '& .MuiInputBase-root': { height: 56 } }}
+                      />
                           );
                         }}
-                      />
-                    </Box>
-                    <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
-                      <Controller
-                        name="bankRoutingNumber"
-                        control={control}
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            fullWidth
+                  />
+                </Box>
+                <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" }, minWidth: 0 }}>
+                  <Controller
+                    name="bankRoutingNumber"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
                             label="Bank Routing Number (Optional)"
                             placeholder="e.g., 123456789"
                             type="number"
                             required={false} // Explicitly set to false to avoid automatic asterisk
-                            error={!!errors.bankRoutingNumber}
-                            helperText={errors.bankRoutingNumber?.message}
-                            sx={{ '& .MuiInputBase-root': { height: 56 } }}
-                          />
-                        )}
+                        error={!!errors.bankRoutingNumber}
+                        helperText={errors.bankRoutingNumber?.message}
+                        sx={{ '& .MuiInputBase-root': { height: 56 } }}
                       />
-                    </Box>
-                  </Box>
-                </AccordionDetails>
-              </Accordion>
+                    )}
+                  />
+                </Box>
+              </Box>
+            </AccordionDetails>
+          </Accordion>
               {/* Removed redundant Divider */}
 
               {/* Address Information */}
-              <Accordion defaultExpanded sx={{ mb: 2, boxShadow: 'none', '&::before': { display: 'none' } }}>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
+          <Accordion defaultExpanded sx={{ mb: 2, boxShadow: 'none', '&::before': { display: 'none' } }}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
                   aria-controls="address-information-content"
                   id="address-information-header"
-                  sx={{
-                    padding: 0,
-                    backgroundColor: 'transparent',
-                    flexDirection: 'row-reverse',
-                    '& .MuiAccordionSummary-expandIconWrapper.Mui-expanded': { transform: 'rotate(180deg)' },
-                    '& .MuiAccordionSummary-content': { marginLeft: theme.spacing(1) },
-                  }}
-                >
-                  <Typography
-                    sx={{
-                      fontWeight: theme.typography.fontWeightBold,
-                      fontFamily: theme.typography.fontFamily,
-                      color: theme.palette.text.primary,
+              sx={{
+                padding: 0,
+                backgroundColor: 'transparent',
+                flexDirection: 'row-reverse',
+                '& .MuiAccordionSummary-expandIconWrapper.Mui-expanded': { transform: 'rotate(180deg)' },
+                '& .MuiAccordionSummary-content': { marginLeft: theme.spacing(1) },
+              }}
+            >
+              <Typography
+                sx={{
+                  fontWeight: theme.typography.fontWeightBold,
+                  fontFamily: theme.typography.fontFamily,
+                  color: theme.palette.text.primary,
                       fontSize: { xs: 16, sm: 18 }, // Responsive font size
-                    }}
-                  >
+                }}
+              >
                     Current Address
                     <Tooltip title="Please ensure all address fields are accurately completed as they are mandatory for signup." arrow>
                       <InfoOutlinedIcon sx={{ ml: 0.5, fontSize: 18 }} />
                     </Tooltip>
-                  </Typography>
-                </AccordionSummary>
-                <AccordionDetails sx={{ padding: 0 }}>
+              </Typography>
+            </AccordionSummary>
+            <AccordionDetails sx={{ padding: 0 }}>
                   <Box sx={{ mb: 2 }}>
 
                   <Controller
@@ -1408,29 +1580,29 @@ const Signup = () => {
                     }}
                   >
                     <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" } }}> {/* Responsive flex basis */}
-                      <Controller
-                        name="state"
-                        control={control}
-                        render={({ field }) => (
-                          <Autocomplete
-                            {...field}
-                            options={indianStates}
+                  <Controller
+                    name="state"
+                    control={control}
+                    render={({ field }) => (
+                      <Autocomplete
+                        {...field}
+                        options={indianStates}
                             onChange={(e, newValue) => field.onChange(newValue)}
                             disableClearable
                             PopperProps={{ placement: "bottom-start" }} // Moved here
-                            renderInput={(params) => (
-                              <TextField
-                                {...params}
+                        renderInput={(params) => (
+                          <TextField
+                            {...params}
                             fullWidth
                                 placeholder="State"
-                                error={!!errors.state}
-                                helperText={errors.state?.message}
-                              />
-                            )}
-                            sx={{ mb: 1.5 }}
+                            error={!!errors.state}
+                            helperText={errors.state?.message}
                           />
                         )}
+                            sx={{ mb: 1.5 }}
                       />
+                    )}
+                  />
                     </Box>
                     <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" } }}> {/* Responsive flex basis */}
                       <Controller
@@ -1448,25 +1620,25 @@ const Signup = () => {
                       />
                     </Box>
                     <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" } }}> {/* Responsive flex basis */}
-                      <Controller
-                        name="postcode"
-                        control={control}
-                        render={({ field }) => (
-                          <TextField
-                            {...field}
-                            fullWidth
-                            placeholder="Postcode"
-                            error={!!errors.postcode}
-                            helperText={errors.postcode?.message}
-                          />
-                        )}
+                  <Controller
+                    name="postcode"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        placeholder="Postcode"
+                        error={!!errors.postcode}
+                        helperText={errors.postcode?.message}
                       />
+                    )}
+                  />
                     </Box>
                     <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" } }}> {/* Responsive flex basis */}
-                      <Controller
-                        name="country"
-                        control={control}
-                        render={({ field }) => (
+                  <Controller
+                    name="country"
+                    control={control}
+                    render={({ field }) => (
                           <Box sx={{ mb: 1.5 }}>
                             <FlagsSelect
                               selected={field.value}
@@ -1532,59 +1704,59 @@ const Signup = () => {
                       />
                     </Box>
                       <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" } }}> {/* Latitude */}
-                        <Controller
-                          name="latitude"
-                          control={control}
-                          render={({ field }) => (
-                            <TextField
-                              {...field}
-                              fullWidth
-                              label="Latitude"
+                  <Controller
+                    name="latitude"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        label="Latitude"
                               placeholder="e.g., 34.0522"
-                              type="number"
-                              error={!!errors.latitude}
-                              helperText={errors.latitude?.message}
-                            />
-                          )}
-                        />
+                        type="number"
+                        error={!!errors.latitude}
+                        helperText={errors.latitude?.message}
+                      />
+                    )}
+                  />
                   </Box>
                       <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 48%" } }}> {/* Longitude */}
-                        <Controller
-                          name="longitude"
-                          control={control}
-                          render={({ field }) => (
-                            <TextField
-                              {...field}
-                              fullWidth
-                              label="Longitude"
+                  <Controller
+                    name="longitude"
+                    control={control}
+                    render={({ field }) => (
+                      <TextField
+                        {...field}
+                        fullWidth
+                        label="Longitude"
                               placeholder="e.g., -118.2437"
-                              type="number"
-                              error={!!errors.longitude}
-                              helperText={errors.longitude?.message}
-                            />
-                          )}
-                        />
+                        type="number"
+                        error={!!errors.longitude}
+                        helperText={errors.longitude?.message}
+                      />
+                    )}
+                  />
                 </Box>
                     </Box>
                   </Box>
-                </AccordionDetails>
-              </Accordion>
+            </AccordionDetails>
+          </Accordion>
               {/* Removed redundant Divider */}
 
               {/* Custom Section - Main Heading */}
-              <Accordion defaultExpanded sx={{ mb: 2, boxShadow: 'none', '&::before': { display: 'none' } }}>
-                <AccordionSummary
-                  expandIcon={<ExpandMoreIcon />}
+          <Accordion defaultExpanded sx={{ mb: 2, boxShadow: 'none', '&::before': { display: 'none' } }}>
+            <AccordionSummary
+              expandIcon={<ExpandMoreIcon />}
                   aria-controls="custom-section-content"
                   id="custom-section-header"
-                  sx={{
-                    padding: 0,
-                    backgroundColor: 'transparent',
-                    flexDirection: 'row-reverse',
-                    '& .MuiAccordionSummary-expandIconWrapper.Mui-expanded': { transform: 'rotate(180deg)' },
-                    '& .MuiAccordionSummary-content': { marginLeft: theme.spacing(1) },
-                  }}
-                >
+              sx={{
+                padding: 0,
+                backgroundColor: 'transparent',
+                flexDirection: 'row-reverse',
+                '& .MuiAccordionSummary-expandIconWrapper.Mui-expanded': { transform: 'rotate(180deg)' },
+                '& .MuiAccordionSummary-content': { marginLeft: theme.spacing(1) },
+              }}
+            >
               <Typography
                 sx={{
                   fontWeight: theme.typography.fontWeightBold,
@@ -1595,26 +1767,26 @@ const Signup = () => {
               >
                 Custom Section
               </Typography>
-                </AccordionSummary>
-                <AccordionDetails sx={{ padding: 0 }}>
+            </AccordionSummary>
+            <AccordionDetails sx={{ padding: 0 }}>
                   <Box sx={{ mb: 2 }}> {/* Wrapper Box for all subsections */}
 
-                    {/* Identification Documents */}
+          {/* Identification Documents */}
               <Box sx={{ mb: 2 }}>
-                <Typography
-                  sx={{
-                    fontWeight: theme.typography.fontWeightBold,
-                    fontFamily: theme.typography.fontFamily,
-                    color: theme.palette.text.primary,
+              <Typography
+                sx={{
+                  fontWeight: theme.typography.fontWeightBold,
+                  fontFamily: theme.typography.fontFamily,
+                  color: theme.palette.text.primary,
                     mb: 1.5,
                           fontSize: { xs: 12, sm: 14 },
-                  }}
-                >
-                        Identification Documents
-                </Typography>
+                }}
+              >
+                Identification Documents
+              </Typography>
 
-                      {identificationDocumentsFields.map((item, index) => (
-                        <Box key={item.id} sx={{ mb: index < identificationDocumentsFields.length - 1 ? 2 : 0 }}>
+              {identificationDocumentsFields.map((item, index) => (
+                <Box key={item.id} sx={{ mb: index < identificationDocumentsFields.length - 1 ? 2 : 0 }}>
                     <Box
                       sx={{
                         display: "flex",
@@ -1623,10 +1795,10 @@ const Signup = () => {
                       }}
                     >
                             <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 30%" } }}>
-                        <Controller
-                                name={`identificationDocuments.${index}.documentType`}
-                          control={control}
-                          render={({ field }) => (
+                      <Controller
+                        name={`identificationDocuments.${index}.documentType`}
+                        control={control}
+                        render={({ field }) => (
                                   <Autocomplete
                               {...field}
                                     options={indianDocumentTypes}
@@ -1648,95 +1820,95 @@ const Signup = () => {
                         />
                       </Box>
                             <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 30%" } }}>
-                        <Controller
-                                name={`identificationDocuments.${index}.documentNumber`}
-                          control={control}
-                          render={({ field }) => (
-                            <TextField
-                              {...field}
-                              fullWidth
-                                    placeholder="Document Number"
-                                    error={!!errors.identificationDocuments?.[index]?.documentNumber}
-                                    helperText={errors.identificationDocuments?.[index]?.documentNumber?.message}
-                              sx={{ '& .MuiInputBase-root': { height: 56 } }}
-                            />
-                          )}
-                        />
+                      <Controller
+                        name={`identificationDocuments.${index}.documentNumber`}
+                        control={control}
+                        render={({ field }) => (
+                          <TextField
+                            {...field}
+                            fullWidth
+                            placeholder="Document Number"
+                            error={!!errors.identificationDocuments?.[index]?.documentNumber}
+                            helperText={errors.identificationDocuments?.[index]?.documentNumber?.message}
+                            sx={{ '& .MuiInputBase-root': { height: 56 } }}
+                          />
+                        )}
+                      />
                       </Box>
                             <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 30%" } }}>
-                              <Controller
-                                name={`identificationDocuments.${index}.documentFile`}
-                                control={control}
-                                render={({ field }) => (
+                      <Controller
+                        name={`identificationDocuments.${index}.documentFile`}
+                        control={control}
+                        render={({ field }) => (
                                   <FormControl fullWidth error={!!errors.identificationDocuments?.[index]?.documentFile} sx={{ height: 56 }}>
-                                    <input
-                                      accept="image/*,application/pdf"
-                                      style={{ display: 'none' }}
-                                      id={`document-upload-${index}`}
-                                      type="file"
-                                      onChange={(e) => {
-                                        if (e.target.files && e.target.files[0]) {
-                                          const reader = new FileReader();
-                                          reader.onload = (event) => {
-                                            field.onChange(event.target.result);
-                                          };
+                            <input
+                              accept="image/*,application/pdf"
+                              style={{ display: 'none' }}
+                              id={`document-upload-${index}`}
+                              type="file"
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  const reader = new FileReader();
+                                  reader.onload = (event) => {
+                                    field.onChange(event.target.result);
+                                  };
                                           reader.readAsDataURL(e.target.files[0]);
-                                        } else {
+                                } else {
                                           field.onChange(""); // Change null to empty string
-                                        }
-                                      }}
-                                    />
-                                    <label htmlFor={`document-upload-${index}`} style={{ height: '100%', display: 'flex', alignItems: 'center', border: '1px solid #c4c4c4', borderRadius: 4, padding: '0 14px', cursor: 'pointer', backgroundColor: '#fff' }}>
-                                      <Button variant="text" component="span" startIcon={<CloudUploadIcon />} sx={{ textTransform: 'none', color: '#555' }}>
+                                }
+                              }}
+                            />
+                            <label htmlFor={`document-upload-${index}`} style={{ height: '100%', display: 'flex', alignItems: 'center', border: '1px solid #c4c4c4', borderRadius: 4, padding: '0 14px', cursor: 'pointer', backgroundColor: '#fff' }}>
+                              <Button variant="text" component="span" startIcon={<CloudUploadIcon />} sx={{ textTransform: 'none', color: '#555' }}>
                                         {field.value ? "Change File" : "Upload File"}
-                                      </Button>
-                                      {field.value && (
-                                        <Box sx={{ ml: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                          <IconButton
-                                            size="small"
-                                            onClick={(e) => { e.preventDefault(); setCurrentDocumentPreview(field.value); setOpenDocumentPreview(true); }}
-                                            sx={{ color: theme.palette.primary.main }}
-                                          >
-                                            <VisibilityIcon />
-                                          </IconButton>
-                                          <IconButton
-                                            size="small"
+                              </Button>
+                              {field.value && (
+                                <Box sx={{ ml: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => { e.preventDefault(); setCurrentDocumentPreview(field.value); setOpenDocumentPreview(true); }}
+                                    sx={{ color: theme.palette.primary.main }}
+                                  >
+                                    <VisibilityIcon />
+                                  </IconButton>
+                                  <IconButton
+                                    size="small"
                                             onClick={(e) => { e.preventDefault(); field.onChange(""); }}
-                                            sx={{ color: theme.palette.error.main }}
-                                          >
-                                            <CancelOutlinedIcon fontSize="small" />
-                                          </IconButton>
-                                        </Box>
-                                      )}
-                                    </label>
-                                    {errors.identificationDocuments?.[index]?.documentFile && (
-                                      <FormHelperText>{errors.identificationDocuments?.[index]?.documentFile?.message}</FormHelperText>
-                                    )}
-                                  </FormControl>
-                                )}
-                              />
+                                    sx={{ color: theme.palette.error.main }}
+                                  >
+                                    <CancelOutlinedIcon fontSize="small" />
+                                  </IconButton>
+                                </Box>
+                              )}
+                            </label>
+                            {errors.identificationDocuments?.[index]?.documentFile && (
+                              <FormHelperText>{errors.identificationDocuments?.[index]?.documentFile?.message}</FormHelperText>
+                            )}
+                          </FormControl>
+                        )}
+                      />
                             </Box>
                             {/* Adjusted the condition to allow removal if there are more than 1 document inputs, not 2 */}
                             {identificationDocumentsFields.length > 1 && (
                         <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 auto" }, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                           <IconButton
-                            color="error"
-                                  onClick={() => removeIdentificationDocument(index)}
+                        color="error"
+                        onClick={() => removeIdentificationDocument(index)}
                                   aria-label="remove document"
                             size="small"
-                          >
+                      >
                             <CancelOutlinedIcon fontSize="small" />
                           </IconButton>
-                        </Box>
-                      )}
                     </Box>
-                  </Box>
-                ))}
+                  )}
+                    </Box>
+                </Box>
+              ))}
                 <Button
                   type="button"
                   variant="outlined"
                   size="small"
-                        onClick={() => appendIdentificationDocument({ documentType: "", documentNumber: "", documentFile: null })}
+                  onClick={() => appendIdentificationDocument({ documentType: "", documentNumber: "", documentFile: null })}
                   sx={{ mt: 1 }}
                 >
                         Add Identification Document
@@ -1830,7 +2002,7 @@ const Signup = () => {
                     {false && (
                       <Box sx={{ mb: 2 }}>
                         <Typography
-                          sx={{
+              sx={{
                             fontWeight: theme.typography.fontWeightBold,
                             fontFamily: theme.typography.fontFamily,
                             color: theme.palette.text.primary,
@@ -1881,20 +2053,20 @@ const Signup = () => {
                     {/* Hidden as per user request */}
                     {false && (
               <Box sx={{ mb: 2 }}>
-                <Typography
-                  sx={{
-                    fontWeight: theme.typography.fontWeightBold,
-                    fontFamily: theme.typography.fontFamily,
-                    color: theme.palette.text.primary,
+              <Typography
+                sx={{
+                  fontWeight: theme.typography.fontWeightBold,
+                  fontFamily: theme.typography.fontFamily,
+                  color: theme.palette.text.primary,
                     mb: 1.5,
                           fontSize: { xs: 12, sm: 14 }, // Changed to subheading font size
-                  }}
-                >
-                  Custom Fields
-                </Typography>
+                }}
+              >
+                Custom Fields
+              </Typography>
 
-                {customFieldsFields.map((item, index) => (
-                  <Box key={item.id} sx={{ mb: index < customFieldsFields.length - 1 ? 2 : 0 }}>
+              {customFieldsFields.map((item, index) => (
+                <Box key={item.id} sx={{ mb: index < customFieldsFields.length - 1 ? 2 : 0 }}>
                     <Box
                       sx={{
                         display: "flex",
@@ -1903,50 +2075,50 @@ const Signup = () => {
                       }}
                     >
                       <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 45%" } }}>
-                        <Controller
-                          name={`customFields.${index}.fieldName`}
-                          control={control}
-                          render={({ field }) => (
-                            <TextField
-                              {...field}
-                              fullWidth
+                      <Controller
+                        name={`customFields.${index}.fieldName`}
+                        control={control}
+                        render={({ field }) => (
+                          <TextField
+                            {...field}
+                            fullWidth
                               placeholder="Field Name"
-                              error={!!errors.customFields?.[index]?.fieldName}
-                              helperText={errors.customFields?.[index]?.fieldName?.message}
-                            />
-                          )}
-                        />
+                            error={!!errors.customFields?.[index]?.fieldName}
+                            helperText={errors.customFields?.[index]?.fieldName?.message}
+                          />
+                        )}
+                      />
                       </Box>
                       <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 45%" } }}>
-                        <Controller
-                          name={`customFields.${index}.fieldValue`}
-                          control={control}
-                          render={({ field }) => (
-                            <TextField
-                              {...field}
-                              fullWidth
+                      <Controller
+                        name={`customFields.${index}.fieldValue`}
+                        control={control}
+                        render={({ field }) => (
+                          <TextField
+                            {...field}
+                            fullWidth
                               placeholder="Field Value"
-                              error={!!errors.customFields?.[index]?.fieldValue}
-                              helperText={errors.customFields?.[index]?.fieldValue?.message}
-                            />
-                          )}
-                        />
+                            error={!!errors.customFields?.[index]?.fieldValue}
+                            helperText={errors.customFields?.[index]?.fieldValue?.message}
+                          />
+                        )}
+                      />
                       </Box>
                       {customFieldsFields.length > 0 && (
                         <Box sx={{ flex: { xs: "1 1 100%", sm: "1 1 auto" }, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                           <IconButton
-                            color="error"
-                            onClick={() => removeCustomField(index)}
+                        color="error"
+                        onClick={() => removeCustomField(index)}
                             aria-label="remove field"
                             size="small"
-                          >
+                      >
                             <CancelOutlinedIcon fontSize="small" />
                           </IconButton>
-                        </Box>
-                      )}
                     </Box>
-                  </Box>
-                ))}
+                  )}
+                    </Box>
+                </Box>
+              ))}
                 <Button
                   type="button"
                   variant="outlined"
@@ -1957,10 +2129,10 @@ const Signup = () => {
                   Add Custom Field
                 </Button>
               </Box>
-                    )}
+              )}
                   </Box>
-                </AccordionDetails>
-              </Accordion>
+            </AccordionDetails>
+          </Accordion>
               {/* Removed redundant Divider */}
 
               <Dialog open={openDocumentPreview} onClose={() => setOpenDocumentPreview(false)} maxWidth="md" fullWidth>
@@ -1992,19 +2164,20 @@ const Signup = () => {
               </Dialog>
 
               {/* Buttons */}
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+              {!readOnly && (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
                   mt: 4,
                   gap: 2,
                   flexDirection: { xs: "column", sm: "row" }, // Responsive flex direction
-                }}
-              >
-                <Button
-                  variant="outlined"
-                  startIcon={<ArrowBack />}
+            }}
+          >
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBack />}
                   onClick={handleBack}
                   disabled={isSubmitting}
                   sx={{
@@ -2017,13 +2190,13 @@ const Signup = () => {
                     textTransform: theme.components.MuiButton.styleOverrides.root.textTransform,
                     order: { xs: 2, sm: 1 }, // Order for mobile vs desktop
                   }}
-                >
-                  Back
-                </Button>
+            >
+              Back
+            </Button>
 
-                <Button
-                  type="submit"
-                  variant="contained"
+              <Button
+                type="submit"
+                variant="contained"
                   endIcon={
                     isSubmitting ? (
                       <CircularProgress size={20} color="inherit" />
@@ -2031,7 +2204,7 @@ const Signup = () => {
                       <ArrowForward />
                     )
                   }
-                  disabled={isSubmitting}
+                disabled={isSubmitting}
                   sx={{
                     width: { xs: "100%", sm: 140 }, // Responsive width
                     height: theme.components.MuiButton.styleOverrides.root.height,
@@ -2044,8 +2217,9 @@ const Signup = () => {
                   }}
                 >
                   {isSubmitting ? "Creating..." : "Signup"}
-                </Button>
-              </Box>
+              </Button>
+          </Box>
+              )}
 
               {/* Footer */}
               <Box
@@ -2079,7 +2253,7 @@ const Signup = () => {
             </form>
           </CardContent>
         </Card>
-      </Container>
+    </Container>
     </Box>
   );
 };

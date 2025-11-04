@@ -125,7 +125,7 @@ const Login = () => {
       navigate("/verification-code", {
         state: {
           username: email,
-          password,
+          password: password,
           mfaSessionId: null,
           maskedLabel: "Authenticator App",
           verificationCodeExpMinutes: 5,
@@ -144,7 +144,7 @@ const Login = () => {
       navigate("/verification-code", {
         state: {
           username: email,
-          password,
+          password: password,
           mfaSessionId: data?.mfaSessionId,
           maskedLabel: data?.maskedLabel,
           verificationCodeExpMinutes: data?.verificationCodeExpMinutes,

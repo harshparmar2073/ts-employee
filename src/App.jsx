@@ -5,6 +5,7 @@ import ResetPassword from './components/ResetPassword';
 import Signup from './components/CreateAccount';
 import VerificationCodePage from './pages/VerificationCodePage';
 import Layout from './theme/Layout';
+import CalendarView from './components/CalendarView';
 import Logout from './pages/auth/Logout';
 import AccountInfo from './components/AccontInfo';
 import ProfileInfo from './components/ProfileInfo';
@@ -31,7 +32,8 @@ export default function App() {
         <Route path="task-sheet" element={<TaskSheet />} />
         <Route path="account-info" element={<AccountInfo/>}/>
         <Route path="profile-info" element={<ProfileInfo/>}/>
-        <Route index element={<Navigate to="employee-form" replace />} />
+        <Route path="calendar-view" element={<CalendarView/>}/>
+        <Route index element={<Navigate to="calendar-view" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" />} />
       <Route path="/logout" element={<Logout />} />

@@ -112,6 +112,7 @@ const VerificationCodePage = () => {
   };
 
   const handleVerify = async () => {
+    console.log("Hello Shivam")
     const mfaCode = code.join("").trim();
     if (timeLeft === 0) {
       setError("Verification code has expired. Please request a new code.");
@@ -124,6 +125,7 @@ const VerificationCodePage = () => {
     setLoading(true);
     setError("");
     
+    console.log("line 127")
     try {
       const response = await verifyMfaCode({
         username,
@@ -134,6 +136,8 @@ const VerificationCodePage = () => {
         authRememberMeExpDays: state?.rememberDuration || "1",
         authRememberMe: state?.rememberMe || false,
       });
+      console.log("response", response);
+      console.log("response.data", response.data);
       const token = response.data.data?.authorizationToken;
       if (token) localStorage.setItem("authToken", token);
       localStorage.setItem("authResponse", JSON.stringify(response.data));

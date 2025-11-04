@@ -41,6 +41,7 @@ import LogoutDialog from '../components/LogoutDialog';
 
 const SidebarItems = [
   { text: 'Employee Form', icon: <PersonAdd />, expandable: false, path: '/dashboard/employee-form' },
+  { text: 'Calendar', icon: <CalendarMonth/>, expandable: false },
   { text: 'Task Sheet', icon: <Assignment />, expandable: false, path: '/dashboard/task-sheet' },
   { text: 'Logout', icon: <Logout />, expandable: false, path: '/logout' },
 ];
@@ -73,7 +74,9 @@ export default function Sidebar({
       handleExpandClick(item.text);
     } else if (item.text === 'Logout') {
       setLogoutDialogOpen(true);
-    } else {
+    }  else if (item.text === 'Calendar') {
+      navigate('/dashboard/calendar-view');
+    }else {
       setSelectedSection(item.text);
       if (item.path) {
         navigate(item.path);

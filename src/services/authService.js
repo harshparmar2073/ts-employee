@@ -19,6 +19,13 @@ export const authenticatePreMfa = async (email, password, selectedMfa) => {
 
 // Final step: verify code from selected MFA channel
 export const verifyMfaCode = async ({ username, password, mfaCode, mfaSessionId,authRememberMeExpDays,authRememberMe,mfaType }) => {
+  console.log("username", username);
+  console.log("password", password);
+  console.log("mfaType", mfaType);
+  console.log("mfaSessionId", mfaSessionId);
+  console.log("mfaCode", mfaCode);
+  console.log("authRememberMeExpDays", authRememberMeExpDays);
+  console.log("authRememberMe", authRememberMe);
   return axiosService.post('/auth/authenticate-mfa', {
     username,
     password,
@@ -28,6 +35,7 @@ export const verifyMfaCode = async ({ username, password, mfaCode, mfaSessionId,
     authRememberMeExpDays,
     authRememberMe
   });
+
 };
 
 export const logout = () => {
